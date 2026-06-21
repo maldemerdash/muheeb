@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>لوحة تحكم مهيب</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <section class="auth-screen" id="loginView">
+        <form class="auth-card" id="loginForm">
+            <img src="assets/logo-meheib.png" alt="شعار مهيب">
+            <p class="eyebrow">لوحة التحكم</p>
+            <h1>تسجيل دخول المشرف</h1>
+            <label>
+                <span>البريد الإلكتروني / اسم المستخدم المحلي</span>
+                <input type="text" name="username" autocomplete="username" required>
+            </label>
+            <label>
+                <span>كلمة المرور</span>
+                <input type="password" name="password" autocomplete="current-password" required>
+            </label>
+            <button class="primary-btn" type="submit">
+                <i data-lucide="log-in"></i>
+                <span>دخول</span>
+            </button>
+            <p class="form-message" id="loginMessage" role="status"></p>
+        </form>
+    </section>
+
+    <div class="admin-shell is-hidden" id="adminShell">
+        <aside class="sidebar">
+            <a class="admin-logo" href="/" target="_blank" rel="noopener" aria-label="فتح موقع مهيب">
+                <img src="assets/logo-meheib.png" alt="شعار مهيب">
+            </a>
+            <nav class="side-nav" aria-label="أقسام لوحة التحكم">
+                <button class="nav-item active" type="button" data-view="overviewView">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>نظرة عامة</span>
+                </button>
+                <button class="nav-item" type="button" data-view="leadsView">
+                    <i data-lucide="inbox"></i>
+                    <span>طلبات العملاء</span>
+                </button>
+                <button class="nav-item" type="button" data-view="eventsView">
+                    <i data-lucide="images"></i>
+                    <span>الفعاليات والصور</span>
+                </button>
+            </nav>
+            <a class="site-link" href="/" target="_blank" rel="noopener">
+                <i data-lucide="external-link"></i>
+                <span>عرض الموقع</span>
+            </a>
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow">مهيب للتسويق وتنظيم الفعاليات</p>
+                    <h1 id="pageTitle">نظرة عامة</h1>
+                </div>
+                <div class="topbar-actions">
+                    <span class="admin-user" id="adminUser"></span>
+                    <button class="ghost-btn" id="refreshButton" type="button">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>تحديث</span>
+                    </button>
+                    <button class="danger-btn" id="logoutButton" type="button">
+                        <i data-lucide="log-out"></i>
+                        <span>خروج</span>
+                    </button>
+                </div>
+            </header>
+
+            <p class="global-message" id="globalMessage" role="status"></p>
+
+            <section class="admin-view active" id="overviewView">
+                <div class="stats-grid">
+                    <article class="stat-card">
+                        <span>كل الطلبات</span>
+                        <strong id="leadTotal">0</strong>
+                    </article>
+                    <article class="stat-card">
+                        <span>طلبات جديدة</span>
+                        <strong id="leadNew">0</strong>
+                    </article>
+                    <article class="stat-card">
+                        <span>كل الفعاليات</span>
+                        <strong id="eventTotal">0</strong>
+                    </article>
+                    <article class="stat-card">
+                        <span>فعاليات منشورة</span>
+                        <strong id="eventPublished">0</strong>
+                    </article>
+                </div>
+                <div class="quick-grid">
+                    <article class="panel-card">
+                        <h2>آخر طلبات العملاء</h2>
+                        <div class="compact-list" id="latestLeads"></div>
+                    </article>
+                    <article class="panel-card">
+                        <h2>آخر الفعاليات</h2>
+                        <div class="compact-list" id="latestEvents"></div>
+                    </article>
+                </div>
+                <form class="panel-card settings-card" id="passwordForm">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">الأمان</p>
+                            <h2>تغيير كلمة مرور المشرف</h2>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <label>
+                            <span>كلمة المرور الحالية</span>
+                            <input type="password" name="currentPassword" autocomplete="current-password" required>
+                        </label>
+                        <label>
+                            <span>كلمة المرور الجديدة</span>
+                            <input type="password" name="newPassword" autocomplete="new-password" minlength="10" required>
+                        </label>
+                    </div>
+                    <button class="primary-btn settings-submit" type="submit">
+                        <i data-lucide="key-round"></i>
+                        <span>تحديث كلمة المرور</span>
+                    </button>
+                    <p class="form-message" id="passwordMessage" role="status"></p>
+                </form>
+            </section>
+
+            <section class="admin-view" id="leadsView">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">طلبات العملاء</p>
+                            <h2>كل النماذج المرسلة من الموقع</h2>
+                        </div>
+                        <select id="leadStatusFilter" aria-label="تصفية الطلبات حسب الحالة">
+                            <option value="all">كل الحالات</option>
+                            <option value="new">جديد</option>
+                            <option value="contacted">تم التواصل</option>
+                            <option value="done">مكتمل</option>
+                            <option value="archived">مؤرشف</option>
+                        </select>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>العميل</th>
+                                    <th>التواصل</th>
+                                    <th>الخدمة</th>
+                                    <th>المصدر</th>
+                                    <th>الحالة</th>
+                                    <th>ملاحظات</th>
+                                    <th>التاريخ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leadsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-view" id="eventsView">
+                <div class="events-layout">
+                    <form class="panel-card event-form" id="eventForm">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">إدارة الفعاليات</p>
+                                <h2 id="eventFormTitle">إضافة فعالية</h2>
+                            </div>
+                            <button class="ghost-btn" type="button" id="resetEventForm">
+                                <i data-lucide="plus"></i>
+                                <span>جديد</span>
+                            </button>
+                        </div>
+                        <input type="hidden" name="eventId" id="eventId">
+                        <div class="form-grid">
+                            <label>
+                                <span>اسم الفعالية</span>
+                                <input type="text" name="title" required>
+                            </label>
+                            <label>
+                                <span>التصنيف</span>
+                                <select name="category" required>
+                                    <option value="event">فعاليات</option>
+                                    <option value="marketing">تسويق</option>
+                                    <option value="identity">هوية</option>
+                                    <option value="operation">تشغيل</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>المدينة أو الموقع</span>
+                                <input type="text" name="location" placeholder="مثال: المدينة المنورة">
+                            </label>
+                            <label>
+                                <span>التاريخ أو المرحلة</span>
+                                <input type="text" name="eventDate" placeholder="مثال: 2026 / تخطيط وتشغيل">
+                            </label>
+                        </div>
+                        <label>
+                            <span>الوصف</span>
+                            <textarea name="description" rows="4" required></textarea>
+                        </label>
+                        <label>
+                            <span>نقاط مختصرة للعرض</span>
+                            <textarea name="highlights" rows="3" placeholder="اكتب كل نقطة في سطر مستقل"></textarea>
+                        </label>
+                        <div class="form-grid">
+                            <label>
+                                <span>ترتيب الظهور</span>
+                                <input type="number" name="sortOrder" min="0" value="0">
+                            </label>
+                            <label class="toggle-field">
+                                <input type="checkbox" name="published" checked>
+                                <span>نشر الفعالية في الموقع</span>
+                            </label>
+                        </div>
+                        <div class="upload-grid">
+                            <label class="upload-box">
+                                <span>صورة الغلاف</span>
+                                <input type="file" id="coverInput" accept="image/png,image/jpeg,image/webp,image/gif">
+                                <small id="coverName">لم يتم اختيار صورة جديدة</small>
+                            </label>
+                            <label class="upload-box">
+                                <span>صور إضافية للمعرض</span>
+                                <input type="file" id="galleryInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+                                <small id="galleryName">يمكن اختيار أكثر من صورة</small>
+                            </label>
+                        </div>
+                        <div class="preview-grid">
+                            <div>
+                                <span>معاينة الغلاف</span>
+                                <img id="coverPreview" alt="">
+                            </div>
+                            <div>
+                                <span>صور المعرض الحالية</span>
+                                <div class="gallery-preview" id="galleryPreview"></div>
+                            </div>
+                        </div>
+                        <button class="primary-btn" type="submit">
+                            <i data-lucide="save"></i>
+                            <span>حفظ الفعالية</span>
+                        </button>
+                        <p class="form-message" id="eventFormMessage" role="status"></p>
+                    </form>
+
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">الأعمال المنشورة</p>
+                                <h2>قائمة الفعاليات</h2>
+                            </div>
+                        </div>
+                        <div class="event-list" id="eventsList"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

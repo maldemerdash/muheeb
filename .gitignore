@@ -1,0 +1,10 @@
+.DS_Store
+data/
+uploads/
+tmp/
+*.sqlite3
+*.db
+*.psd
+*.pdf
+*.zip
+node_modules/
