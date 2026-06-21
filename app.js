@@ -508,9 +508,11 @@ const toTop = document.getElementById("toTop");
 const floatingActions = document.querySelector(".floating-actions");
 const siteFooter = document.getElementById("siteFooter");
 
-window.addEventListener("scroll", () => {
+const updateFloatingActions = () => {
     toTop?.classList.toggle("visible", window.scrollY > 500);
-});
+};
+
+window.addEventListener("scroll", updateFloatingActions);
 
 toTop?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -519,12 +521,16 @@ toTop?.addEventListener("click", () => {
 if (floatingActions && siteFooter) {
     const footerObserver = new IntersectionObserver(
         ([entry]) => {
+            updateFloatingActions();
+            toTop?.classList.toggle("visible", entry.isIntersecting || window.scrollY > 500);
             floatingActions.classList.toggle("over-footer", entry.isIntersecting);
         },
         { threshold: 0.08 }
     );
     footerObserver.observe(siteFooter);
 }
+
+updateFloatingActions();
 
 initIcons();
 renderProjectCards(staticEvents);

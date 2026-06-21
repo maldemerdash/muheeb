@@ -920,10 +920,10 @@ button {
 
 .footer-grid {
     display: grid;
-    grid-template-columns: minmax(260px, 1.1fr) minmax(300px, 1fr) minmax(280px, 0.9fr);
-    gap: 22px;
-    padding: 58px 0;
-    align-items: stretch;
+    grid-template-columns: minmax(420px, 1.35fr) minmax(320px, 0.85fr);
+    gap: 28px 34px;
+    padding: 54px 0 32px;
+    align-items: start;
 }
 
 .footer-brand,
@@ -932,29 +932,42 @@ button {
     display: grid;
     align-content: start;
     gap: 16px;
-    min-height: 100%;
 }
 
 .footer-brand {
-    padding-inline-end: 16px;
+    align-content: center;
+    min-height: 252px;
+    padding-inline-start: 32px;
 }
 
-.footer-contact,
-.footer-official {
-    padding: 18px;
+.footer-contact {
+    padding: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.035);
 }
 
+.footer-official {
+    grid-column: 1 / -1;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px 18px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.028);
+}
+
 .site-footer img {
-    width: 185px;
+    width: 210px;
     filter: brightness(0) invert(1);
 }
 
 .site-footer p {
-    max-width: 360px;
+    max-width: 520px;
     margin: 18px 0 0;
+    font-size: 1.05rem;
+    line-height: 2;
 }
 
 .site-footer h3 {
@@ -966,21 +979,25 @@ button {
 .footer-contact-list,
 .official-data {
     display: grid;
-    gap: 10px;
+    gap: 8px;
+}
+
+.official-data {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .footer-contact-item,
 .official-data span {
-    min-height: 68px;
+    min-height: 56px;
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-columns: 36px minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
-    padding: 12px;
+    gap: 10px;
+    padding: 10px;
     border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: 8px;
     color: rgba(255, 255, 255, 0.86);
-    background: rgba(255, 255, 255, 0.035);
+    background: rgba(255, 255, 255, 0.025);
 }
 
 .footer-contact-item {
@@ -995,7 +1012,7 @@ button {
 .footer-contact-item b,
 .official-data b {
     display: block;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     color: var(--white);
     font-weight: 800;
     font-style: normal;
@@ -1011,8 +1028,8 @@ button {
 
 .footer-icon,
 .official-data > span > svg {
-    width: 42px;
-    height: 42px;
+    width: 36px;
+    height: 36px;
     display: grid;
     place-items: center;
     border-radius: 8px;
@@ -1020,14 +1037,23 @@ button {
     background: rgba(196, 155, 58, 0.12);
 }
 
+.official-data > span {
+    min-height: 54px;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 6px 8px;
+    padding: 9px 10px;
+}
+
 .official-data > span > svg {
-    padding: 11px;
+    width: 30px;
+    height: 30px;
+    padding: 7px;
     stroke-width: 2.2;
 }
 
 .footer-icon svg {
-    width: 21px;
-    height: 21px;
+    width: 19px;
+    height: 19px;
     padding: 0;
     stroke-width: 2.2;
 }
@@ -1039,6 +1065,23 @@ button {
 .official-data > span > b,
 .official-data > span > em {
     grid-column: 2;
+}
+
+.official-data > span > b {
+    margin: 0;
+    color: var(--gold);
+    font-size: 0.84rem;
+    white-space: nowrap;
+}
+
+.official-data > span > em {
+    direction: ltr;
+    unicode-bidi: plaintext;
+    min-width: 0;
+    font-size: 0.84rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .site-footer a:hover {
@@ -1517,6 +1560,19 @@ body.modal-open {
     .after-sale-grid,
     .interest-grid,
     .footer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .footer-brand {
+        min-height: auto;
+        padding-inline-start: 0;
+    }
+
+    .footer-official {
+        grid-template-columns: 1fr;
+    }
+
+    .official-data {
         grid-template-columns: 1fr;
     }
 }
