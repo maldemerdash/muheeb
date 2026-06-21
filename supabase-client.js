@@ -75,6 +75,44 @@
         updatedAt: lead.updated_at || lead.updatedAt,
     });
 
+    const toCamelAdminUser = (user) => ({
+        id: user.user_id || user.id,
+        userId: user.user_id || user.userId || user.id,
+        fullName: user.full_name || user.fullName || user.email || "",
+        phone: user.phone || "",
+        email: user.email || "",
+        role: user.role || "user",
+        permissions: user.permissions || {},
+        active: user.active !== false,
+        createdAt: user.created_at || user.createdAt,
+        updatedAt: user.updated_at || user.updatedAt,
+    });
+
+    const toCamelNotification = (notification) => ({
+        id: notification.id,
+        actorUserId: notification.actor_user_id || notification.actorUserId || "",
+        targetUserId: notification.target_user_id || notification.targetUserId || "",
+        leadId: notification.lead_id || notification.leadId || null,
+        noteId: notification.note_id || notification.noteId || "",
+        kind: notification.kind || "note_done",
+        title: notification.title || "",
+        message: notification.message || "",
+        readBy: notification.read_by || notification.readBy || [],
+        createdAt: notification.created_at || notification.createdAt,
+    });
+
+    const toCamelLeadNote = (note) => ({
+        id: note.id,
+        leadId: note.lead_id || note.leadId,
+        text: note.body || note.text || "",
+        done: Boolean(note.done),
+        createdBy: note.created_by || note.createdBy || "",
+        assignedTo: note.assigned_to || note.assignedTo || "",
+        createdAt: note.created_at || note.createdAt,
+        doneAt: note.done_at || note.doneAt || "",
+        updatedAt: note.updated_at || note.updatedAt,
+    });
+
     const categoryLabels = {
         event: "فعاليات",
         marketing: "تسويق",
@@ -129,6 +167,32 @@
         if (error) throw error;
         if (!data) throw new Error("هذا الحساب ليس لديه صلاحية إدارة.");
         return user;
+    };
+
+    const createAuthUser = async ({ email, password, fullName, phone }) => {
+        const supabaseGlobal = await loadSupabaseLibrary();
+        const tempClient = supabaseGlobal.createClient(config.url, config.anonKey, {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false,
+                storageKey: `muheeb-user-create-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`,
+            },
+        });
+        const { data, error } = await tempClient.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: fullName,
+                    phone,
+                },
+            },
+        });
+        await tempClient.auth.signOut().catch(() => null);
+        if (error) throw error;
+        if (!data.user?.id) throw new Error("تعذر إنشاء حساب المستخدم.");
+        return data.user;
     };
 
     const countRows = async (table, buildQuery) => {
@@ -305,10 +369,7 @@
                 await client.auth.signOut();
                 throw new Error("هذا الحساب ليس لديه صلاحية إدارة.");
             }
-            return {
-                id: data.user.id,
-                username: data.user.email,
-            };
+            return this.getCurrentAdmin();
         },
 
         async isCurrentUserAdmin() {
@@ -326,9 +387,16 @@
                 return payload.admin;
             }
             const user = await requireAdmin();
+            const { data, error } = await client
+                .from("admin_users")
+                .select("*")
+                .eq("user_id", user.id)
+                .single();
+            if (error) throw error;
             return {
-                id: user.id,
-                username: user.email,
+                ...toCamelAdminUser(data),
+                username: data.full_name || data.email || user.email,
+                authEmail: user.email,
             };
         },
 
@@ -357,6 +425,74 @@
             return { leadTotal, leadNew, eventTotal, eventPublished };
         },
 
+        async listAdminUsers() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("admin_users")
+                .select("*")
+                .order("role", { ascending: true })
+                .order("full_name", { ascending: true });
+            if (error) throw error;
+            return (data || []).map(toCamelAdminUser);
+        },
+
+        async saveAdminUser(payload, userId) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const permissions = payload.permissions || {};
+            const row = {
+                full_name: String(payload.fullName || "").trim(),
+                phone: String(payload.phone || "").trim(),
+                email: String(payload.email || "").trim().toLowerCase(),
+                role: payload.role || "user",
+                permissions,
+                active: payload.active !== false,
+                updated_at: new Date().toISOString(),
+            };
+            if (!row.full_name) throw new Error("اسم المستخدم مطلوب.");
+            if (!row.email) throw new Error("إيميل المستخدم مطلوب.");
+            if (userId) {
+                const { data, error } = await client
+                    .from("admin_users")
+                    .update(row)
+                    .eq("user_id", userId)
+                    .select("*")
+                    .single();
+                if (error) throw error;
+                return toCamelAdminUser(data);
+            }
+            if (!payload.password || String(payload.password).length < 8) {
+                throw new Error("كلمة السر مطلوبة ولا تقل عن 8 أحرف للمستخدم الجديد.");
+            }
+            const authUser = await createAuthUser({
+                email: row.email,
+                password: payload.password,
+                fullName: row.full_name,
+                phone: row.phone,
+            });
+            const { data, error } = await client
+                .from("admin_users")
+                .insert({
+                    user_id: authUser.id,
+                    ...row,
+                })
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelAdminUser(data);
+        },
+
+        async deleteAdminUser(userId) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { error } = await client
+                .from("admin_users")
+                .delete()
+                .eq("user_id", userId);
+            if (error) throw error;
+        },
+
         async listLeads() {
             const client = await getSupabaseClient();
             if (!client) {
@@ -371,6 +507,51 @@
                 .limit(300);
             if (error) throw error;
             return (data || []).map(toCamelLead);
+        },
+
+        async listLeadNotes() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("lead_notes")
+                .select("*")
+                .order("created_at", { ascending: true });
+            if (error) throw error;
+            return (data || []).map(toCamelLeadNote);
+        },
+
+        async createLeadNote(payload) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data, error } = await client
+                .from("lead_notes")
+                .insert({
+                    lead_id: payload.leadId,
+                    body: payload.text,
+                    created_by: user.id,
+                    assigned_to: payload.assignedTo || user.id,
+                })
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelLeadNote(data);
+        },
+
+        async completeLeadNote(noteId) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("lead_notes")
+                .update({
+                    done: true,
+                    done_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("id", noteId)
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelLeadNote(data);
         },
 
         async updateLead(leadId, values) {
@@ -395,6 +576,50 @@
                 .single();
             if (error) throw error;
             return toCamelLead(data);
+        },
+
+        async deleteLead(leadId) {
+            const client = await getSupabaseClient();
+            if (!client) {
+                await localJson(`/api/admin/leads/${leadId}`, { method: "DELETE" });
+                return;
+            }
+            await requireAdmin();
+            const { error } = await client.from("leads").delete().eq("id", leadId);
+            if (error) throw error;
+        },
+
+        async listNotifications() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("admin_notifications")
+                .select("*")
+                .order("created_at", { ascending: false })
+                .limit(30);
+            if (error) throw error;
+            return (data || []).map(toCamelNotification);
+        },
+
+        async createNotification(payload) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const row = {
+                actor_user_id: user.id,
+                target_user_id: payload.targetUserId || null,
+                lead_id: payload.leadId || null,
+                note_id: payload.noteId || null,
+                kind: payload.kind || "note_done",
+                title: payload.title,
+                message: payload.message,
+            };
+            const { data, error } = await client
+                .from("admin_notifications")
+                .insert(row)
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelNotification(data);
         },
 
         async listAdminEvents() {

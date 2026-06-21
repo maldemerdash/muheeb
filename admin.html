@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
     <section class="auth-screen" id="loginView">
         <form class="auth-card" id="loginForm">
             <img src="assets/logo-meheib.png" alt="شعار مهيب">
@@ -38,29 +39,37 @@
                 <img src="assets/logo-meheib.png" alt="شعار مهيب">
             </a>
             <nav class="side-nav" aria-label="أقسام لوحة التحكم">
-                <button class="nav-item active" type="button" data-view="overviewView">
+                <button class="nav-item active" type="button" data-view="overviewView" data-permission="overview">
                     <i data-lucide="layout-dashboard"></i>
                     <span>نظرة عامة</span>
                 </button>
-                <button class="nav-item" type="button" data-view="leadsView">
+                <button class="nav-item" type="button" data-view="leadsView" data-permission="leads">
                     <i data-lucide="inbox"></i>
                     <span>طلبات العملاء</span>
                 </button>
-                <button class="nav-item" type="button" data-view="contentView">
+                <button class="nav-item" type="button" data-view="contentView" data-permission="content">
                     <i data-lucide="file-pen-line"></i>
                     <span>محتوى الموقع</span>
                 </button>
-                <button class="nav-item" type="button" data-view="siteImagesView">
+                <button class="nav-item" type="button" data-view="siteImagesView" data-permission="site_images">
                     <i data-lucide="image-up"></i>
                     <span>صور الموقع</span>
                 </button>
-                <button class="nav-item" type="button" data-view="interestOptionsView">
+                <button class="nav-item" type="button" data-view="interestOptionsView" data-permission="interest_options">
                     <i data-lucide="list-plus"></i>
                     <span>اختيارات النموذج</span>
                 </button>
-                <button class="nav-item" type="button" data-view="eventsView">
+                <button class="nav-item" type="button" data-view="eventsView" data-permission="events">
                     <i data-lucide="images"></i>
                     <span>الفعاليات والمعرض</span>
+                </button>
+                <button class="nav-item" type="button" data-view="usersView" data-permission="users">
+                    <i data-lucide="users-round"></i>
+                    <span>المستخدمون</span>
+                </button>
+                <button class="nav-item" type="button" data-view="securityView" data-permission="security">
+                    <i data-lucide="shield-check"></i>
+                    <span>الأمان</span>
                 </button>
             </nav>
             <a class="site-link" href="/" target="_blank" rel="noopener">
@@ -76,15 +85,41 @@
                     <h1 id="pageTitle">نظرة عامة</h1>
                 </div>
                 <div class="topbar-actions">
-                    <span class="admin-user" id="adminUser"></span>
-                    <button class="ghost-btn" id="refreshButton" type="button">
+                    <button class="icon-btn" id="refreshButton" type="button" title="تحديث">
                         <i data-lucide="refresh-cw"></i>
-                        <span>تحديث</span>
                     </button>
-                    <button class="danger-btn" id="logoutButton" type="button">
-                        <i data-lucide="log-out"></i>
-                        <span>خروج</span>
-                    </button>
+                    <div class="action-menu">
+                        <button class="icon-btn" id="notificationsButton" type="button" title="الإشعارات">
+                            <i data-lucide="bell"></i>
+                            <span class="notification-badge is-hidden" id="notificationBadge">0</span>
+                        </button>
+                        <div class="dropdown-panel notifications-menu is-hidden" id="notificationsMenu">
+                            <div class="dropdown-header">
+                                <strong>الإشعارات</strong>
+                                <span id="notificationCount">0</span>
+                            </div>
+                            <div class="notification-list" id="notificationList"></div>
+                        </div>
+                    </div>
+                    <div class="action-menu">
+                        <button class="avatar-button" id="profileButton" type="button" title="الملف الشخصي">
+                            <i data-lucide="user-round"></i>
+                        </button>
+                        <div class="dropdown-panel profile-menu is-hidden" id="profileMenu">
+                            <div class="profile-summary">
+                                <strong id="profileName">مستخدم</strong>
+                                <span id="profileEmail">-</span>
+                            </div>
+                            <button class="menu-row" type="button" data-profile-open>
+                                <i data-lucide="id-card"></i>
+                                <span>الملف الشخصي</span>
+                            </button>
+                            <button class="menu-row danger-text" type="button" id="logoutButton">
+                                <i data-lucide="log-out"></i>
+                                <span>تسجيل خروج</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -92,19 +127,19 @@
 
             <section class="admin-view active" id="overviewView">
                 <div class="stats-grid">
-                    <article class="stat-card">
+                    <article class="stat-card stat-burgundy">
                         <span>كل الطلبات</span>
                         <strong id="leadTotal">0</strong>
                     </article>
-                    <article class="stat-card">
+                    <article class="stat-card stat-gold">
                         <span>طلبات جديدة</span>
                         <strong id="leadNew">0</strong>
                     </article>
-                    <article class="stat-card">
+                    <article class="stat-card stat-stone">
                         <span>كل الفعاليات</span>
                         <strong id="eventTotal">0</strong>
                     </article>
-                    <article class="stat-card">
+                    <article class="stat-card stat-green">
                         <span>فعاليات منشورة</span>
                         <strong id="eventPublished">0</strong>
                     </article>
@@ -115,33 +150,10 @@
                         <div class="compact-list" id="latestLeads"></div>
                     </article>
                     <article class="panel-card">
-                        <h2>آخر الفعاليات</h2>
-                        <div class="compact-list" id="latestEvents"></div>
+                        <h2>مؤشر النشاط</h2>
+                        <div class="activity-chart" id="activityChart"></div>
                     </article>
                 </div>
-                <form class="panel-card settings-card" id="passwordForm">
-                    <div class="panel-header">
-                        <div>
-                            <p class="eyebrow">الأمان</p>
-                            <h2>تغيير كلمة مرور المشرف</h2>
-                        </div>
-                    </div>
-                    <div class="form-grid">
-                        <label>
-                            <span>كلمة المرور الحالية</span>
-                            <input type="password" name="currentPassword" autocomplete="current-password" required>
-                        </label>
-                        <label>
-                            <span>كلمة المرور الجديدة</span>
-                            <input type="password" name="newPassword" autocomplete="new-password" minlength="10" required>
-                        </label>
-                    </div>
-                    <button class="primary-btn settings-submit" type="submit">
-                        <i data-lucide="key-round"></i>
-                        <span>تحديث كلمة المرور</span>
-                    </button>
-                    <p class="form-message" id="passwordMessage" role="status"></p>
-                </form>
             </section>
 
             <section class="admin-view" id="leadsView">
@@ -414,6 +426,88 @@
                     </div>
                 </div>
             </section>
+
+            <section class="admin-view" id="usersView">
+                <div class="users-layout">
+                    <form class="panel-card user-form" id="userForm">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">الفريق والصلاحيات</p>
+                                <h2 id="userFormTitle">إضافة مستخدم</h2>
+                            </div>
+                            <button class="ghost-btn" type="button" id="resetUserForm">
+                                <i data-lucide="plus"></i>
+                                <span>جديد</span>
+                            </button>
+                        </div>
+                        <input type="hidden" name="userId">
+                        <div class="form-grid">
+                            <label>
+                                <span>اسم المستخدم</span>
+                                <input type="text" name="fullName" required>
+                            </label>
+                            <label>
+                                <span>رقم الجوال</span>
+                                <input type="tel" name="phone" placeholder="05xxxxxxxx">
+                            </label>
+                            <label>
+                                <span>الإيميل</span>
+                                <input type="email" name="email" autocomplete="off" required>
+                            </label>
+                            <label>
+                                <span>كلمة السر</span>
+                                <input type="password" name="password" autocomplete="new-password" minlength="8">
+                            </label>
+                        </div>
+                        <div class="permission-grid" id="permissionsGrid"></div>
+                        <label class="toggle-field">
+                            <input type="checkbox" name="active" checked>
+                            <span>المستخدم مفعل</span>
+                        </label>
+                        <button class="primary-btn" type="submit">
+                            <i data-lucide="save"></i>
+                            <span>حفظ المستخدم</span>
+                        </button>
+                        <p class="form-message" id="userFormMessage" role="status"></p>
+                    </form>
+
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">المستخدمون الحاليون</p>
+                                <h2>قائمة الفريق</h2>
+                            </div>
+                        </div>
+                        <div class="users-list" id="usersList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-view" id="securityView">
+                <form class="panel-card settings-card" id="passwordForm">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">الأمان</p>
+                            <h2>تغيير كلمة المرور</h2>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <label>
+                            <span>كلمة المرور الحالية</span>
+                            <input type="password" name="currentPassword" autocomplete="current-password" required>
+                        </label>
+                        <label>
+                            <span>كلمة المرور الجديدة</span>
+                            <input type="password" name="newPassword" autocomplete="new-password" minlength="10" required>
+                        </label>
+                    </div>
+                    <button class="primary-btn settings-submit" type="submit">
+                        <i data-lucide="key-round"></i>
+                        <span>تحديث كلمة المرور</span>
+                    </button>
+                    <p class="form-message" id="passwordMessage" role="status"></p>
+                </form>
+            </section>
         </main>
     </div>
 
@@ -428,6 +522,7 @@
                     <i data-lucide="x"></i>
                 </button>
             </header>
+            <div class="lead-progress-panel" id="leadModalProgress"></div>
             <div class="lead-detail-grid" id="leadDetailGrid"></div>
             <div class="lead-note-panel">
                 <div class="panel-header compact-header">
@@ -438,6 +533,7 @@
                 </div>
                 <form class="note-compose" id="leadNoteForm">
                     <textarea name="note" rows="3" placeholder="اكتب ملاحظة متابعة جديدة"></textarea>
+                    <select name="assignedTo" id="leadNoteAssignee" aria-label="إسناد الملاحظة"></select>
                     <button class="primary-btn" type="submit">
                         <i data-lucide="plus"></i>
                         <span>إضافة ملاحظة</span>

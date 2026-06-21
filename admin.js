@@ -7,13 +7,17 @@ const initIcons = () => {
 const state = {
     admin: null,
     leads: [],
+    leadNotes: [],
     events: [],
     siteContent: [],
     siteImages: [],
     interestOptions: [],
+    users: [],
+    notifications: [],
     activeView: "overviewView",
     editingEvent: null,
     editingInterestOption: null,
+    editingUser: null,
     activeLeadId: null,
     coverPath: "",
 };
@@ -59,16 +63,38 @@ const siteImageGroupOrder = {
     custom: 90,
 };
 
+const permissionItems = [
+    { key: "overview", label: "نظرة عامة" },
+    { key: "leads", label: "طلبات العملاء" },
+    { key: "content", label: "محتوى الموقع" },
+    { key: "site_images", label: "صور الموقع" },
+    { key: "interest_options", label: "اختيارات النموذج" },
+    { key: "events", label: "الفعاليات والمعرض" },
+    { key: "users", label: "المستخدمون والصلاحيات" },
+    { key: "security", label: "الأمان" },
+    { key: "delete_leads", label: "حذف طلبات العملاء" },
+    { key: "assign_notes", label: "إسناد ملاحظات المتابعة" },
+];
+
 const loginView = document.getElementById("loginView");
 const adminShell = document.getElementById("adminShell");
 const loginForm = document.getElementById("loginForm");
 const loginMessage = document.getElementById("loginMessage");
 const globalMessage = document.getElementById("globalMessage");
 const pageTitle = document.getElementById("pageTitle");
-const adminUser = document.getElementById("adminUser");
+const toastStack = document.getElementById("toastStack");
+const profileName = document.getElementById("profileName");
+const profileEmail = document.getElementById("profileEmail");
+const profileButton = document.getElementById("profileButton");
+const profileMenu = document.getElementById("profileMenu");
+const notificationsButton = document.getElementById("notificationsButton");
+const notificationsMenu = document.getElementById("notificationsMenu");
+const notificationList = document.getElementById("notificationList");
+const notificationBadge = document.getElementById("notificationBadge");
+const notificationCount = document.getElementById("notificationCount");
 const leadsTable = document.getElementById("leadsTable");
 const latestLeads = document.getElementById("latestLeads");
-const latestEvents = document.getElementById("latestEvents");
+const activityChart = document.getElementById("activityChart");
 const eventsList = document.getElementById("eventsList");
 const eventForm = document.getElementById("eventForm");
 const eventFormTitle = document.getElementById("eventFormTitle");
@@ -101,6 +127,13 @@ const leadModalTitle = document.getElementById("leadModalTitle");
 const leadDetailGrid = document.getElementById("leadDetailGrid");
 const leadNotesList = document.getElementById("leadNotesList");
 const leadNoteForm = document.getElementById("leadNoteForm");
+const leadNoteAssignee = document.getElementById("leadNoteAssignee");
+const leadModalProgress = document.getElementById("leadModalProgress");
+const userForm = document.getElementById("userForm");
+const userFormTitle = document.getElementById("userFormTitle");
+const userFormMessage = document.getElementById("userFormMessage");
+const permissionsGrid = document.getElementById("permissionsGrid");
+const usersList = document.getElementById("usersList");
 
 const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -132,6 +165,11 @@ const parseLeadNotes = (value) => {
                 done: Boolean(note.done),
                 createdAt: note.createdAt || "",
                 doneAt: note.doneAt || "",
+                createdBy: note.createdBy || "",
+                createdByName: note.createdByName || "",
+                assignedTo: note.assignedTo || "",
+                assignedToName: note.assignedToName || "",
+                legacy: false,
             })).filter((note) => note.text);
         }
     } catch (error) {
@@ -141,6 +179,11 @@ const parseLeadNotes = (value) => {
             done: false,
             createdAt: "",
             doneAt: "",
+            createdBy: "",
+            createdByName: "",
+            assignedTo: "",
+            assignedToName: "",
+            legacy: true,
         }].filter((note) => note.text);
     }
     return [];
@@ -150,11 +193,74 @@ const stringifyLeadNotes = (notes) => JSON.stringify(notes);
 
 const getActiveLead = () => state.leads.find((lead) => lead.id === state.activeLeadId);
 
+const isOwner = () => state.admin?.role === "owner";
+
+const can = (permission) => (
+    isOwner() ||
+    state.admin?.permissions?.all === true ||
+    state.admin?.permissions?.[permission] === true
+);
+
+const getDisplayName = (user = state.admin) => user?.fullName || user?.username || user?.email || user?.authEmail || "مستخدم";
+
+const getUserById = (userId) => state.users.find((user) => user.userId === userId);
+
+const canViewNote = (note) => {
+    if (isOwner() || can("users")) return true;
+    if (!note.assignedTo) return true;
+    return note.assignedTo === state.admin?.userId;
+};
+
+const enrichLeadNote = (note) => {
+    const assignee = getUserById(note.assignedTo);
+    const creator = getUserById(note.createdBy);
+    return {
+        ...note,
+        assignedToName: note.assignedToName || (assignee ? getDisplayName(assignee) : "غير محدد"),
+        createdByName: note.createdByName || (creator ? getDisplayName(creator) : ""),
+    };
+};
+
+const getLeadNotes = (lead) => [
+    ...parseLeadNotes(lead.adminNotes),
+    ...state.leadNotes
+        .filter((note) => Number(note.leadId) === Number(lead.id))
+        .map(enrichLeadNote),
+];
+
+const getVisibleNotes = (lead) => getLeadNotes(lead).filter(canViewNote);
+
+const getProgress = (lead) => {
+    const notes = getVisibleNotes(lead);
+    const total = notes.length;
+    const done = notes.filter((note) => note.done).length;
+    return {
+        total,
+        done,
+        percent: total ? Math.round((done / total) * 100) : 0,
+    };
+};
+
 const getLatestNoteText = (lead) => {
-    const notes = parseLeadNotes(lead.adminNotes);
+    const notes = getVisibleNotes(lead);
     if (!notes.length) return "لا توجد ملاحظات";
     const latest = notes[notes.length - 1];
     return `${latest.done ? "تم: " : ""}${latest.text}`;
+};
+
+const renderProgressBar = (lead, compact = false) => {
+    const progress = getProgress(lead);
+    return `
+        <div class="progress-wrap ${compact ? "compact-progress" : ""}">
+            <div class="progress-meta">
+                <span>${progress.done} من ${progress.total} منجزة</span>
+                <strong>${progress.percent}%</strong>
+            </div>
+            <div class="progress-track">
+                <span style="width: ${progress.percent}%"></span>
+            </div>
+        </div>
+    `;
 };
 
 const getSiteImagePageRank = (image) => {
@@ -172,20 +278,37 @@ const sortSiteImagesByPageOrder = (images) => [...(images || [])].sort((a, b) =>
     return (a.id || 0) - (b.id || 0);
 });
 
-const showMessage = (message, target = globalMessage) => {
-    if (!target) return;
-    target.textContent = message;
-    if (message) {
+const showMessage = (message, target = globalMessage, type = "success") => {
+    if (!message) return;
+    if (target) {
+        target.textContent = message;
         window.setTimeout(() => {
             if (target.textContent === message) target.textContent = "";
-        }, 4200);
+        }, 3000);
     }
+    if (!toastStack) return;
+    const toast = document.createElement("div");
+    toast.className = `toast ${type === "error" ? "is-error" : "is-success"}`;
+    toast.innerHTML = `
+        <i data-lucide="${type === "error" ? "alert-circle" : "check-circle-2"}"></i>
+        <span>${escapeHtml(message)}</span>
+    `;
+    toastStack.appendChild(toast);
+    initIcons();
+    window.setTimeout(() => {
+        toast.classList.add("is-leaving");
+        window.setTimeout(() => toast.remove(), 260);
+    }, 3000);
 };
+
+const showError = (message, target = globalMessage) => showMessage(message || "حدث خطأ غير متوقع.", target, "error");
 
 const showApp = () => {
     loginView.classList.add("is-hidden");
     adminShell.classList.remove("is-hidden");
-    adminUser.textContent = state.admin ? `مرحبًا ${state.admin.username}` : "";
+    profileName.textContent = getDisplayName();
+    profileEmail.textContent = state.admin?.email || state.admin?.authEmail || "";
+    applyPermissions();
 };
 
 const showLogin = () => {
@@ -194,6 +317,15 @@ const showLogin = () => {
 };
 
 const setView = (viewId) => {
+    const targetButton = document.querySelector(`[data-view="${viewId}"]`);
+    const permission = targetButton?.dataset.permission;
+    if (permission && !can(permission)) {
+        const fallback = getFirstAllowedView();
+        if (fallback && fallback !== viewId) {
+            setView(fallback);
+        }
+        return;
+    }
     state.activeView = viewId;
     document.querySelectorAll(".admin-view").forEach((view) => {
         view.classList.toggle("active", view.id === viewId);
@@ -202,6 +334,26 @@ const setView = (viewId) => {
         button.classList.toggle("active", button.dataset.view === viewId);
     });
     pageTitle.textContent = document.querySelector(`[data-view="${viewId}"] span`)?.textContent || "لوحة التحكم";
+};
+
+const getFirstAllowedView = () => {
+    const button = Array.from(document.querySelectorAll(".nav-item")).find((item) => {
+        const permission = item.dataset.permission;
+        return !permission || can(permission);
+    });
+    return button?.dataset.view || "overviewView";
+};
+
+const applyPermissions = () => {
+    document.querySelectorAll("[data-permission]").forEach((element) => {
+        element.classList.toggle("is-hidden", !can(element.dataset.permission));
+    });
+    document.querySelectorAll("[data-requires-delete-leads]").forEach((element) => {
+        element.classList.toggle("is-hidden", !can("delete_leads"));
+    });
+    if (!can(document.querySelector(`[data-view="${state.activeView}"]`)?.dataset.permission || "overview")) {
+        setView(getFirstAllowedView());
+    }
 };
 
 const loadAll = async () => {
@@ -213,6 +365,9 @@ const loadAll = async () => {
     let siteContent = [];
     let siteImages = [];
     let interestOptions = [];
+    let users = [];
+    let notifications = [];
+    let leadNotes = [];
     try {
         [siteContent, siteImages, interestOptions] = await Promise.all([
             window.MuheebData.listSiteContent(),
@@ -222,17 +377,35 @@ const loadAll = async () => {
     } catch (error) {
         showMessage("لتفعيل إدارة المحتوى والصور والاختيارات شغّل ملف supabase/cms_upgrade.sql في Supabase.");
     }
+    try {
+        [users, notifications, leadNotes] = await Promise.all([
+            window.MuheebData.listAdminUsers(),
+            window.MuheebData.listNotifications(),
+            window.MuheebData.listLeadNotes(),
+        ]);
+    } catch (error) {
+        users = state.admin ? [state.admin] : [];
+        notifications = [];
+        leadNotes = [];
+        showMessage("لتفعيل المستخدمين والصلاحيات شغّل ملف supabase/team_permissions_upgrade.sql في Supabase.", globalMessage, "error");
+    }
     state.leads = leads || [];
+    state.leadNotes = leadNotes || [];
     state.events = events || [];
     state.siteContent = siteContent || [];
     state.siteImages = sortSiteImagesByPageOrder(siteImages);
     state.interestOptions = interestOptions || [];
+    state.users = users || [];
+    state.notifications = notifications || [];
     renderStats(stats || {});
     renderLeads();
     renderEvents();
     renderContentEditor();
     renderSiteImages();
     renderInterestOptions();
+    renderUsers();
+    renderNotifications();
+    applyPermissions();
     initIcons();
 };
 
@@ -243,19 +416,30 @@ const renderStats = (stats) => {
     document.getElementById("eventPublished").textContent = stats.eventPublished || 0;
 
     latestLeads.innerHTML = state.leads.slice(0, 5).map((lead) => `
-        <div class="compact-item">
+        <button class="compact-item clickable-compact" type="button" data-open-lead="${lead.id}">
             <strong>${escapeHtml(lead.name)}</strong>
             <span>${escapeHtml(lead.countryCode)} ${escapeHtml(lead.phone)} - ${escapeHtml(lead.service)}</span>
             <span>${formatDate(lead.createdAt)}</span>
-        </div>
+            ${renderProgressBar(lead, true)}
+        </button>
     `).join("") || `<div class="compact-item"><span>لا توجد طلبات حتى الآن.</span></div>`;
 
-    latestEvents.innerHTML = state.events.slice(0, 5).map((event) => `
-        <div class="compact-item">
-            <strong>${escapeHtml(event.title)}</strong>
-            <span>${escapeHtml(labels[event.category] || event.category)} - ${event.published ? "منشور" : "مخفي"}</span>
+    const chartRows = [
+        { label: "طلبات العملاء", value: stats.leadTotal || 0, color: "var(--burgundy)" },
+        { label: "طلبات جديدة", value: stats.leadNew || 0, color: "var(--gold)" },
+        { label: "الفعاليات", value: stats.eventTotal || 0, color: "var(--charcoal)" },
+        { label: "منشورة", value: stats.eventPublished || 0, color: "var(--success)" },
+    ];
+    const maxValue = Math.max(...chartRows.map((row) => row.value), 1);
+    activityChart.innerHTML = chartRows.map((row) => `
+        <div class="chart-row">
+            <span>${escapeHtml(row.label)}</span>
+            <div class="chart-track">
+                <strong style="width: ${Math.max(8, Math.round((row.value / maxValue) * 100))}%; background: ${row.color};"></strong>
+            </div>
+            <b>${row.value}</b>
         </div>
-    `).join("") || `<div class="compact-item"><span>لا توجد فعاليات حتى الآن.</span></div>`;
+    `).join("");
 };
 
 const renderLeads = () => {
@@ -295,7 +479,10 @@ const renderLeads = () => {
                     `).join("")}
                 </select>
             </td>
-            <td class="message-cell">${escapeHtml(getLatestNoteText(lead))}</td>
+            <td class="message-cell">
+                <span>${escapeHtml(getLatestNoteText(lead))}</span>
+                ${renderProgressBar(lead, true)}
+            </td>
             <td>${formatDate(lead.createdAt)}</td>
             <td>
                 <div class="lead-actions">
@@ -303,10 +490,11 @@ const renderLeads = () => {
                         <i data-lucide="message-circle"></i>
                         <span>واتساب</span>
                     </a>
-                    <a class="ghost-btn" href="tel:+${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}">
-                        <i data-lucide="phone"></i>
-                        <span>اتصال</span>
-                    </a>
+                    ${can("delete_leads") ? `
+                        <button class="danger-btn icon-only small-icon" type="button" data-delete-lead="${lead.id}" title="حذف الطلب">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    ` : ""}
                 </div>
             </td>
         </tr>
@@ -318,6 +506,7 @@ const renderLeadModal = () => {
     const lead = getActiveLead();
     if (!lead || !leadModal) return;
     leadModalTitle.textContent = lead.name;
+    leadModalProgress.innerHTML = renderProgressBar(lead);
     leadDetailGrid.innerHTML = `
         <article>
             <span>رقم الطلب</span>
@@ -360,6 +549,16 @@ const renderLeadModal = () => {
             <p>${escapeHtml(lead.message || "لا توجد رسالة")}</p>
         </article>
     `;
+    const assignableUsers = can("assign_notes") ? state.users.filter((user) => user.active) : [state.admin];
+    leadNoteAssignee.innerHTML = assignableUsers
+        .filter((user) => user.active)
+        .map((user) => `
+            <option value="${escapeHtml(user.userId)}">${escapeHtml(getDisplayName(user))}</option>
+        `).join("") || `<option value="">لا يوجد مستخدمون</option>`;
+    leadNoteAssignee.disabled = !can("assign_notes");
+    if (state.admin?.userId) {
+        leadNoteAssignee.value = state.admin.userId;
+    }
     renderLeadNotes(lead);
     leadModal.classList.remove("is-hidden");
     document.body.classList.add("modal-open");
@@ -367,17 +566,19 @@ const renderLeadModal = () => {
 };
 
 const renderLeadNotes = (lead) => {
-    const notes = parseLeadNotes(lead.adminNotes);
+    const notes = getVisibleNotes(lead);
     leadNotesList.innerHTML = notes.map((note) => `
         <article class="lead-note ${note.done ? "is-done" : ""}">
             <div>
                 <p>${escapeHtml(note.text)}</p>
                 <span>${note.createdAt ? formatDate(note.createdAt) : "ملاحظة سابقة"}</span>
+                <span>مسندة إلى: ${escapeHtml(note.assignedToName || getUserById(note.assignedTo)?.fullName || "غير محدد")}</span>
+                ${note.createdByName ? `<span>أضيفت بواسطة: ${escapeHtml(note.createdByName)}</span>` : ""}
                 ${note.doneAt ? `<span>أُنجزت: ${formatDate(note.doneAt)}</span>` : ""}
             </div>
-            <button class="${note.done ? "ghost-btn" : "primary-btn"}" type="button" data-complete-note="${escapeHtml(note.id)}" ${note.done ? "disabled" : ""}>
+            <button class="${note.done ? "ghost-btn" : "primary-btn"}" type="button" data-complete-note="${escapeHtml(note.id)}" ${note.legacy || note.done || (note.assignedTo && note.assignedTo !== state.admin?.userId && !isOwner() && !can("users")) ? "disabled" : ""}>
                 <i data-lucide="check"></i>
-                <span>${note.done ? "تم" : "إنجاز"}</span>
+                <span>${note.legacy ? "قديمة" : note.done ? "تم" : "إنجاز"}</span>
             </button>
         </article>
     `).join("") || `<div class="compact-item"><span>لا توجد ملاحظات متابعة حتى الآن.</span></div>`;
@@ -406,28 +607,37 @@ const saveLeadNotes = async (lead, notes) => {
     renderLeadModal();
 };
 
-const addLeadNote = async (text) => {
+const addLeadNote = async (text, assignedTo = "") => {
     const lead = getActiveLead();
     if (!lead || !text.trim()) return;
-    const notes = parseLeadNotes(lead.adminNotes);
-    notes.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}`,
+    const assignee = getUserById(assignedTo) || state.admin;
+    await window.MuheebData.createLeadNote({
+        leadId: lead.id,
         text: text.trim(),
-        done: false,
-        createdAt: new Date().toISOString(),
-        doneAt: "",
+        assignedTo: assignee?.userId || state.admin?.userId || "",
     });
-    await saveLeadNotes(lead, notes);
+    await loadAll();
+    state.activeLeadId = lead.id;
+    renderLeadModal();
 };
 
 const completeLeadNote = async (noteId) => {
     const lead = getActiveLead();
     if (!lead) return;
-    const notes = parseLeadNotes(lead.adminNotes).map((note) => {
-        if (note.id !== noteId || note.done) return note;
-        return { ...note, done: true, doneAt: new Date().toISOString() };
-    });
-    await saveLeadNotes(lead, notes);
+    const completedNote = await window.MuheebData.completeLeadNote(noteId);
+    if (completedNote) {
+        await window.MuheebData.createNotification({
+            targetUserId: completedNote.createdBy || null,
+            leadId: lead.id,
+            noteId,
+            kind: "note_done",
+            title: "تم إنجاز ملاحظة متابعة",
+            message: `${getDisplayName()} أنجز ملاحظة على طلب ${lead.name}.`,
+        }).catch(() => null);
+        await loadAll();
+        state.activeLeadId = lead.id;
+        renderLeadModal();
+    }
 };
 
 const renderEvents = () => {
@@ -651,7 +861,7 @@ const saveEvent = async (event) => {
         await loadAll();
         showMessage("تم حفظ الفعالية بنجاح.", eventFormMessage);
     } catch (error) {
-        showMessage(error.message, eventFormMessage);
+        showError(error.message, eventFormMessage);
     }
 };
 
@@ -670,7 +880,7 @@ const saveSiteContent = async () => {
         await loadAll();
         showMessage("تم حفظ نصوص الموقع بنجاح.", contentMessage);
     } catch (error) {
-        showMessage(error.message, contentMessage);
+        showError(error.message, contentMessage);
     }
 };
 
@@ -704,7 +914,7 @@ const saveExistingSiteImage = async (imageId) => {
         await loadAll();
         showMessage("تم حفظ الصورة.");
     } catch (error) {
-        showMessage(error.message);
+        showError(error.message);
     }
 };
 
@@ -728,7 +938,7 @@ const saveNewSiteImage = async (event) => {
         await loadAll();
         showMessage("تمت إضافة الصورة بنجاح.", siteImageFormMessage);
     } catch (error) {
-        showMessage(error.message, siteImageFormMessage);
+        showError(error.message, siteImageFormMessage);
     }
 };
 
@@ -743,7 +953,7 @@ const toggleSiteImage = async (imageId) => {
         await loadAll();
         showMessage(image.published ? "تم إخفاء الصورة." : "تم إظهار الصورة.");
     } catch (error) {
-        showMessage(error.message);
+        showError(error.message);
     }
 };
 
@@ -754,7 +964,7 @@ const restoreDefaultSiteImages = async () => {
         await loadAll();
         showMessage("تمت استعادة الصور الافتراضية للمكتبة.");
     } catch (error) {
-        showMessage(error.message);
+        showError(error.message);
     }
 };
 
@@ -787,7 +997,7 @@ const saveInterestOption = async (event) => {
         await loadAll();
         showMessage("تم حفظ الاختيار بنجاح.", interestOptionMessage);
     } catch (error) {
-        showMessage(error.message, interestOptionMessage);
+        showError(error.message, interestOptionMessage);
     }
 };
 
@@ -802,8 +1012,132 @@ const toggleInterestOption = async (optionId) => {
         await loadAll();
         showMessage(option.published ? "تم إخفاء الاختيار من النموذج." : "تم إظهار الاختيار في النموذج.");
     } catch (error) {
-        showMessage(error.message);
+        showError(error.message);
     }
+};
+
+const resetUserForm = () => {
+    state.editingUser = null;
+    userForm?.reset();
+    if (!userForm) return;
+    userForm.elements.userId.value = "";
+    userForm.elements.email.disabled = false;
+    userForm.elements.password.required = true;
+    userForm.elements.active.checked = true;
+    userFormTitle.textContent = "إضافة مستخدم";
+    renderPermissionsGrid({});
+};
+
+const renderPermissionsGrid = (permissions = {}) => {
+    if (!permissionsGrid) return;
+    permissionsGrid.innerHTML = permissionItems.map((permission) => `
+        <label class="permission-item">
+            <input type="checkbox" name="permission_${escapeHtml(permission.key)}" ${permissions[permission.key] ? "checked" : ""}>
+            <span>${escapeHtml(permission.label)}</span>
+        </label>
+    `).join("");
+};
+
+const readUserPermissions = () => Object.fromEntries(permissionItems.map((permission) => [
+    permission.key,
+    Boolean(userForm.elements[`permission_${permission.key}`]?.checked),
+]));
+
+const renderUsers = () => {
+    renderPermissionsGrid(state.editingUser?.permissions || {});
+    if (!usersList) return;
+    usersList.innerHTML = state.users.map((user) => `
+        <article class="user-card ${user.active ? "" : "is-disabled"}">
+            <div>
+                <strong>${escapeHtml(getDisplayName(user))}</strong>
+                <span>${escapeHtml(user.email || "-")}</span>
+                <span>${escapeHtml(user.phone || "لا يوجد رقم")}</span>
+                <span class="badge ${user.role === "owner" ? "" : "is-dim"}">${user.role === "owner" ? "مالك" : user.active ? "مستخدم مفعل" : "مستخدم موقوف"}</span>
+            </div>
+            <div class="event-actions">
+                <button class="ghost-btn" type="button" data-edit-user="${escapeHtml(user.userId)}">
+                    <i data-lucide="pencil"></i>
+                    <span>تعديل</span>
+                </button>
+                ${user.userId !== state.admin?.userId && user.role !== "owner" ? `
+                    <button class="danger-btn icon-only small-icon" type="button" data-delete-user="${escapeHtml(user.userId)}" title="إزالة الصلاحية">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                ` : ""}
+            </div>
+        </article>
+    `).join("") || `<div class="compact-item"><span>لا يوجد مستخدمون بعد.</span></div>`;
+    initIcons();
+};
+
+const editUser = (userId) => {
+    const user = state.users.find((item) => item.userId === userId);
+    if (!user || !userForm) return;
+    state.editingUser = user;
+    userForm.elements.userId.value = user.userId;
+    userForm.elements.fullName.value = user.fullName || "";
+    userForm.elements.phone.value = user.phone || "";
+    userForm.elements.email.value = user.email || "";
+    userForm.elements.email.disabled = true;
+    userForm.elements.password.value = "";
+    userForm.elements.password.required = false;
+    userForm.elements.active.checked = user.active !== false;
+    userFormTitle.textContent = "تعديل مستخدم";
+    renderPermissionsGrid(user.permissions || {});
+    setView("usersView");
+};
+
+const saveUser = async (event) => {
+    event.preventDefault();
+    showMessage("جاري حفظ المستخدم...", userFormMessage);
+    try {
+        const formData = new FormData(userForm);
+        const userId = formData.get("userId") || "";
+        await window.MuheebData.saveAdminUser({
+            fullName: formData.get("fullName"),
+            phone: formData.get("phone"),
+            email: formData.get("email") || state.editingUser?.email,
+            password: formData.get("password"),
+            active: userForm.elements.active.checked,
+            permissions: readUserPermissions(),
+        }, userId || null);
+        resetUserForm();
+        await loadAll();
+        showMessage("تم حفظ المستخدم بنجاح.", userFormMessage);
+    } catch (error) {
+        showError(error.message, userFormMessage);
+    }
+};
+
+const deleteUser = async (userId) => {
+    if (!window.confirm("هل تريد إزالة صلاحيات هذا المستخدم من لوحة التحكم؟")) return;
+    try {
+        await window.MuheebData.deleteAdminUser(userId);
+        await loadAll();
+        showMessage("تمت إزالة المستخدم من لوحة التحكم.");
+    } catch (error) {
+        showError(error.message);
+    }
+};
+
+const renderNotifications = () => {
+    const count = state.notifications.length;
+    notificationBadge.textContent = String(count);
+    notificationBadge.classList.toggle("is-hidden", !count);
+    notificationCount.textContent = String(count);
+    notificationList.innerHTML = state.notifications.map((notification) => `
+        <button class="notification-item" type="button" data-open-lead="${escapeHtml(notification.leadId || "")}">
+            <strong>${escapeHtml(notification.title)}</strong>
+            <span>${escapeHtml(notification.message)}</span>
+            <small>${formatDate(notification.createdAt)}</small>
+        </button>
+    `).join("") || `<div class="compact-item"><span>لا توجد إشعارات حتى الآن.</span></div>`;
+};
+
+const toggleDropdown = (menu) => {
+    const shouldOpen = menu.classList.contains("is-hidden");
+    document.querySelectorAll(".dropdown-panel").forEach((panel) => panel.classList.add("is-hidden"));
+    menu.classList.toggle("is-hidden", !shouldOpen);
 };
 
 const updateLead = async (leadId, statusOverride = "") => {
@@ -825,7 +1159,7 @@ const updateLead = async (leadId, statusOverride = "") => {
         }
         showMessage("تم تحديث الطلب.");
     } catch (error) {
-        showMessage(error.message);
+        showError(error.message);
     }
 };
 
@@ -860,6 +1194,15 @@ document.getElementById("refreshButton").addEventListener("click", async () => {
     showMessage("تم تحديث البيانات.");
 });
 
+profileButton?.addEventListener("click", () => toggleDropdown(profileMenu));
+notificationsButton?.addEventListener("click", () => toggleDropdown(notificationsMenu));
+
+document.addEventListener("click", (event) => {
+    if (!event.target.closest(".action-menu")) {
+        document.querySelectorAll(".dropdown-panel").forEach((panel) => panel.classList.add("is-hidden"));
+    }
+});
+
 leadStatusFilter.addEventListener("change", renderLeads);
 leadSearch?.addEventListener("input", renderLeads);
 saveContentButton?.addEventListener("click", saveSiteContent);
@@ -867,6 +1210,19 @@ siteImageForm?.addEventListener("submit", saveNewSiteImage);
 restoreSiteImagesButton?.addEventListener("click", restoreDefaultSiteImages);
 interestOptionForm?.addEventListener("submit", saveInterestOption);
 document.getElementById("resetInterestOptionForm")?.addEventListener("click", resetInterestOptionForm);
+userForm?.addEventListener("submit", saveUser);
+document.getElementById("resetUserForm")?.addEventListener("click", resetUserForm);
+
+usersList?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest("[data-edit-user]");
+    const deleteButton = event.target.closest("[data-delete-user]");
+    if (editButton) {
+        editUser(editButton.dataset.editUser);
+    }
+    if (deleteButton) {
+        await deleteUser(deleteButton.dataset.deleteUser);
+    }
+});
 
 leadsTable.addEventListener("change", (event) => {
     const leadId = Number(event.target.dataset.leadStatus || 0);
@@ -874,8 +1230,40 @@ leadsTable.addEventListener("change", (event) => {
 });
 
 leadsTable.addEventListener("click", (event) => {
+    const deleteButton = event.target.closest("[data-delete-lead]");
+    if (deleteButton) {
+        const leadId = Number(deleteButton.dataset.deleteLead || 0);
+        if (!leadId || !window.confirm("هل تريد حذف هذا الطلب نهائيًا؟")) return;
+        window.MuheebData.deleteLead(leadId)
+            .then(loadAll)
+            .then(() => showMessage("تم حذف الطلب."))
+            .catch((error) => showError(error.message));
+        return;
+    }
     const button = event.target.closest("[data-open-lead]");
     if (button) openLeadModal(Number(button.dataset.openLead));
+});
+
+latestLeads?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-lead]");
+    if (button) openLeadModal(Number(button.dataset.openLead));
+});
+
+notificationList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-lead]");
+    const leadId = Number(button?.dataset.openLead || 0);
+    if (leadId) {
+        notificationsMenu.classList.add("is-hidden");
+        openLeadModal(leadId);
+    }
+});
+
+profileMenu?.addEventListener("click", (event) => {
+    const profileOpen = event.target.closest("[data-profile-open]");
+    if (profileOpen) {
+        profileMenu.classList.add("is-hidden");
+        setView(can("security") ? "securityView" : getFirstAllowedView());
+    }
 });
 
 leadDetailGrid?.addEventListener("change", async (event) => {
@@ -891,13 +1279,25 @@ leadModal?.addEventListener("click", (event) => {
 leadNoteForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const noteText = leadNoteForm.elements.note.value;
-    await addLeadNote(noteText);
-    leadNoteForm.reset();
+    try {
+        await addLeadNote(noteText, leadNoteForm.elements.assignedTo.value);
+        leadNoteForm.reset();
+        showMessage("تمت إضافة الملاحظة وإسنادها.");
+    } catch (error) {
+        showError(error.message);
+    }
 });
 
 leadNotesList?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-complete-note]");
-    if (button) await completeLeadNote(button.dataset.completeNote);
+    if (button) {
+        try {
+            await completeLeadNote(button.dataset.completeNote);
+            showMessage("تم إنجاز الملاحظة.");
+        } catch (error) {
+            showError(error.message);
+        }
+    }
 });
 
 siteImageList?.addEventListener("click", async (event) => {
@@ -936,7 +1336,7 @@ eventsList.addEventListener("click", async (event) => {
             await loadAll();
             showMessage("تم حذف الفعالية.");
         } catch (error) {
-            showMessage(error.message);
+            showError(error.message);
         }
     }
 });
@@ -953,7 +1353,7 @@ galleryPreview.addEventListener("click", async (event) => {
         }
         showMessage("تم حذف الصورة من المعرض.");
     } catch (error) {
-        showMessage(error.message);
+        showError(error.message);
     }
 });
 
@@ -985,7 +1385,7 @@ passwordForm.addEventListener("submit", async (event) => {
         passwordForm.reset();
         showMessage("تم تحديث كلمة المرور بنجاح.", passwordMessage);
     } catch (error) {
-        showMessage(error.message, passwordMessage);
+        showError(error.message, passwordMessage);
     }
 });
 
