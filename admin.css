@@ -27,6 +27,10 @@ body {
     letter-spacing: 0;
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 button,
 input,
 select,
@@ -37,6 +41,11 @@ textarea {
 
 button {
     cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
 }
 
 img {
@@ -388,9 +397,57 @@ td {
     gap: 4px;
 }
 
+.lead-link {
+    width: fit-content;
+    border: 0;
+    padding: 0;
+    color: var(--burgundy);
+    background: transparent;
+    font-weight: 900;
+    text-align: right;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
 .lead-name small,
 .message-cell {
     color: var(--muted);
+}
+
+.leads-table tr.lead-status-new td {
+    background: rgba(196, 152, 58, 0.14);
+}
+
+.leads-table tr.lead-status-contacted td {
+    background: rgba(74, 120, 158, 0.14);
+}
+
+.leads-table tr.lead-status-done td {
+    background: rgba(45, 123, 84, 0.13);
+}
+
+.leads-table tr.lead-status-archived td {
+    background: rgba(116, 109, 104, 0.13);
+}
+
+.status-select.lead-status-new {
+    border-color: rgba(196, 152, 58, 0.48);
+    background: #fbf4de;
+}
+
+.status-select.lead-status-contacted {
+    border-color: rgba(74, 120, 158, 0.42);
+    background: #eaf2f7;
+}
+
+.status-select.lead-status-done {
+    border-color: rgba(45, 123, 84, 0.42);
+    background: #e8f4ee;
+}
+
+.status-select.lead-status-archived {
+    border-color: rgba(116, 109, 104, 0.38);
+    background: #efeeec;
 }
 
 .message-cell {
@@ -651,6 +708,135 @@ td {
     background: var(--beige);
 }
 
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(40, 40, 40, 0.56);
+}
+
+.lead-modal {
+    width: min(960px, 100%);
+    max-height: min(88vh, 920px);
+    overflow: auto;
+    display: grid;
+    gap: 18px;
+    padding: 22px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--white);
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.28);
+}
+
+.modal-header,
+.compact-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.modal-header h2,
+.lead-note-panel h3 {
+    margin: 0;
+    color: var(--burgundy);
+}
+
+.icon-only {
+    width: 44px;
+    padding: 0;
+}
+
+.lead-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.lead-detail-grid article,
+.lead-note,
+.lead-note-panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfaf7;
+}
+
+.lead-detail-grid article {
+    display: grid;
+    gap: 5px;
+    padding: 13px;
+}
+
+.lead-detail-grid span,
+.lead-note span {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
+.lead-detail-grid strong,
+.lead-detail-grid a {
+    color: var(--burgundy);
+    font-weight: 900;
+}
+
+.lead-detail-grid p {
+    margin: 0;
+    color: var(--charcoal);
+}
+
+.detail-wide {
+    grid-column: 1 / -1;
+}
+
+.lead-note-panel {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+}
+
+.note-compose {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 170px;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.note-compose textarea {
+    resize: vertical;
+}
+
+.lead-notes-list {
+    display: grid;
+    gap: 10px;
+}
+
+.lead-note {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+}
+
+.lead-note p {
+    margin: 0 0 5px;
+    color: var(--charcoal);
+    font-weight: 700;
+}
+
+.lead-note.is-done {
+    background: #edf6f1;
+    border-color: rgba(45, 123, 84, 0.24);
+}
+
+.lead-note.is-done p {
+    color: var(--success);
+}
+
 @media (max-width: 1120px) {
     .admin-shell {
         grid-template-columns: 1fr;
@@ -733,5 +919,11 @@ td {
     .site-image-card > img {
         width: 100%;
         height: 210px;
+    }
+
+    .lead-detail-grid,
+    .note-compose,
+    .lead-note {
+        grid-template-columns: 1fr;
     }
 }

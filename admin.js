@@ -14,6 +14,7 @@ const state = {
     activeView: "overviewView",
     editingEvent: null,
     editingInterestOption: null,
+    activeLeadId: null,
     coverPath: "",
 };
 
@@ -26,6 +27,13 @@ const labels = {
     marketing: "تسويق",
     identity: "هوية",
     operation: "تشغيل",
+};
+
+const statusClasses = {
+    new: "lead-status-new",
+    contacted: "lead-status-contacted",
+    done: "lead-status-done",
+    archived: "lead-status-archived",
 };
 
 const loginView = document.getElementById("loginView");
@@ -60,10 +68,16 @@ const siteImageList = document.getElementById("siteImageList");
 const siteImageForm = document.getElementById("siteImageForm");
 const newSiteImageFile = document.getElementById("newSiteImageFile");
 const siteImageFormMessage = document.getElementById("siteImageFormMessage");
+const restoreSiteImagesButton = document.getElementById("restoreSiteImagesButton");
 const interestOptionForm = document.getElementById("interestOptionForm");
 const interestOptionFormTitle = document.getElementById("interestOptionFormTitle");
 const interestOptionMessage = document.getElementById("interestOptionMessage");
 const interestOptionList = document.getElementById("interestOptionList");
+const leadModal = document.getElementById("leadModal");
+const leadModalTitle = document.getElementById("leadModalTitle");
+const leadDetailGrid = document.getElementById("leadDetailGrid");
+const leadNotesList = document.getElementById("leadNotesList");
+const leadNoteForm = document.getElementById("leadNoteForm");
 
 const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -82,6 +96,42 @@ const formatDate = (value) => {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(date);
+};
+
+const parseLeadNotes = (value) => {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+            return parsed.map((note, index) => ({
+                id: note.id || `note-${index}`,
+                text: String(note.text || "").trim(),
+                done: Boolean(note.done),
+                createdAt: note.createdAt || "",
+                doneAt: note.doneAt || "",
+            })).filter((note) => note.text);
+        }
+    } catch (error) {
+        return [{
+            id: "legacy-note",
+            text: String(value).trim(),
+            done: false,
+            createdAt: "",
+            doneAt: "",
+        }].filter((note) => note.text);
+    }
+    return [];
+};
+
+const stringifyLeadNotes = (notes) => JSON.stringify(notes);
+
+const getActiveLead = () => state.leads.find((lead) => lead.id === state.activeLeadId);
+
+const getLatestNoteText = (lead) => {
+    const notes = parseLeadNotes(lead.adminNotes);
+    if (!notes.length) return "لا توجد ملاحظات";
+    const latest = notes[notes.length - 1];
+    return `${latest.done ? "تم: " : ""}${latest.text}`;
 };
 
 const showMessage = (message, target = globalMessage) => {
@@ -186,11 +236,11 @@ const renderLeads = () => {
             ].some((value) => String(value || "").toLowerCase().includes(term));
         });
     leadsTable.innerHTML = leads.map((lead) => `
-        <tr>
+        <tr class="${escapeHtml(statusClasses[lead.status] || "")}">
             <td><strong>#${lead.id}</strong></td>
             <td>
                 <div class="lead-name">
-                    <strong>${escapeHtml(lead.name)}</strong>
+                    <button class="lead-link" type="button" data-open-lead="${lead.id}">${escapeHtml(lead.name)}</button>
                     <small>${escapeHtml(labels[lead.status] || lead.status)}</small>
                 </div>
             </td>
@@ -201,15 +251,13 @@ const renderLeads = () => {
             <td>${escapeHtml(lead.source)}</td>
             <td class="message-cell">${escapeHtml(lead.message || "لا توجد رسالة")}</td>
             <td>
-                <select class="status-select" data-lead-status="${lead.id}">
+                <select class="status-select ${escapeHtml(statusClasses[lead.status] || "")}" data-lead-status="${lead.id}">
                     ${Object.entries(labels).filter(([key]) => ["new", "contacted", "done", "archived"].includes(key)).map(([key, label]) => `
                         <option value="${key}" ${lead.status === key ? "selected" : ""}>${label}</option>
                     `).join("")}
                 </select>
             </td>
-            <td>
-                <textarea class="notes-input" data-lead-notes="${lead.id}" placeholder="ملاحظات المتابعة">${escapeHtml(lead.adminNotes)}</textarea>
-            </td>
+            <td class="message-cell">${escapeHtml(getLatestNoteText(lead))}</td>
             <td>${formatDate(lead.createdAt)}</td>
             <td>
                 <div class="lead-actions">
@@ -226,6 +274,122 @@ const renderLeads = () => {
         </tr>
     `).join("") || `<tr><td colspan="10">لا توجد طلبات بهذه الحالة.</td></tr>`;
     initIcons();
+};
+
+const renderLeadModal = () => {
+    const lead = getActiveLead();
+    if (!lead || !leadModal) return;
+    leadModalTitle.textContent = lead.name;
+    leadDetailGrid.innerHTML = `
+        <article>
+            <span>رقم الطلب</span>
+            <strong>#${escapeHtml(lead.id)}</strong>
+        </article>
+        <article>
+            <span>اسم العميل</span>
+            <strong>${escapeHtml(lead.name)}</strong>
+        </article>
+        <article>
+            <span>الجوال</span>
+            <a href="tel:+${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}">+${escapeHtml(lead.countryCode)} ${escapeHtml(lead.phone)}</a>
+        </article>
+        <article>
+            <span>واتساب</span>
+            <a href="https://wa.me/${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}" target="_blank" rel="noopener">فتح واتساب</a>
+        </article>
+        <article>
+            <span>مجال الاهتمام</span>
+            <strong>${escapeHtml(lead.service)}</strong>
+        </article>
+        <article>
+            <span>المصدر</span>
+            <strong>${escapeHtml(lead.source)}</strong>
+        </article>
+        <article>
+            <span>الحالة</span>
+            <select class="status-select ${escapeHtml(statusClasses[lead.status] || "")}" data-modal-lead-status="${lead.id}">
+                ${Object.entries(labels).filter(([key]) => ["new", "contacted", "done", "archived"].includes(key)).map(([key, label]) => `
+                    <option value="${key}" ${lead.status === key ? "selected" : ""}>${label}</option>
+                `).join("")}
+            </select>
+        </article>
+        <article>
+            <span>تاريخ الإرسال</span>
+            <strong>${formatDate(lead.createdAt)}</strong>
+        </article>
+        <article class="detail-wide">
+            <span>رسالة العميل</span>
+            <p>${escapeHtml(lead.message || "لا توجد رسالة")}</p>
+        </article>
+    `;
+    renderLeadNotes(lead);
+    leadModal.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    initIcons();
+};
+
+const renderLeadNotes = (lead) => {
+    const notes = parseLeadNotes(lead.adminNotes);
+    leadNotesList.innerHTML = notes.map((note) => `
+        <article class="lead-note ${note.done ? "is-done" : ""}">
+            <div>
+                <p>${escapeHtml(note.text)}</p>
+                <span>${note.createdAt ? formatDate(note.createdAt) : "ملاحظة سابقة"}</span>
+                ${note.doneAt ? `<span>أُنجزت: ${formatDate(note.doneAt)}</span>` : ""}
+            </div>
+            <button class="${note.done ? "ghost-btn" : "primary-btn"}" type="button" data-complete-note="${escapeHtml(note.id)}" ${note.done ? "disabled" : ""}>
+                <i data-lucide="check"></i>
+                <span>${note.done ? "تم" : "إنجاز"}</span>
+            </button>
+        </article>
+    `).join("") || `<div class="compact-item"><span>لا توجد ملاحظات متابعة حتى الآن.</span></div>`;
+    initIcons();
+};
+
+const openLeadModal = (leadId) => {
+    state.activeLeadId = leadId;
+    renderLeadModal();
+};
+
+const closeLeadModal = () => {
+    state.activeLeadId = null;
+    leadModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
+    leadNoteForm?.reset();
+};
+
+const saveLeadNotes = async (lead, notes) => {
+    await window.MuheebData.updateLead(lead.id, {
+        status: lead.status,
+        adminNotes: stringifyLeadNotes(notes),
+    });
+    await loadAll();
+    state.activeLeadId = lead.id;
+    renderLeadModal();
+};
+
+const addLeadNote = async (text) => {
+    const lead = getActiveLead();
+    if (!lead || !text.trim()) return;
+    const notes = parseLeadNotes(lead.adminNotes);
+    notes.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}`,
+        text: text.trim(),
+        done: false,
+        createdAt: new Date().toISOString(),
+        doneAt: "",
+    });
+    await saveLeadNotes(lead, notes);
+};
+
+const completeLeadNote = async (noteId) => {
+    const lead = getActiveLead();
+    if (!lead) return;
+    const notes = parseLeadNotes(lead.adminNotes).map((note) => {
+        if (note.id !== noteId || note.done) return note;
+        return { ...note, done: true, doneAt: new Date().toISOString() };
+    });
+    await saveLeadNotes(lead, notes);
 };
 
 const renderEvents = () => {
@@ -308,7 +472,7 @@ const renderSiteImages = () => {
                     </label>
                 </div>
                 <label>
-                    <span>وصف الصورة</span>
+                <span>وصف الصورة</span>
                     <input type="text" data-site-image-alt value="${escapeHtml(image.altText)}">
                 </label>
                 <label class="upload-box">
@@ -325,9 +489,9 @@ const renderSiteImages = () => {
                         <i data-lucide="save"></i>
                         <span>حفظ</span>
                     </button>
-                    <button class="danger-btn" type="button" data-delete-site-image="${image.id}">
-                        <i data-lucide="trash-2"></i>
-                        <span>حذف</span>
+                    <button class="ghost-btn" type="button" data-toggle-site-image="${image.id}">
+                        <i data-lucide="${image.published ? "eye-off" : "eye"}"></i>
+                        <span>${image.published ? "إخفاء" : "إظهار"}</span>
                     </button>
                 </div>
             </div>
@@ -359,9 +523,9 @@ const renderInterestOptions = () => {
                     <i data-lucide="pencil"></i>
                     <span>تعديل</span>
                 </button>
-                <button class="danger-btn" type="button" data-delete-interest-option="${option.id}">
-                    <i data-lucide="trash-2"></i>
-                    <span>حذف</span>
+                <button class="ghost-btn" type="button" data-toggle-interest-option="${option.id}">
+                    <i data-lucide="${option.published ? "eye-off" : "eye"}"></i>
+                    <span>${option.published ? "إخفاء" : "إظهار"}</span>
                 </button>
             </div>
         </article>
@@ -531,6 +695,32 @@ const saveNewSiteImage = async (event) => {
     }
 };
 
+const toggleSiteImage = async (imageId) => {
+    const image = state.siteImages.find((item) => item.id === imageId);
+    if (!image) return;
+    try {
+        await window.MuheebData.saveSiteImage({
+            ...image,
+            published: !image.published,
+        }, imageId);
+        await loadAll();
+        showMessage(image.published ? "تم إخفاء الصورة." : "تم إظهار الصورة.");
+    } catch (error) {
+        showMessage(error.message);
+    }
+};
+
+const restoreDefaultSiteImages = async () => {
+    showMessage("جاري استعادة الصور الافتراضية...");
+    try {
+        await window.MuheebData.restoreDefaultSiteImages();
+        await loadAll();
+        showMessage("تمت استعادة الصور الافتراضية للمكتبة.");
+    } catch (error) {
+        showMessage(error.message);
+    }
+};
+
 const editInterestOption = (optionId) => {
     const option = state.interestOptions.find((item) => item.id === optionId);
     if (!option) return;
@@ -564,12 +754,38 @@ const saveInterestOption = async (event) => {
     }
 };
 
-const updateLead = async (leadId) => {
-    const status = document.querySelector(`[data-lead-status="${leadId}"]`)?.value;
-    const notes = document.querySelector(`[data-lead-notes="${leadId}"]`)?.value || "";
+const toggleInterestOption = async (optionId) => {
+    const option = state.interestOptions.find((item) => item.id === optionId);
+    if (!option) return;
+    try {
+        await window.MuheebData.saveInterestOption({
+            ...option,
+            published: !option.published,
+        }, optionId);
+        await loadAll();
+        showMessage(option.published ? "تم إخفاء الاختيار من النموذج." : "تم إظهار الاختيار في النموذج.");
+    } catch (error) {
+        showMessage(error.message);
+    }
+};
+
+const updateLead = async (leadId, statusOverride = "") => {
+    const currentLead = state.leads.find((lead) => lead.id === leadId);
+    const modalIsActive = state.activeLeadId === leadId && !leadModal?.classList.contains("is-hidden");
+    const status =
+        statusOverride ||
+        (modalIsActive ? document.querySelector(`[data-modal-lead-status="${leadId}"]`)?.value : "") ||
+        document.querySelector(`[data-lead-status="${leadId}"]`)?.value ||
+        currentLead?.status ||
+        "new";
+    const notes = currentLead?.adminNotes || "";
     try {
         await window.MuheebData.updateLead(leadId, { status, adminNotes: notes });
         await loadAll();
+        if (state.activeLeadId === leadId) {
+            state.activeLeadId = leadId;
+            renderLeadModal();
+        }
         showMessage("تم تحديث الطلب.");
     } catch (error) {
         showMessage(error.message);
@@ -611,54 +827,61 @@ leadStatusFilter.addEventListener("change", renderLeads);
 leadSearch?.addEventListener("input", renderLeads);
 saveContentButton?.addEventListener("click", saveSiteContent);
 siteImageForm?.addEventListener("submit", saveNewSiteImage);
+restoreSiteImagesButton?.addEventListener("click", restoreDefaultSiteImages);
 interestOptionForm?.addEventListener("submit", saveInterestOption);
 document.getElementById("resetInterestOptionForm")?.addEventListener("click", resetInterestOptionForm);
 
 leadsTable.addEventListener("change", (event) => {
     const leadId = Number(event.target.dataset.leadStatus || 0);
-    if (leadId) updateLead(leadId);
+    if (leadId) updateLead(leadId, event.target.value);
 });
 
-leadsTable.addEventListener("blur", (event) => {
-    const leadId = Number(event.target.dataset.leadNotes || 0);
-    if (leadId) updateLead(leadId);
-}, true);
+leadsTable.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-lead]");
+    if (button) openLeadModal(Number(button.dataset.openLead));
+});
+
+leadDetailGrid?.addEventListener("change", async (event) => {
+    const leadId = Number(event.target.dataset.modalLeadStatus || 0);
+    if (leadId) await updateLead(leadId, event.target.value);
+});
+
+document.getElementById("closeLeadModal")?.addEventListener("click", closeLeadModal);
+leadModal?.addEventListener("click", (event) => {
+    if (event.target === leadModal) closeLeadModal();
+});
+
+leadNoteForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const noteText = leadNoteForm.elements.note.value;
+    await addLeadNote(noteText);
+    leadNoteForm.reset();
+});
+
+leadNotesList?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-complete-note]");
+    if (button) await completeLeadNote(button.dataset.completeNote);
+});
 
 siteImageList?.addEventListener("click", async (event) => {
     const saveButton = event.target.closest("[data-save-site-image]");
-    const deleteButton = event.target.closest("[data-delete-site-image]");
+    const toggleButton = event.target.closest("[data-toggle-site-image]");
     if (saveButton) {
         await saveExistingSiteImage(Number(saveButton.dataset.saveSiteImage));
     }
-    if (deleteButton) {
-        const imageId = Number(deleteButton.dataset.deleteSiteImage);
-        if (!window.confirm("هل تريد حذف هذه الصورة من مكتبة الموقع؟")) return;
-        try {
-            await window.MuheebData.deleteSiteImage(imageId);
-            await loadAll();
-            showMessage("تم حذف الصورة.");
-        } catch (error) {
-            showMessage(error.message);
-        }
+    if (toggleButton) {
+        await toggleSiteImage(Number(toggleButton.dataset.toggleSiteImage));
     }
 });
 
 interestOptionList?.addEventListener("click", async (event) => {
     const editButton = event.target.closest("[data-edit-interest-option]");
-    const deleteButton = event.target.closest("[data-delete-interest-option]");
+    const toggleButton = event.target.closest("[data-toggle-interest-option]");
     if (editButton) {
         editInterestOption(Number(editButton.dataset.editInterestOption));
     }
-    if (deleteButton) {
-        const optionId = Number(deleteButton.dataset.deleteInterestOption);
-        if (!window.confirm("هل تريد حذف هذا الاختيار من نموذج الطلب؟")) return;
-        try {
-            await window.MuheebData.deleteInterestOption(optionId);
-            await loadAll();
-            showMessage("تم حذف الاختيار.");
-        } catch (error) {
-            showMessage(error.message);
-        }
+    if (toggleButton) {
+        await toggleInterestOption(Number(toggleButton.dataset.toggleInterestOption));
     }
 });
 

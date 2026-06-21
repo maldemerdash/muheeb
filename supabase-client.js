@@ -197,6 +197,22 @@
         updatedAt: row.updated_at || row.updatedAt,
     });
 
+    const defaultSiteImages = [
+        { image_key: "hero_main", label: "صورة الهيرو الرئيسية", group_name: "site_core", image_path: "assets/identity-wall-hero.png", alt_text: "هوية مهيب في الواجهة الرئيسية", published: true, sort_order: 10 },
+        { image_key: "hero_logo", label: "شعار الهيرو", group_name: "site_core", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 11 },
+        { image_key: "service_1_image", label: "صورة خدمة تنظيم الفعاليات", group_name: "services", image_path: "assets/identity-wall-clean.png", alt_text: "تنفيذ تجربة بصرية للفعالية", published: true, sort_order: 20 },
+        { image_key: "service_2_image", label: "صورة خدمة الحملات التسويقية", group_name: "services", image_path: "assets/brand-palette.jpg", alt_text: "حملات تسويقية بهوية مهيب", published: true, sort_order: 21 },
+        { image_key: "service_3_image", label: "صورة خدمة الهوية والتطبيقات", group_name: "services", image_path: "assets/identity-cards-clean.png", alt_text: "تطبيقات الهوية البصرية", published: true, sort_order: 22 },
+        { image_key: "execution_image", label: "صورة رحلة التنفيذ", group_name: "site_core", image_path: "assets/identity-stamp-clean.png", alt_text: "توثيق واعتماد مخرجات مهيب", published: true, sort_order: 30 },
+        { image_key: "interest_background", label: "خلفية نموذج الطلب", group_name: "site_core", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 31 },
+        { image_key: "footer_logo", label: "شعار الفوتر", group_name: "site_core", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 40 },
+        { image_key: "identity_gallery_1", label: "تطبيق الشعار", group_name: "identity_gallery", image_path: "assets/identity-wall-clean.png", alt_text: "تطبيق شعار مهيب على واجهة زجاجية", published: true, sort_order: 50 },
+        { image_key: "identity_gallery_2", label: "بطاقات العمل", group_name: "identity_gallery", image_path: "assets/identity-cards-clean.png", alt_text: "بطاقات عمل مهيب", published: true, sort_order: 51 },
+        { image_key: "identity_gallery_3", label: "الختم والتوثيق", group_name: "identity_gallery", image_path: "assets/identity-stamp-clean.png", alt_text: "ختم مهيب الرسمي", published: true, sort_order: 52 },
+        { image_key: "identity_gallery_4", label: "ألوان الهوية", group_name: "identity_gallery", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 53 },
+        { image_key: "identity_gallery_5", label: "الشعار الأساسي", group_name: "identity_gallery", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 54 },
+    ];
+
     const contentRowsToObject = (rows) =>
         Object.fromEntries((rows || []).map((row) => {
             const item = toCamelContent(row);
@@ -561,8 +577,29 @@
         async deleteSiteImage(imageId) {
             const client = await requireSupabase();
             await requireAdmin();
-            const { error } = await client.from("site_images").delete().eq("id", imageId);
+            const { error } = await client
+                .from("site_images")
+                .update({
+                    published: false,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("id", imageId);
             if (error) throw error;
+        },
+
+        async restoreDefaultSiteImages() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const rows = defaultSiteImages.map((image) => ({
+                ...image,
+                updated_at: new Date().toISOString(),
+            }));
+            const { data, error } = await client
+                .from("site_images")
+                .upsert(rows, { onConflict: "image_key" })
+                .select("*");
+            if (error) throw error;
+            return (data || []).map(toCamelSiteImage);
         },
 
         async listInterestOptions() {
@@ -600,7 +637,13 @@
         async deleteInterestOption(optionId) {
             const client = await requireSupabase();
             await requireAdmin();
-            const { error } = await client.from("interest_options").delete().eq("id", optionId);
+            const { error } = await client
+                .from("interest_options")
+                .update({
+                    published: false,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("id", optionId);
             if (error) throw error;
         },
 

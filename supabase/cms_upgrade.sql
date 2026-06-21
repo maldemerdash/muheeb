@@ -199,6 +199,9 @@ values
 on conflict (image_key) do update
 set label = excluded.label,
     group_name = excluded.group_name,
+    image_path = excluded.image_path,
+    alt_text = excluded.alt_text,
+    published = excluded.published,
     sort_order = excluded.sort_order;
 
 insert into public.interest_options
@@ -211,4 +214,5 @@ values
     ('استشارة عامة', 'استشارة عامة', true, 5)
 on conflict (value) do update
 set label = excluded.label,
+    published = excluded.published,
     sort_order = excluded.sort_order;

@@ -173,7 +173,7 @@
                                     <th>المصدر</th>
                                     <th>الرسالة</th>
                                     <th>الحالة</th>
-                                    <th>ملاحظات</th>
+                                    <th>آخر متابعة</th>
                                     <th>التاريخ</th>
                                     <th>إجراء</th>
                                 </tr>
@@ -257,8 +257,12 @@
                         <div class="panel-header">
                             <div>
                                 <p class="eyebrow">مكتبة الصور</p>
-                                <h2>تعديل وحذف صور الموقع</h2>
+                                <h2>تعديل وإظهار أو إخفاء صور الموقع</h2>
                             </div>
+                            <button class="ghost-btn" type="button" id="restoreSiteImagesButton">
+                                <i data-lucide="rotate-ccw"></i>
+                                <span>استعادة الصور الافتراضية</span>
+                            </button>
                         </div>
                         <div class="site-image-list" id="siteImageList"></div>
                     </div>
@@ -411,6 +415,37 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="leadModal" role="dialog" aria-modal="true" aria-labelledby="leadModalTitle">
+        <section class="lead-modal">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">تفاصيل العميل</p>
+                    <h2 id="leadModalTitle">طلب العميل</h2>
+                </div>
+                <button class="ghost-btn icon-only" type="button" id="closeLeadModal" aria-label="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="lead-detail-grid" id="leadDetailGrid"></div>
+            <div class="lead-note-panel">
+                <div class="panel-header compact-header">
+                    <div>
+                        <p class="eyebrow">ملاحظات المتابعة</p>
+                        <h3>إضافة ومتابعة الملاحظات</h3>
+                    </div>
+                </div>
+                <form class="note-compose" id="leadNoteForm">
+                    <textarea name="note" rows="3" placeholder="اكتب ملاحظة متابعة جديدة"></textarea>
+                    <button class="primary-btn" type="submit">
+                        <i data-lucide="plus"></i>
+                        <span>إضافة ملاحظة</span>
+                    </button>
+                </form>
+                <div class="lead-notes-list" id="leadNotesList"></div>
+            </div>
+        </section>
     </div>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
