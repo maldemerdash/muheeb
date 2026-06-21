@@ -8,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -32,7 +31,7 @@
                 <li><a href="#services">الخدمات</a></li>
                 <li><a href="#after-sale">رحلة التنفيذ</a></li>
                 <li><a href="#interest">تسجيل اهتمام</a></li>
-                <li><a href="#contact">تواصل معنا</a></li>
+                <li><a href="#interest">تواصل معنا</a></li>
             </ul>
         </nav>
     </header>
@@ -40,27 +39,27 @@
     <main>
         <section class="hero section-observe" id="home">
             <div class="hero-media" aria-hidden="true">
-                <img class="hero-main-image" src="assets/identity-wall-hero.png" alt="">
-                <img class="hero-logo-mark" src="assets/logo-meheib.png" alt="">
+                <img class="hero-main-image" data-image="hero_main" src="assets/identity-wall-hero.png" alt="">
+                <img class="hero-logo-mark" data-image="hero_logo" src="assets/logo-meheib.png" alt="">
                 <div class="hero-panel panel-one"></div>
                 <div class="hero-panel panel-two"></div>
                 <div class="hero-badge">
-                    <span>من الفكرة إلى التجربة</span>
-                    <strong>حضور مؤثر لا يُنسى</strong>
+                    <span data-content="hero_badge_small">من الفكرة إلى التجربة</span>
+                    <strong data-content="hero_badge_title">حضور مؤثر لا يُنسى</strong>
                 </div>
             </div>
             <div class="hero-content">
-                <p class="eyebrow">مهيب للتسويق وتنظيم الفعاليات</p>
-                <h1>نصنع تجارب مؤثرة بحضور يليق باسمك</h1>
-                <p class="hero-copy">تعكس هوية مهيب مزيجًا من الهيبة والابتكار، وتحول الفكرة إلى حملة أو فعالية متقنة تترك أثرًا قويًا وذكرى لا تُنسى.</p>
+                <p class="eyebrow" data-content="hero_eyebrow">مهيب للتسويق وتنظيم الفعاليات</p>
+                <h1 data-content="hero_title">نصنع تجارب مؤثرة بحضور يليق باسمك</h1>
+                <p class="hero-copy" data-content="hero_copy">تعكس هوية مهيب مزيجًا من الهيبة والابتكار، وتحول الفكرة إلى حملة أو فعالية متقنة تترك أثرًا قويًا وذكرى لا تُنسى.</p>
                 <div class="hero-actions">
                     <a class="primary-action" href="#interest">
-                        <span>اطلب استشارة</span>
+                        <span data-content="hero_primary_button">اطلب استشارة</span>
                         <i data-lucide="arrow-left"></i>
                     </a>
                     <a class="secondary-action" href="#projects">
                         <i data-lucide="sparkles"></i>
-                        <span>استعرض الأعمال</span>
+                        <span data-content="hero_secondary_button">استعرض الأعمال</span>
                     </a>
                 </div>
             </div>
@@ -72,32 +71,32 @@
         <section class="stats-band section-observe" id="about">
             <div class="container stats-grid">
                 <div class="intro-text">
-                    <p class="eyebrow">عن مهيب</p>
-                    <h2>هوية مبنية على الهيبة، الاتزان، والابتكار.</h2>
-                    <p>يمتد خط مهيب بانسيابية عربية متزنة ليجسد رحلة الفعالية أو الحملة من الفكرة إلى التجربة، مع حضور بصري محترف يعزز الثقة ويصنع انطباعًا ثابتًا.</p>
+                    <p class="eyebrow" data-content="about_eyebrow">عن مهيب</p>
+                    <h2 data-content="about_title">هوية مبنية على الهيبة، الاتزان، والابتكار.</h2>
+                    <p data-content="about_text">يمتد خط مهيب بانسيابية عربية متزنة ليجسد رحلة الفعالية أو الحملة من الفكرة إلى التجربة، مع حضور بصري محترف يعزز الثقة ويصنع انطباعًا ثابتًا.</p>
                 </div>
                 <div class="metric">
-                    <strong>01</strong>
-                    <span>تسويق وتجارب</span>
+                    <strong data-content="metric_1_number">01</strong>
+                    <span data-content="metric_1_label">تسويق وتجارب</span>
                 </div>
                 <div class="metric">
-                    <strong>02</strong>
-                    <span>تنظيم فعاليات</span>
+                    <strong data-content="metric_2_number">02</strong>
+                    <span data-content="metric_2_label">تنظيم فعاليات</span>
                 </div>
                 <div class="metric">
-                    <strong>03</strong>
-                    <span>هوية وتطبيقات</span>
+                    <strong data-content="metric_3_number">03</strong>
+                    <span data-content="metric_3_label">هوية وتطبيقات</span>
                 </div>
             </div>
         </section>
 
         <section class="projects-strip section-observe" aria-labelledby="projectsStripTitle">
             <div class="section-heading">
-                <p class="eyebrow">تطبيقات الهوية</p>
-                <h2 id="projectsStripTitle">تفاصيل بصرية تعزز حضور العلامة</h2>
+                <p class="eyebrow" data-content="identity_eyebrow">تطبيقات الهوية</p>
+                <h2 id="projectsStripTitle" data-content="identity_title">تفاصيل بصرية تعزز حضور العلامة</h2>
             </div>
             <div class="marquee" aria-label="تطبيقات من هوية مهيب">
-                <div class="marquee-track">
+                <div class="marquee-track" id="identityGallery">
                     <article class="slide">
                         <img src="assets/identity-wall-clean.png" alt="تطبيق شعار مهيب على واجهة زجاجية">
                         <span>تطبيق الشعار</span>
@@ -137,32 +136,32 @@
         <section class="options section-observe" id="services">
             <div class="container">
                 <div class="section-heading">
-                    <p class="eyebrow">خدمات مهيب</p>
-                    <h2>حلول متكاملة للحملات والفعاليات</h2>
+                    <p class="eyebrow" data-content="services_eyebrow">خدمات مهيب</p>
+                    <h2 data-content="services_title">حلول متكاملة للحملات والفعاليات</h2>
                 </div>
                 <div class="option-grid">
                     <article class="option-card">
-                        <img src="assets/identity-wall-clean.png" alt="تنفيذ تجربة بصرية للفعالية">
+                        <img data-image="service_1_image" src="assets/identity-wall-clean.png" alt="تنفيذ تجربة بصرية للفعالية">
                         <div class="option-content">
-                            <h3>تنظيم الفعاليات</h3>
-                            <p>تخطيط، تشغيل، تنسيق موردين، وإدارة تفاصيل التجربة من البداية حتى لحظة الختام.</p>
-                            <a href="#projects">عرض التفاصيل</a>
+                            <h3 data-content="service_1_title">تنظيم الفعاليات</h3>
+                            <p data-content="service_1_text">تخطيط، تشغيل، تنسيق موردين، وإدارة تفاصيل التجربة من البداية حتى لحظة الختام.</p>
+                            <a href="#projects" data-content="service_button">عرض التفاصيل</a>
                         </div>
                     </article>
                     <article class="option-card">
-                        <img src="assets/brand-palette.jpg" alt="حملات تسويقية بهوية مهيب">
+                        <img data-image="service_2_image" src="assets/brand-palette.jpg" alt="حملات تسويقية بهوية مهيب">
                         <div class="option-content">
-                            <h3>الحملات التسويقية</h3>
-                            <p>تصميم الفكرة، الرسالة، المسار البصري، وخطة الظهور بما يخدم أهداف الحملة.</p>
-                            <a href="#projects">عرض التفاصيل</a>
+                            <h3 data-content="service_2_title">الحملات التسويقية</h3>
+                            <p data-content="service_2_text">تصميم الفكرة، الرسالة، المسار البصري، وخطة الظهور بما يخدم أهداف الحملة.</p>
+                            <a href="#projects" data-content="service_button">عرض التفاصيل</a>
                         </div>
                     </article>
                     <article class="option-card">
-                        <img src="assets/identity-cards-clean.png" alt="تطبيقات الهوية البصرية">
+                        <img data-image="service_3_image" src="assets/identity-cards-clean.png" alt="تطبيقات الهوية البصرية">
                         <div class="option-content">
-                            <h3>الهوية والتطبيقات</h3>
-                            <p>تحويل الهوية إلى أدوات ملموسة: بطاقات، مطبوعات، أجنحة، ولوحات تعريفية.</p>
-                            <a href="#projects">عرض التفاصيل</a>
+                            <h3 data-content="service_3_title">الهوية والتطبيقات</h3>
+                            <p data-content="service_3_text">تحويل الهوية إلى أدوات ملموسة: بطاقات، مطبوعات، أجنحة، ولوحات تعريفية.</p>
+                            <a href="#projects" data-content="service_button">عرض التفاصيل</a>
                         </div>
                     </article>
                 </div>
@@ -173,8 +172,8 @@
             <div class="container">
                 <div class="section-heading split">
                     <div>
-                        <p class="eyebrow">مجالات العمل</p>
-                        <h2>ما الذي يمكن أن تصنعه مهيب؟</h2>
+                        <p class="eyebrow" data-content="projects_eyebrow">مجالات العمل</p>
+                        <h2 data-content="projects_title">ما الذي يمكن أن تصنعه مهيب؟</h2>
                     </div>
                     <div class="filters" role="list" aria-label="تصفية الأعمال">
                         <button class="filter-btn active" type="button" data-filter="all">الكل</button>
@@ -248,29 +247,29 @@
         <section class="features section-observe">
             <div class="container">
                 <div class="section-heading">
-                    <p class="eyebrow">مميزات مهيب</p>
-                    <h2>تفاصيل صغيرة تصنع حضورًا أكبر</h2>
+                    <p class="eyebrow" data-content="features_eyebrow">مميزات مهيب</p>
+                    <h2 data-content="features_title">تفاصيل صغيرة تصنع حضورًا أكبر</h2>
                 </div>
                 <div class="feature-grid">
                     <article class="feature-card">
                         <i data-lucide="badge-check"></i>
-                        <h3>احترافية التنفيذ</h3>
-                        <p>تخطيط واضح، أدوار منظمة، ومخرجات تليق باسم الجهة.</p>
+                        <h3 data-content="feature_1_title">احترافية التنفيذ</h3>
+                        <p data-content="feature_1_text">تخطيط واضح، أدوار منظمة، ومخرجات تليق باسم الجهة.</p>
                     </article>
                     <article class="feature-card">
                         <i data-lucide="smartphone"></i>
-                        <h3>تجربة منسجمة</h3>
-                        <p>رسالة واحدة تنتقل من الإعلان إلى مساحة الفعالية.</p>
+                        <h3 data-content="feature_2_title">تجربة منسجمة</h3>
+                        <p data-content="feature_2_text">رسالة واحدة تنتقل من الإعلان إلى مساحة الفعالية.</p>
                     </article>
                     <article class="feature-card">
                         <i data-lucide="sparkles"></i>
-                        <h3>هوية راقية</h3>
-                        <p>ألوان وخطوط وتطبيقات تحافظ على الطابع العام للعلامة.</p>
+                        <h3 data-content="feature_3_title">هوية راقية</h3>
+                        <p data-content="feature_3_text">ألوان وخطوط وتطبيقات تحافظ على الطابع العام للعلامة.</p>
                     </article>
                     <article class="feature-card">
                         <i data-lucide="handshake"></i>
-                        <h3>رحلة واضحة</h3>
-                        <p>من الفكرة الأولية إلى التنفيذ والتوثيق النهائي.</p>
+                        <h3 data-content="feature_4_title">رحلة واضحة</h3>
+                        <p data-content="feature_4_text">من الفكرة الأولية إلى التنفيذ والتوثيق النهائي.</p>
                     </article>
                 </div>
             </div>
@@ -279,16 +278,16 @@
         <section class="after-sale section-observe" id="after-sale">
             <div class="container after-sale-grid">
                 <div class="after-sale-image">
-                    <img src="assets/identity-stamp-clean.png" alt="توثيق واعتماد مخرجات مهيب">
+                    <img data-image="execution_image" src="assets/identity-stamp-clean.png" alt="توثيق واعتماد مخرجات مهيب">
                 </div>
                 <div class="after-sale-content">
-                    <p class="eyebrow">رحلة التنفيذ</p>
-                    <h2>لا نترك التجربة للصدفة.</h2>
-                    <p>نبدأ بفهم الهدف، ثم نبني فكرة قابلة للتنفيذ، ونحوّلها إلى تفاصيل تشغيلية وبصرية تحفظ جودة الحضور من أول إعلان حتى آخر لحظة في الحدث.</p>
+                    <p class="eyebrow" data-content="execution_eyebrow">رحلة التنفيذ</p>
+                    <h2 data-content="execution_title">لا نترك التجربة للصدفة.</h2>
+                    <p data-content="execution_text">نبدأ بفهم الهدف، ثم نبني فكرة قابلة للتنفيذ، ونحوّلها إلى تفاصيل تشغيلية وبصرية تحفظ جودة الحضور من أول إعلان حتى آخر لحظة في الحدث.</p>
                     <div class="service-list">
-                        <span><i data-lucide="clipboard-check"></i> تخطيط الفكرة</span>
-                        <span><i data-lucide="wrench"></i> تشغيل وتنفيذ</span>
-                        <span><i data-lucide="file-check-2"></i> توثيق واعتماد</span>
+                        <span><i data-lucide="clipboard-check"></i> <b data-content="execution_step_1">تخطيط الفكرة</b></span>
+                        <span><i data-lucide="wrench"></i> <b data-content="execution_step_2">تشغيل وتنفيذ</b></span>
+                        <span><i data-lucide="file-check-2"></i> <b data-content="execution_step_3">توثيق واعتماد</b></span>
                     </div>
                 </div>
             </div>
@@ -297,22 +296,22 @@
         <section class="interest section-observe" id="interest">
             <div class="container interest-grid">
                 <div class="interest-copy">
-                    <p class="eyebrow">سجل اهتمامك</p>
-                    <h2>حدثنا عن فكرتك، ونحوّلها إلى تجربة قابلة للتنفيذ.</h2>
-                    <p>املأ النموذج وسيتم التواصل معك لمناقشة نوع الفعالية أو الحملة، نطاق العمل، والاحتياجات البصرية والتشغيلية.</p>
+                    <p class="eyebrow" data-content="interest_eyebrow">سجل اهتمامك</p>
+                    <h2 data-content="interest_title">حدثنا عن فكرتك، ونحوّلها إلى تجربة قابلة للتنفيذ.</h2>
+                    <p data-content="interest_text">املأ النموذج وسيتم التواصل معك لمناقشة نوع الفعالية أو الحملة، نطاق العمل، والاحتياجات البصرية والتشغيلية.</p>
                     <div class="contact-strip">
-                        <a href="tel:+966599575691"><i data-lucide="phone"></i> +966 59 957 5691</a>
-                        <a href="https://wa.me/966599575691" target="_blank" rel="noopener"><i data-lucide="message-circle"></i> واتساب</a>
+                        <a data-phone-link href="tel:+966599575691"><i data-lucide="phone"></i> <span data-content="contact_phone">+966 59 957 5691</span></a>
+                        <a data-whatsapp-link href="https://wa.me/966599575691" target="_blank" rel="noopener"><i data-lucide="message-circle"></i> <span data-content="contact_whatsapp_label">واتساب</span></a>
                     </div>
                 </div>
                 <form class="lead-form" id="leadForm" novalidate>
                     <label>
-                        <span>الاسم</span>
+                        <span data-content="form_name_label">الاسم</span>
                         <input type="text" name="name" autocomplete="name" required>
                     </label>
                     <div class="form-row">
                         <label>
-                            <span>رمز الدولة</span>
+                            <span data-content="form_country_label">رمز الدولة</span>
                             <select name="country" id="countryCode">
                                 <option value="966" data-rule="sa">السعودية (+966)</option>
                                 <option value="971" data-rule="digits9">الإمارات (+971)</option>
@@ -323,13 +322,13 @@
                             </select>
                         </label>
                         <label>
-                            <span>رقم الجوال</span>
+                            <span data-content="form_phone_label">رقم الجوال</span>
                             <input type="tel" name="phone" id="phone" placeholder="5xxxxxxxx" inputmode="numeric" required>
                         </label>
                     </div>
                     <label>
-                        <span>مجال الاهتمام</span>
-                        <select name="project">
+                        <span data-content="form_interest_label">مجال الاهتمام</span>
+                        <select name="project" id="interestSelect">
                             <option>تنظيم فعالية أو معرض</option>
                             <option>حملة تسويقية</option>
                             <option>هوية وتطبيقات بصرية</option>
@@ -338,7 +337,7 @@
                         </select>
                     </label>
                     <label>
-                        <span>كيف سمعت عن مهيب؟</span>
+                        <span data-content="form_source_label">كيف سمعت عن مهيب؟</span>
                         <select name="source" required>
                             <option value="">اختر خيارًا</option>
                             <option>جوجل</option>
@@ -349,39 +348,15 @@
                         </select>
                     </label>
                     <label>
-                        <span>ملاحظاتك</span>
-                        <textarea name="message" rows="4" placeholder="اكتب نوع الفعالية، موعدها التقريبي، أو الهدف من الحملة"></textarea>
+                        <span data-content="form_message_label">ملاحظاتك</span>
+                        <textarea name="message" rows="4" data-placeholder-content="form_message_placeholder" placeholder="اكتب نوع الفعالية، موعدها التقريبي، أو الهدف من الحملة"></textarea>
                     </label>
                     <button class="primary-action form-submit" type="submit">
-                        <span>إرسال الطلب</span>
+                        <span data-content="form_submit_button">إرسال الطلب</span>
                         <i data-lucide="send"></i>
                     </button>
                     <p class="form-note" id="formNote" role="status"></p>
                 </form>
-            </div>
-        </section>
-
-        <section class="map-section section-observe" id="contact">
-            <div class="container">
-                <div class="section-heading split">
-                    <div>
-                        <p class="eyebrow">نطاق العمل</p>
-                        <h2>مهيب تنطلق من المدينة وتخدم تجاربك أينما كانت.</h2>
-                    </div>
-                    <a class="secondary-action" href="#interest">
-                        <i data-lucide="calendar-check"></i>
-                        <span>اطلب موعدًا</span>
-                    </a>
-                </div>
-                <div class="map-layout">
-                    <div id="map" class="map" aria-label="خريطة نطاق عمل مهيب"></div>
-                    <div class="map-legend">
-                        <h3>دليل النطاق</h3>
-                        <span><b class="pin available"></b> مقر مهيب</span>
-                        <span><b class="pin soon"></b> فعاليات</span>
-                        <span><b class="pin sold"></b> حملات وتجارب</span>
-                    </div>
-                </div>
             </div>
         </section>
     </main>
@@ -389,34 +364,26 @@
     <footer class="site-footer">
         <div class="container footer-grid">
             <div>
-                <img src="assets/logo-meheib.png" alt="شعار مهيب">
-                <p>مهيب - حضور بصري وتجارب مؤثرة في التسويق وتنظيم الفعاليات.</p>
+                <img data-image="footer_logo" src="assets/logo-meheib.png" alt="شعار مهيب">
+                <p data-content="footer_text">مهيب - حضور بصري وتجارب مؤثرة في التسويق وتنظيم الفعاليات.</p>
             </div>
             <div>
-                <h3>روابط سريعة</h3>
-                <a href="#about">عن مهيب</a>
-                <a href="#projects">أعمالنا</a>
-                <a href="#interest">تسجيل اهتمام</a>
-                <a href="/admin.html">لوحة التحكم</a>
-            </div>
-            <div>
-                <h3>تواصل معنا</h3>
-                <a href="tel:+966599575691">+966 59 957 5691</a>
-                <a href="mailto:info.muheeb0@gmail.com">info.muheeb0@gmail.com</a>
-                <a href="https://wa.me/966599575691" target="_blank" rel="noopener">واتساب</a>
-                <span>المدينة المنورة، السعودية</span>
+                <h3 data-content="footer_contact_title">تواصل معنا</h3>
+                <a data-phone-link href="tel:+966599575691" data-content="contact_phone">+966 59 957 5691</a>
+                <a data-email-link href="mailto:info.muheeb0@gmail.com" data-content="contact_email">info.muheeb0@gmail.com</a>
+                <a data-whatsapp-link href="https://wa.me/966599575691" target="_blank" rel="noopener" data-content="contact_whatsapp_label">واتساب</a>
+                <span data-content="contact_location">المدينة المنورة، السعودية</span>
             </div>
         </div>
-        <div class="copyright">جميع الحقوق محفوظة لمهيب 2026 ©</div>
+        <div class="copyright" data-content="footer_copyright">جميع الحقوق محفوظة لمهيب 2026 ©</div>
     </footer>
 
     <div class="floating-actions" aria-label="اختصارات التواصل">
-        <a class="float-btn" href="tel:+966599575691" aria-label="اتصال" title="اتصال"><i data-lucide="phone"></i></a>
-        <a class="float-btn whatsapp" href="https://wa.me/966599575691" target="_blank" rel="noopener" aria-label="واتساب" title="واتساب"><i data-lucide="message-circle"></i></a>
+        <a class="float-btn" data-phone-link href="tel:+966599575691" aria-label="اتصال" title="اتصال"><i data-lucide="phone"></i></a>
+        <a class="float-btn whatsapp" data-whatsapp-link href="https://wa.me/966599575691" target="_blank" rel="noopener" aria-label="واتساب" title="واتساب"><i data-lucide="message-circle"></i></a>
         <button class="float-btn to-top" id="toTop" type="button" aria-label="العودة للأعلى" title="الأعلى"><i data-lucide="arrow-up"></i></button>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
     <script src="supabase-client.js"></script>

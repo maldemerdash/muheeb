@@ -46,9 +46,21 @@
                     <i data-lucide="inbox"></i>
                     <span>طلبات العملاء</span>
                 </button>
+                <button class="nav-item" type="button" data-view="contentView">
+                    <i data-lucide="file-pen-line"></i>
+                    <span>محتوى الموقع</span>
+                </button>
+                <button class="nav-item" type="button" data-view="siteImagesView">
+                    <i data-lucide="image-up"></i>
+                    <span>صور الموقع</span>
+                </button>
+                <button class="nav-item" type="button" data-view="interestOptionsView">
+                    <i data-lucide="list-plus"></i>
+                    <span>اختيارات النموذج</span>
+                </button>
                 <button class="nav-item" type="button" data-view="eventsView">
                     <i data-lucide="images"></i>
-                    <span>الفعاليات والصور</span>
+                    <span>الفعاليات والمعرض</span>
                 </button>
             </nav>
             <a class="site-link" href="/" target="_blank" rel="noopener">
@@ -133,35 +145,172 @@
             </section>
 
             <section class="admin-view" id="leadsView">
-                <div class="panel-card">
+                <div class="panel-card leads-panel">
                     <div class="panel-header">
                         <div>
                             <p class="eyebrow">طلبات العملاء</p>
-                            <h2>كل النماذج المرسلة من الموقع</h2>
+                            <h2>جدول مستقل لكل النماذج المرسلة من الموقع</h2>
                         </div>
-                        <select id="leadStatusFilter" aria-label="تصفية الطلبات حسب الحالة">
-                            <option value="all">كل الحالات</option>
-                            <option value="new">جديد</option>
-                            <option value="contacted">تم التواصل</option>
-                            <option value="done">مكتمل</option>
-                            <option value="archived">مؤرشف</option>
-                        </select>
+                        <div class="toolbar-actions">
+                            <input type="search" id="leadSearch" placeholder="بحث باسم العميل أو الجوال">
+                            <select id="leadStatusFilter" aria-label="تصفية الطلبات حسب الحالة">
+                                <option value="all">كل الحالات</option>
+                                <option value="new">جديد</option>
+                                <option value="contacted">تم التواصل</option>
+                                <option value="done">مكتمل</option>
+                                <option value="archived">مؤرشف</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="table-wrap">
-                        <table>
+                        <table class="leads-table">
                             <thead>
                                 <tr>
+                                    <th>رقم</th>
                                     <th>العميل</th>
-                                    <th>التواصل</th>
-                                    <th>الخدمة</th>
+                                    <th>الجوال</th>
+                                    <th>الاهتمام</th>
                                     <th>المصدر</th>
+                                    <th>الرسالة</th>
                                     <th>الحالة</th>
                                     <th>ملاحظات</th>
                                     <th>التاريخ</th>
+                                    <th>إجراء</th>
                                 </tr>
                             </thead>
                             <tbody id="leadsTable"></tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-view" id="contentView">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">محتوى الموقع</p>
+                            <h2>تعديل النصوص والعناوين من لوحة التحكم</h2>
+                        </div>
+                        <button class="primary-btn" type="button" id="saveContentButton">
+                            <i data-lucide="save"></i>
+                            <span>حفظ النصوص</span>
+                        </button>
+                    </div>
+                    <div class="content-editor" id="contentEditor"></div>
+                    <p class="form-message" id="contentMessage" role="status"></p>
+                </div>
+            </section>
+
+            <section class="admin-view" id="siteImagesView">
+                <div class="media-layout">
+                    <form class="panel-card image-form" id="siteImageForm">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">إضافة صورة</p>
+                                <h2>صورة جديدة للموقع</h2>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <label>
+                                <span>مفتاح الصورة</span>
+                                <input type="text" name="imageKey" placeholder="مثال: homepage_extra_image" required>
+                            </label>
+                            <label>
+                                <span>اسم الصورة في اللوحة</span>
+                                <input type="text" name="label" required>
+                            </label>
+                            <label>
+                                <span>المجموعة</span>
+                                <select name="groupName">
+                                    <option value="site_core">صور أساسية</option>
+                                    <option value="identity_gallery">معرض الهوية المتحرك</option>
+                                    <option value="services">صور الخدمات</option>
+                                    <option value="custom">صور إضافية</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>ترتيب الظهور</span>
+                                <input type="number" name="sortOrder" value="0">
+                            </label>
+                        </div>
+                        <label>
+                            <span>وصف الصورة</span>
+                            <input type="text" name="altText" placeholder="وصف مختصر للصورة">
+                        </label>
+                        <label class="upload-box">
+                            <span>رفع الصورة</span>
+                            <input type="file" id="newSiteImageFile" accept="image/png,image/jpeg,image/webp,image/gif" required>
+                            <small>تظهر الصور التابعة لمعرض الهوية مباشرة في الشريط المتحرك.</small>
+                        </label>
+                        <label class="toggle-field">
+                            <input type="checkbox" name="published" checked>
+                            <span>إظهار الصورة في الموقع</span>
+                        </label>
+                        <button class="primary-btn" type="submit">
+                            <i data-lucide="upload"></i>
+                            <span>إضافة الصورة</span>
+                        </button>
+                        <p class="form-message" id="siteImageFormMessage" role="status"></p>
+                    </form>
+
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">مكتبة الصور</p>
+                                <h2>تعديل وحذف صور الموقع</h2>
+                            </div>
+                        </div>
+                        <div class="site-image-list" id="siteImageList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-view" id="interestOptionsView">
+                <div class="options-layout">
+                    <form class="panel-card option-form" id="interestOptionForm">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">نموذج الطلب</p>
+                                <h2 id="interestOptionFormTitle">إضافة اختيار اهتمام</h2>
+                            </div>
+                            <button class="ghost-btn" type="button" id="resetInterestOptionForm">
+                                <i data-lucide="plus"></i>
+                                <span>جديد</span>
+                            </button>
+                        </div>
+                        <input type="hidden" name="optionId">
+                        <label>
+                            <span>اسم الاختيار الظاهر للعميل</span>
+                            <input type="text" name="label" required>
+                        </label>
+                        <label>
+                            <span>القيمة الداخلية</span>
+                            <input type="text" name="value" placeholder="اتركها فارغة لاستخدام نفس الاسم">
+                        </label>
+                        <div class="form-grid">
+                            <label>
+                                <span>ترتيب الظهور</span>
+                                <input type="number" name="sortOrder" value="0">
+                            </label>
+                            <label class="toggle-field">
+                                <input type="checkbox" name="published" checked>
+                                <span>إظهار الاختيار في النموذج</span>
+                            </label>
+                        </div>
+                        <button class="primary-btn" type="submit">
+                            <i data-lucide="save"></i>
+                            <span>حفظ الاختيار</span>
+                        </button>
+                        <p class="form-message" id="interestOptionMessage" role="status"></p>
+                    </form>
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">الاختيارات الحالية</p>
+                                <h2>تظهر في خانة مجال الاهتمام</h2>
+                            </div>
+                        </div>
+                        <div class="interest-option-list" id="interestOptionList"></div>
                     </div>
                 </div>
             </section>

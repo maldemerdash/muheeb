@@ -400,8 +400,7 @@ button {
 .featured-projects,
 .features,
 .after-sale,
-.interest,
-.map-section {
+.interest {
     padding: 92px 0;
 }
 
@@ -435,8 +434,7 @@ button {
 
 .metric,
 .feature-card,
-.lead-form,
-.map-legend {
+.lead-form {
     background: var(--white);
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -601,7 +599,6 @@ button {
 .project-content h3,
 .feature-card h3,
 .after-sale-content h2,
-.map-legend h3,
 .site-footer h3 {
     margin: 0;
 }
@@ -911,59 +908,6 @@ button {
     font-weight: 800;
 }
 
-.map-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 270px;
-    gap: 20px;
-    align-items: stretch;
-}
-
-.map {
-    min-height: 460px;
-    overflow: hidden;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    box-shadow: var(--shadow);
-}
-
-.map-legend {
-    display: grid;
-    align-content: start;
-    gap: 16px;
-    padding: 22px;
-}
-
-.map-legend h3 {
-    color: var(--burgundy);
-}
-
-.map-legend span {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--muted);
-    font-weight: 800;
-}
-
-.pin {
-    width: 16px;
-    height: 16px;
-    display: inline-block;
-    border-radius: 50%;
-}
-
-.pin.available {
-    background: #2d7b54;
-}
-
-.pin.soon {
-    background: var(--gold);
-}
-
-.pin.sold {
-    background: #88827c;
-}
-
 .site-footer {
     color: rgba(255, 255, 255, 0.84);
     background: var(--charcoal);
@@ -971,7 +915,7 @@ button {
 
 .footer-grid {
     display: grid;
-    grid-template-columns: 1.4fr 0.8fr 0.8fr;
+    grid-template-columns: 1.4fr 0.8fr;
     gap: 34px;
     padding: 56px 0;
 }
@@ -1050,33 +994,6 @@ button {
 .section-observe.in-view {
     opacity: 1;
     transform: translateY(0);
-}
-
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
-    font-family: "Cairo", sans-serif;
-}
-
-.popup-card {
-    width: 230px;
-}
-
-.popup-card img {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-    border-radius: 8px;
-    margin-bottom: 8px;
-}
-
-.popup-card h4 {
-    margin: 0 0 6px;
-    color: var(--burgundy);
-}
-
-.popup-card p {
-    margin: 0;
-    color: var(--muted);
 }
 
 @keyframes slideInUp {
@@ -1287,25 +1204,14 @@ button {
     .features,
     .after-sale,
     .interest,
-    .map-section,
     .projects-strip {
         padding: 68px 0;
     }
 
     .after-sale-grid,
     .interest-grid,
-    .map-layout,
     .footer-grid {
         grid-template-columns: 1fr;
-    }
-
-    .map-legend {
-        grid-template-columns: repeat(3, 1fr);
-        align-items: center;
-    }
-
-    .map-legend h3 {
-        grid-column: 1 / -1;
     }
 }
 
@@ -1373,14 +1279,6 @@ button {
 
     .lead-form {
         padding: 18px;
-    }
-
-    .map {
-        min-height: 360px;
-    }
-
-    .map-legend {
-        grid-template-columns: 1fr;
     }
 
     .floating-actions {

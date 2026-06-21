@@ -140,7 +140,7 @@
         return count || 0;
     };
 
-    const uploadSupabaseFiles = async (files) => {
+    const uploadSupabaseFiles = async (files, folder = "events") => {
         if (!files || files.length === 0) return [];
         await requireAdmin();
         const client = await requireSupabase();
@@ -148,7 +148,8 @@
         for (const file of Array.from(files)) {
             const extension = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
             const cleanExtension = extension || "jpg";
-            const path = `events/${Date.now()}-${crypto.randomUUID()}.${cleanExtension}`;
+            const cleanFolder = String(folder || "events").replace(/[^a-z0-9_-]/gi, "") || "events";
+            const path = `${cleanFolder}/${Date.now()}-${crypto.randomUUID()}.${cleanExtension}`;
             const { error } = await client.storage.from(storageBucket).upload(path, file, {
                 cacheControl: "3600",
                 upsert: false,
@@ -163,9 +164,70 @@
         return uploaded;
     };
 
+    const toCamelContent = (row) => ({
+        key: row.content_key || row.key,
+        contentKey: row.content_key || row.contentKey || row.key,
+        label: row.label || "",
+        value: row.value || "",
+        inputType: row.input_type || row.inputType || "text",
+        groupName: row.group_name || row.groupName || "عام",
+        sortOrder: row.sort_order || row.sortOrder || 0,
+        updatedAt: row.updated_at || row.updatedAt,
+    });
+
+    const toCamelSiteImage = (row) => ({
+        id: row.id,
+        imageKey: row.image_key || row.imageKey || "",
+        label: row.label || "",
+        groupName: row.group_name || row.groupName || "صور الموقع",
+        imagePath: row.image_path || row.imagePath || "",
+        altText: row.alt_text || row.altText || "",
+        published: row.published !== false,
+        sortOrder: row.sort_order || row.sortOrder || 0,
+        updatedAt: row.updated_at || row.updatedAt,
+    });
+
+    const toCamelInterestOption = (row) => ({
+        id: row.id,
+        label: row.label || "",
+        value: row.value || row.label || "",
+        published: row.published !== false,
+        sortOrder: row.sort_order || row.sortOrder || 0,
+        createdAt: row.created_at || row.createdAt,
+        updatedAt: row.updated_at || row.updatedAt,
+    });
+
+    const contentRowsToObject = (rows) =>
+        Object.fromEntries((rows || []).map((row) => {
+            const item = toCamelContent(row);
+            return [item.contentKey, item];
+        }));
+
     const dataApi = {
         isSupabaseEnabled() {
             return hasSupabaseConfig;
+        },
+
+        async getSiteContent() {
+            const client = await getSupabaseClient();
+            if (!client) {
+                return { content: {}, contentRows: [], images: [], interestOptions: [] };
+            }
+            const [contentResult, imagesResult, optionsResult] = await Promise.all([
+                client.from("site_content").select("*").order("sort_order", { ascending: true }),
+                client.from("site_images").select("*").eq("published", true).order("sort_order", { ascending: true }),
+                client.from("interest_options").select("*").eq("published", true).order("sort_order", { ascending: true }),
+            ]);
+            if (contentResult.error) throw contentResult.error;
+            if (imagesResult.error) throw imagesResult.error;
+            if (optionsResult.error) throw optionsResult.error;
+            const contentRows = (contentResult.data || []).map(toCamelContent);
+            return {
+                content: contentRowsToObject(contentResult.data || []),
+                contentRows,
+                images: (imagesResult.data || []).map(toCamelSiteImage),
+                interestOptions: (optionsResult.data || []).map(toCamelInterestOption),
+            };
         },
 
         async listPublishedEvents() {
@@ -335,7 +397,7 @@
             return (data || []).map(toCamelEvent);
         },
 
-        async uploadFiles(files) {
+        async uploadFiles(files, folder = "events") {
             const client = await getSupabaseClient();
             if (!client) {
                 if (!files || files.length === 0) return [];
@@ -347,7 +409,7 @@
                 });
                 return payload.files || [];
             }
-            return uploadSupabaseFiles(files);
+            return uploadSupabaseFiles(files, folder);
         },
 
         async saveEvent(payload, eventId) {
@@ -423,6 +485,122 @@
             }
             await requireAdmin();
             const { error } = await client.from("event_images").delete().eq("id", imageId);
+            if (error) throw error;
+        },
+
+        async listSiteContent() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("site_content")
+                .select("*")
+                .order("group_name", { ascending: true })
+                .order("sort_order", { ascending: true });
+            if (error) throw error;
+            return (data || []).map(toCamelContent);
+        },
+
+        async saveSiteContent(rows) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const payload = (rows || []).map((row) => ({
+                content_key: row.contentKey || row.key,
+                label: row.label || row.contentKey || row.key,
+                value: String(row.value ?? ""),
+                input_type: row.inputType || "text",
+                group_name: row.groupName || "عام",
+                sort_order: Number(row.sortOrder || 0),
+                updated_at: new Date().toISOString(),
+            })).filter((row) => row.content_key);
+            if (!payload.length) return [];
+            const { data, error } = await client
+                .from("site_content")
+                .upsert(payload, { onConflict: "content_key" })
+                .select("*");
+            if (error) throw error;
+            return (data || []).map(toCamelContent);
+        },
+
+        async listSiteImages() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("site_images")
+                .select("*")
+                .order("group_name", { ascending: true })
+                .order("sort_order", { ascending: true })
+                .order("id", { ascending: true });
+            if (error) throw error;
+            return (data || []).map(toCamelSiteImage);
+        },
+
+        async saveSiteImage(payload, imageId) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const row = {
+                image_key: String(payload.imageKey || "").trim(),
+                label: String(payload.label || "").trim(),
+                group_name: String(payload.groupName || "صور الموقع").trim(),
+                image_path: String(payload.imagePath || "").trim(),
+                alt_text: String(payload.altText || "").trim(),
+                published: Boolean(payload.published),
+                sort_order: Number(payload.sortOrder || 0),
+                updated_at: new Date().toISOString(),
+            };
+            if (!row.image_key) throw new Error("مفتاح الصورة مطلوب.");
+            if (!row.label) throw new Error("اسم الصورة مطلوب.");
+            if (!row.image_path) throw new Error("اختر صورة أولًا.");
+            const query = imageId
+                ? client.from("site_images").update(row).eq("id", imageId)
+                : client.from("site_images").insert(row);
+            const { data, error } = await query.select("*").single();
+            if (error) throw error;
+            return toCamelSiteImage(data);
+        },
+
+        async deleteSiteImage(imageId) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { error } = await client.from("site_images").delete().eq("id", imageId);
+            if (error) throw error;
+        },
+
+        async listInterestOptions() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("interest_options")
+                .select("*")
+                .order("sort_order", { ascending: true })
+                .order("id", { ascending: true });
+            if (error) throw error;
+            return (data || []).map(toCamelInterestOption);
+        },
+
+        async saveInterestOption(payload, optionId) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const label = String(payload.label || "").trim();
+            if (!label) throw new Error("اكتب اسم الاختيار.");
+            const row = {
+                label,
+                value: String(payload.value || label).trim(),
+                published: Boolean(payload.published),
+                sort_order: Number(payload.sortOrder || 0),
+                updated_at: new Date().toISOString(),
+            };
+            const query = optionId
+                ? client.from("interest_options").update(row).eq("id", optionId)
+                : client.from("interest_options").insert(row);
+            const { data, error } = await query.select("*").single();
+            if (error) throw error;
+            return toCamelInterestOption(data);
+        },
+
+        async deleteInterestOption(optionId) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { error } = await client.from("interest_options").delete().eq("id", optionId);
             if (error) throw error;
         },
 

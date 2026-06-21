@@ -105,6 +105,106 @@ const escapeHtml = (value) =>
         "'": "&#039;",
     }[char]));
 
+const getContentValue = (content, key, fallback = "") => {
+    const item = content?.[key];
+    if (item && typeof item === "object" && "value" in item) return item.value ?? fallback;
+    return item ?? fallback;
+};
+
+const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
+
+const applyContactLinks = (content) => {
+    const phone = getContentValue(content, "contact_phone", "+966 59 957 5691");
+    const phoneDigits = normalizePhoneDigits(phone);
+    const whatsappDigits = normalizePhoneDigits(getContentValue(content, "contact_whatsapp_number", phoneDigits));
+    const email = getContentValue(content, "contact_email", "info.muheeb0@gmail.com");
+
+    document.querySelectorAll("[data-phone-link]").forEach((link) => {
+        if (phoneDigits) link.href = `tel:+${phoneDigits}`;
+    });
+    document.querySelectorAll("[data-whatsapp-link]").forEach((link) => {
+        if (whatsappDigits) link.href = `https://wa.me/${whatsappDigits}`;
+    });
+    document.querySelectorAll("[data-email-link]").forEach((link) => {
+        if (email) link.href = `mailto:${email}`;
+    });
+};
+
+const applyTextContent = (content) => {
+    document.querySelectorAll("[data-content]").forEach((element) => {
+        const key = element.dataset.content;
+        const value = getContentValue(content, key, null);
+        if (value === null || value === undefined) return;
+        element.textContent = value;
+    });
+
+    document.querySelectorAll("[data-placeholder-content]").forEach((element) => {
+        const key = element.dataset.placeholderContent;
+        const value = getContentValue(content, key, null);
+        if (value === null || value === undefined) return;
+        element.setAttribute("placeholder", value);
+    });
+
+    applyContactLinks(content);
+};
+
+const applySiteImages = (images) => {
+    const keyedImages = new Map(
+        (images || [])
+            .filter((image) => image.published !== false)
+            .map((image) => [image.imageKey, image])
+    );
+
+    document.querySelectorAll("[data-image]").forEach((imageElement) => {
+        const image = keyedImages.get(imageElement.dataset.image);
+        if (!image?.imagePath) return;
+        imageElement.src = image.imagePath;
+        if (image.altText) {
+            imageElement.alt = image.altText;
+        }
+    });
+
+    const interestBackground = keyedImages.get("interest_background");
+    const interestSection = document.querySelector(".interest");
+    if (interestSection && interestBackground?.imagePath) {
+        interestSection.style.backgroundImage = `linear-gradient(90deg, rgba(69, 18, 22, 0.93), rgba(69, 18, 22, 0.78)), url("${interestBackground.imagePath}")`;
+    }
+
+    const gallery = (images || [])
+        .filter((image) => image.published !== false && image.groupName === "identity_gallery" && image.imagePath)
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    const identityGallery = document.getElementById("identityGallery");
+    if (identityGallery && gallery.length) {
+        const repeatedGallery = gallery.length < 6 ? [...gallery, ...gallery] : gallery;
+        identityGallery.innerHTML = repeatedGallery.map((image) => `
+            <article class="slide">
+                <img src="${escapeHtml(image.imagePath)}" alt="${escapeHtml(image.altText || image.label)}">
+                <span>${escapeHtml(image.label || image.altText || "صورة من مهيب")}</span>
+            </article>
+        `).join("");
+    }
+};
+
+const renderInterestOptions = (options) => {
+    const interestSelect = document.getElementById("interestSelect");
+    const publishedOptions = (options || []).filter((option) => option.published !== false);
+    if (!interestSelect || !publishedOptions.length) return;
+    interestSelect.innerHTML = publishedOptions.map((option) => `
+        <option value="${escapeHtml(option.value || option.label)}">${escapeHtml(option.label)}</option>
+    `).join("");
+};
+
+const loadSiteCms = async () => {
+    try {
+        const siteData = await window.MuheebData.getSiteContent();
+        applyTextContent(siteData.content || {});
+        applySiteImages(siteData.images || []);
+        renderInterestOptions(siteData.interestOptions || []);
+    } catch (error) {
+        console.info("Using static site content fallback.");
+    }
+};
+
 const renderProjectCards = (events) => {
     if (!projectGrid || !events.length) return;
     projectGrid.innerHTML = events.map((event) => {
@@ -248,89 +348,6 @@ toTop?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-const projectLocations = [
-    {
-        title: "مقر مهيب",
-        status: "available",
-        coords: [24.467197, 39.60858],
-        image: "assets/identity-cards-clean.png",
-        description: "المدينة المنورة، السعودية.",
-    },
-    {
-        title: "نطاق الفعاليات",
-        status: "soon",
-        coords: [24.456096, 39.712948],
-        image: "assets/identity-wall-clean.png",
-        description: "تنظيم فعاليات ومعارض وتجارب حضور.",
-    },
-    {
-        title: "نطاق الحملات",
-        status: "sold",
-        coords: [24.46469, 39.567518],
-        image: "assets/brand-palette.jpg",
-        description: "حملات تسويقية وتطبيقات بصرية.",
-    },
-    {
-        title: "نطاق التشغيل",
-        status: "sold",
-        coords: [24.436738, 39.689044],
-        image: "assets/identity-stamp-clean.png",
-        description: "تشغيل، توثيق، واعتماد مخرجات التجربة.",
-    },
-];
-
-const statusColors = {
-    available: "#2d7b54",
-    soon: "#c49b3a",
-    sold: "#88827c",
-};
-
-const initMap = () => {
-    const mapElement = document.getElementById("map");
-    if (!mapElement || !window.L) return;
-
-    const map = window.L.map(mapElement, {
-        scrollWheelZoom: false,
-        attributionControl: false,
-    }).setView([24.4598, 39.6502], 12);
-
-    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-    }).addTo(map);
-
-    projectLocations.forEach((project) => {
-        const marker = window.L.divIcon({
-            className: "meheib-marker",
-            html: `<span style="background:${statusColors[project.status]}"></span>`,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
-        });
-
-        window.L.marker(project.coords, { icon: marker })
-            .addTo(map)
-            .bindPopup(`
-                <div class="popup-card">
-                    <img src="${project.image}" alt="">
-                    <h4>${project.title}</h4>
-                    <p>${project.description}</p>
-                </div>
-            `);
-    });
-};
-
-const markerStyle = document.createElement("style");
-markerStyle.textContent = `
-    .meheib-marker span {
-        width: 28px;
-        height: 28px;
-        display: block;
-        border: 3px solid #fff;
-        border-radius: 50%;
-        box-shadow: 0 8px 20px rgba(40, 40, 40, 0.25);
-    }
-`;
-document.head.appendChild(markerStyle);
-
 initIcons();
-initMap();
+loadSiteCms();
 loadPublishedEvents();

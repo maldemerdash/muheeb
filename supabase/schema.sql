@@ -281,3 +281,7 @@ where not exists (
     where events.title = seed_events.title
     and events.category = seed_events.category
 );
+
+-- Optional CMS upgrade:
+-- To enable editing all public-site texts, site images, and interest options
+-- from the admin panel, run supabase/cms_upgrade.sql after this schema.

@@ -56,6 +56,9 @@ MUHEEB_ADMIN_USER="admin" MUHEEB_ADMIN_PASSWORD="StrongPasswordHere" python3 ser
 
 - استقبال طلبات العملاء القادمة من نموذج الموقع.
 - تغيير حالة الطلب وكتابة ملاحظات متابعة.
+- تعديل نصوص الموقع الأساسية من قسم `محتوى الموقع`.
+- تعديل واستبدال وحذف صور الموقع من قسم `صور الموقع`.
+- إضافة وحذف اختيارات خانة `مجال الاهتمام` من قسم `اختيارات النموذج`.
 - إضافة وتعديل وحذف الفعاليات.
 - رفع صورة غلاف وصور إضافية للفعالية.
 - نشر أو إخفاء الفعالية من الموقع.
@@ -63,6 +66,7 @@ MUHEEB_ADMIN_USER="admin" MUHEEB_ADMIN_PASSWORD="StrongPasswordHere" python3 ser
 ## ملفات النشر المهمة
 
 - `supabase/schema.sql`: إنشاء الجداول والصلاحيات والتخزين في Supabase.
+- `supabase/cms_upgrade.sql`: جداول إدارة محتوى الموقع وصوره واختيارات النموذج.
 - `supabase-config.js`: تضع فيه رابط Supabase و`anon public key`.
 - `supabase-client.js`: طبقة الاتصال التي تعمل مع Supabase عند النشر أو مع `server.py` محليًا.
 - `vercel.json`: إعدادات نشر الواجهة على Vercel.
