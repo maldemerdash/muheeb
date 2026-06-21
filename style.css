@@ -35,6 +35,10 @@ body.menu-open {
     overflow: hidden;
 }
 
+main section[id] {
+    scroll-margin-top: 104px;
+}
+
 img {
     display: block;
     max-width: 100%;
@@ -909,185 +913,262 @@ button {
     font-weight: 800;
 }
 
+.contact-page {
+    position: relative;
+    overflow: hidden;
+    padding: 126px 0 104px;
+    background:
+        linear-gradient(90deg, rgba(244, 241, 237, 0.88), rgba(255, 255, 255, 0.96)),
+        var(--ivory);
+}
+
+.contact-watermark {
+    position: absolute;
+    inset: 14% auto auto 27%;
+    width: 520px;
+    aspect-ratio: 1;
+    opacity: 0.32;
+    pointer-events: none;
+}
+
+.contact-watermark::before,
+.contact-watermark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 10px solid rgba(201, 185, 166, 0.18);
+    transform: rotate(30deg);
+}
+
+.contact-watermark::after {
+    inset: 74px;
+    border-width: 7px;
+    opacity: 0.7;
+}
+
+.contact-page-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(420px, 0.95fr) minmax(420px, 1.05fr);
+    align-items: center;
+    gap: 70px;
+}
+
+.contact-copy {
+    display: grid;
+    gap: 24px;
+    justify-items: end;
+    text-align: right;
+}
+
+.contact-copy h2 {
+    max-width: 650px;
+    margin: 0;
+    color: var(--gold);
+    font-size: clamp(2.4rem, 5vw, 4.2rem);
+    line-height: 1.45;
+    font-weight: 800;
+}
+
+.contact-facts {
+    display: grid;
+    gap: 18px;
+    max-width: 620px;
+}
+
+.contact-facts article {
+    display: grid;
+    gap: 6px;
+}
+
+.contact-facts strong {
+    color: #31515c;
+    font-size: 1.35rem;
+}
+
+.contact-facts p {
+    margin: 0;
+    color: var(--gold);
+    font-size: 1.22rem;
+    font-weight: 700;
+}
+
+.contact-quick-actions {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.contact-quick-actions a {
+    width: 62px;
+    height: 62px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: var(--white);
+    background: var(--burgundy);
+    box-shadow: 0 14px 24px rgba(69, 18, 22, 0.18);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contact-quick-actions a:first-child {
+    background: #25ad60;
+}
+
+.contact-quick-actions a:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 30px rgba(69, 18, 22, 0.22);
+}
+
+.contact-channel-list {
+    display: grid;
+    gap: 18px;
+}
+
+.contact-channel {
+    min-height: 70px;
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 2px 20px;
+    padding: 11px 18px;
+    border: 1px solid rgba(196, 155, 58, 0.28);
+    border-radius: 999px;
+    color: #31515c;
+    background:
+        linear-gradient(90deg, rgba(237, 222, 196, 0.93), rgba(241, 230, 207, 0.82));
+    box-shadow: 0 16px 28px rgba(69, 18, 22, 0.04);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contact-channel:hover {
+    transform: translateX(-6px);
+    border-color: rgba(196, 155, 58, 0.5);
+    box-shadow: 0 18px 34px rgba(69, 18, 22, 0.08);
+}
+
+.contact-channel span {
+    grid-row: 1 / span 2;
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border: 2px solid rgba(196, 155, 58, 0.38);
+    border-radius: 50%;
+    color: var(--gold);
+    background: rgba(244, 241, 237, 0.42);
+}
+
+.contact-channel svg {
+    width: 21px;
+    height: 21px;
+}
+
+.contact-channel strong {
+    color: #31515c;
+    font-size: 1.22rem;
+    font-weight: 800;
+}
+
+.contact-channel em {
+    color: rgba(49, 81, 92, 0.68);
+    font-style: normal;
+    font-weight: 700;
+}
+
 .site-footer {
     position: relative;
     z-index: 2;
-    color: rgba(255, 255, 255, 0.84);
+    color: rgba(255, 255, 255, 0.78);
     background:
         radial-gradient(circle at 14% 10%, rgba(196, 155, 58, 0.08), transparent 34%),
         linear-gradient(135deg, #252626 0%, #202121 100%);
 }
 
-.footer-grid {
+.footer-minimal {
     display: grid;
-    grid-template-columns: minmax(420px, 1.35fr) minmax(320px, 0.85fr);
-    gap: 28px 34px;
-    padding: 54px 0 32px;
-    align-items: start;
-}
-
-.footer-brand,
-.footer-contact,
-.footer-official {
-    display: grid;
-    align-content: start;
-    gap: 16px;
+    grid-template-columns: minmax(420px, 1fr) minmax(340px, 0.82fr);
+    gap: 62px;
+    padding: 58px 0 36px;
+    align-items: center;
 }
 
 .footer-brand {
-    align-content: center;
-    min-height: 252px;
-    padding-inline-start: 32px;
-}
-
-.footer-contact {
-    padding: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.035);
-}
-
-.footer-official {
-    grid-column: 1 / -1;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: 14px 18px;
-    padding: 14px 16px;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.028);
+    display: grid;
+    justify-items: start;
+    gap: 14px;
 }
 
 .site-footer img {
-    width: 210px;
+    width: 168px;
     filter: brightness(0) invert(1);
 }
 
 .site-footer p {
-    max-width: 520px;
-    margin: 18px 0 0;
-    font-size: 1.05rem;
-    line-height: 2;
+    max-width: 440px;
+    margin: 4px 0 4px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.98rem;
+    line-height: 1.9;
 }
 
-.site-footer h3 {
-    margin: 0;
-    color: var(--gold);
-    font-size: 1.12rem;
-}
-
-.footer-contact-list,
-.official-data {
+.footer-line-list {
     display: grid;
-    gap: 8px;
+    gap: 7px;
 }
 
-.official-data {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.footer-contact-item,
-.official-data span {
-    min-height: 56px;
-    display: grid;
-    grid-template-columns: 36px minmax(0, 1fr);
+.footer-line-list span,
+.footer-line-list a {
+    display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.075);
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.86);
-    background: rgba(255, 255, 255, 0.025);
-}
-
-.footer-contact-item {
-    margin: 0;
-}
-
-.footer-contact-item span:last-child,
-.official-data span {
+    gap: 8px;
+    flex-wrap: wrap;
     min-width: 0;
+    color: rgba(255, 255, 255, 0.86);
 }
 
-.footer-contact-item b,
-.official-data b {
-    display: block;
-    margin-bottom: 2px;
+.footer-contact-lines {
+    justify-self: end;
+    max-width: 460px;
+}
+
+.footer-official-lines {
+    margin-top: 4px;
+}
+
+.footer-line-list svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    color: rgba(255, 255, 255, 0.82);
+    stroke-width: 2;
+}
+
+.footer-line-list b {
     color: var(--white);
-    font-weight: 800;
-    font-style: normal;
-}
-
-.footer-contact-item em,
-.official-data em {
-    display: block;
-    color: rgba(255, 255, 255, 0.7);
-    font-style: normal;
-    overflow-wrap: anywhere;
-}
-
-.footer-icon,
-.official-data > span > svg {
-    width: 36px;
-    height: 36px;
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    color: var(--gold);
-    background: rgba(196, 155, 58, 0.12);
-}
-
-.official-data > span {
-    min-height: 54px;
-    grid-template-columns: 30px minmax(0, 1fr);
-    gap: 6px 8px;
-    padding: 9px 10px;
-}
-
-.official-data > span > svg {
-    width: 30px;
-    height: 30px;
-    padding: 7px;
-    stroke-width: 2.2;
-}
-
-.footer-icon svg {
-    width: 19px;
-    height: 19px;
-    padding: 0;
-    stroke-width: 2.2;
-}
-
-.official-data > span > svg {
-    grid-row: 1 / span 2;
-}
-
-.official-data > span > b,
-.official-data > span > em {
-    grid-column: 2;
-}
-
-.official-data > span > b {
-    margin: 0;
-    color: var(--gold);
-    font-size: 0.84rem;
+    font-size: 0.82rem;
+    font-weight: 700;
     white-space: nowrap;
 }
 
-.official-data > span > em {
+.footer-line-list em {
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.82rem;
+    font-style: normal;
+    overflow-wrap: anywhere;
+}
+
+.footer-line-list .phone-ltr,
+.footer-official-lines em {
     direction: ltr;
     unicode-bidi: plaintext;
-    min-width: 0;
-    font-size: 0.84rem;
     text-align: left;
-    overflow-wrap: anywhere;
-    white-space: normal;
 }
 
 .site-footer a:hover {
     color: var(--gold);
-    border-color: rgba(196, 155, 58, 0.3);
-    background: rgba(196, 155, 58, 0.08);
 }
 
 .copyright {
@@ -1553,27 +1634,34 @@ body.modal-open {
     .features,
     .after-sale,
     .interest,
+    .contact-page,
     .projects-strip {
         padding: 68px 0;
     }
 
     .after-sale-grid,
     .interest-grid,
-    .footer-grid {
+    .contact-page-grid,
+    .footer-minimal {
         grid-template-columns: 1fr;
+    }
+
+    .contact-copy {
+        justify-items: center;
+        text-align: center;
+    }
+
+    .contact-facts {
+        max-width: none;
+    }
+
+    .footer-minimal {
+        gap: 28px;
+        align-items: start;
     }
 
     .footer-brand {
-        min-height: auto;
-        padding-inline-start: 0;
-    }
-
-    .footer-official {
-        grid-template-columns: 1fr;
-    }
-
-    .official-data {
-        grid-template-columns: 1fr;
+        justify-items: start;
     }
 }
 
@@ -1587,7 +1675,8 @@ body.modal-open {
     .intro-text h2,
     .section-heading h2,
     .after-sale-content h2,
-    .interest-copy h2 {
+    .interest-copy h2,
+    .contact-copy h2 {
         font-size: 1.95rem;
     }
 
@@ -1603,6 +1692,43 @@ body.modal-open {
     .service-list span,
     .contact-strip a {
         width: 100%;
+    }
+
+    .contact-page-grid {
+        gap: 34px;
+    }
+
+    .contact-channel {
+        min-height: 62px;
+        grid-template-columns: 48px minmax(0, 1fr);
+        padding: 9px 13px;
+    }
+
+    .contact-channel span {
+        width: 38px;
+        height: 38px;
+    }
+
+    .contact-channel strong {
+        font-size: 1rem;
+    }
+
+    .contact-channel em {
+        font-size: 0.82rem;
+    }
+
+    .contact-facts strong,
+    .contact-facts p {
+        font-size: 1rem;
+    }
+
+    .footer-minimal {
+        padding: 42px 0 24px;
+    }
+
+    .footer-line-list span,
+    .footer-line-list a {
+        gap: 7px;
     }
 
     .stats-grid,

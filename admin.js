@@ -71,6 +71,48 @@ const siteImageGroupOrder = {
     custom: 90,
 };
 
+const defaultSiteContentRows = [
+    { contentKey: "contact_page_eyebrow", label: "عنوان صغير لصفحة التواصل", value: "تواصل معنا", inputType: "text", groupName: "صفحة التواصل", sortOrder: 130 },
+    { contentKey: "contact_page_title", label: "العنوان الكبير لصفحة التواصل", value: "نسعد بتواصلكم والإجابة على استفساراتكم ومساعدتكم", inputType: "textarea", groupName: "صفحة التواصل", sortOrder: 131 },
+    { contentKey: "contact_calls_title", label: "عنوان أوقات المكالمات", value: "أوقات استقبال المكالمات:", inputType: "text", groupName: "صفحة التواصل", sortOrder: 132 },
+    { contentKey: "contact_calls_text", label: "نص أوقات المكالمات", value: "من الساعة 8 صباحًا وحتى الساعة 12 عند منتصف الليل", inputType: "textarea", groupName: "صفحة التواصل", sortOrder: 133 },
+    { contentKey: "contact_visits_title", label: "عنوان أوقات تنسيق الفعاليات", value: "أوقات تنسيق الفعاليات:", inputType: "text", groupName: "صفحة التواصل", sortOrder: 134 },
+    { contentKey: "contact_visits_text", label: "نص أوقات تنسيق الفعاليات", value: "من الساعة 4 مساءً وحتى الساعة 11 مساءً على مدار الأسبوع", inputType: "textarea", groupName: "صفحة التواصل", sortOrder: 135 },
+    { contentKey: "contact_location_title", label: "عنوان الموقع في صفحة التواصل", value: "الموقع:", inputType: "text", groupName: "صفحة التواصل", sortOrder: 136 },
+    { contentKey: "contact_channel_whatsapp", label: "اسم قناة واتساب", value: "واتساب المبيعات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 137 },
+    { contentKey: "contact_channel_instagram", label: "اسم قناة الانستقرام", value: "الانستقرام", inputType: "text", groupName: "صفحة التواصل", sortOrder: 138 },
+    { contentKey: "social_instagram_label", label: "وصف الانستقرام", value: "تابع أعمالنا اليومية", inputType: "text", groupName: "صفحة التواصل", sortOrder: 139 },
+    { contentKey: "social_instagram_url", label: "رابط الانستقرام", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 140 },
+    { contentKey: "contact_channel_x", label: "اسم قناة أكس", value: "أكس", inputType: "text", groupName: "صفحة التواصل", sortOrder: 141 },
+    { contentKey: "social_x_label", label: "وصف أكس", value: "آخر الأخبار والتحديثات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 142 },
+    { contentKey: "social_x_url", label: "رابط أكس", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 143 },
+    { contentKey: "contact_channel_youtube", label: "اسم قناة اليوتيوب", value: "اليوتيوب", inputType: "text", groupName: "صفحة التواصل", sortOrder: 144 },
+    { contentKey: "social_youtube_label", label: "وصف اليوتيوب", value: "مشاهد من الفعاليات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 145 },
+    { contentKey: "social_youtube_url", label: "رابط اليوتيوب", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 146 },
+    { contentKey: "contact_channel_tiktok", label: "اسم قناة تيك توك", value: "تيك توك", inputType: "text", groupName: "صفحة التواصل", sortOrder: 147 },
+    { contentKey: "social_tiktok_label", label: "وصف تيك توك", value: "لقطات قصيرة من التجارب", inputType: "text", groupName: "صفحة التواصل", sortOrder: 148 },
+    { contentKey: "social_tiktok_url", label: "رابط تيك توك", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 149 },
+    { contentKey: "contact_channel_snapchat", label: "اسم قناة سناب شات", value: "سناب شات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 150 },
+    { contentKey: "social_snapchat_label", label: "وصف سناب شات", value: "تغطيات مباشرة ومقاطع سريعة", inputType: "text", groupName: "صفحة التواصل", sortOrder: 151 },
+    { contentKey: "social_snapchat_url", label: "رابط سناب شات", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 152 },
+    { contentKey: "contact_channel_email", label: "اسم قناة البريد الإلكتروني", value: "البريد الإلكتروني", inputType: "text", groupName: "صفحة التواصل", sortOrder: 153 },
+    { contentKey: "contact_channel_location", label: "اسم قناة الموقع", value: "موقعنا", inputType: "text", groupName: "صفحة التواصل", sortOrder: 154 },
+    { contentKey: "contact_maps_url", label: "رابط موقع خرائط جوجل", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 155 },
+    { contentKey: "commercial_registration", label: "رقم السجل التجاري", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 156 },
+    { contentKey: "tax_number", label: "الرقم الضريبي", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 157 },
+    { contentKey: "bank_account", label: "رقم الحساب البنكي", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 158 },
+];
+
+const ensureSiteContentRows = (rows = []) => {
+    const byKey = new Map(rows.map((row) => [row.contentKey, row]));
+    defaultSiteContentRows.forEach((row) => {
+        if (!byKey.has(row.contentKey)) {
+            byKey.set(row.contentKey, row);
+        }
+    });
+    return Array.from(byKey.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+};
+
 const permissionItems = [
     { key: "overview", label: "نظرة عامة" },
     { key: "leads", label: "طلبات العملاء" },
@@ -477,7 +519,7 @@ const loadAll = async () => {
     state.leadNotes = leadNotes || [];
     state.noteInquiries = noteInquiries || [];
     state.events = events || [];
-    state.siteContent = siteContent || [];
+    state.siteContent = ensureSiteContentRows(siteContent || []);
     state.siteImages = sortSiteImagesByPageOrder(siteImages);
     state.interestOptions = interestOptions || [];
     state.users = users || [];

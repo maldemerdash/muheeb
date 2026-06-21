@@ -192,6 +192,20 @@ const applyContactLinks = (content) => {
     document.querySelectorAll("[data-email-link]").forEach((link) => {
         if (email) link.href = `mailto:${email}`;
     });
+
+    document.querySelectorAll("[data-href-content]").forEach((link) => {
+        const value = getContentValue(content, link.dataset.hrefContent, link.getAttribute("href") || "");
+        if (!value) return;
+        link.href = value;
+        const isExternal = /^https?:\/\//i.test(value);
+        if (isExternal) {
+            link.setAttribute("target", "_blank");
+            link.setAttribute("rel", "noopener");
+        } else {
+            link.removeAttribute("target");
+            link.removeAttribute("rel");
+        }
+    });
 };
 
 const applyTextContent = (content) => {
