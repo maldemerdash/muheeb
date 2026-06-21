@@ -27,6 +27,10 @@ const state = {
         input: null,
         file: null,
         objectUrl: "",
+        crop: { x: 10, y: 10, width: 80, height: 80 },
+        queue: [],
+        queueIndex: 0,
+        processed: [],
     },
 };
 
@@ -191,6 +195,9 @@ const leadModalProgress = document.getElementById("leadModalProgress");
 const userForm = document.getElementById("userForm");
 const userFormTitle = document.getElementById("userFormTitle");
 const userFormMessage = document.getElementById("userFormMessage");
+const userAvatarInput = document.getElementById("userAvatarInput");
+const userAvatarName = document.getElementById("userAvatarName");
+const userAvatarPreview = document.getElementById("userAvatarPreview");
 const permissionsGrid = document.getElementById("permissionsGrid");
 const usersList = document.getElementById("usersList");
 const openUserModalButton = document.getElementById("openUserModalButton");
@@ -204,6 +211,7 @@ const profileRequestMessage = document.getElementById("profileRequestMessage");
 const profileRequestsList = document.getElementById("profileRequestsList");
 const imageEditorModal = document.getElementById("imageEditorModal");
 const imageEditorPreview = document.getElementById("imageEditorPreview");
+const imageCropFrame = document.getElementById("imageCropFrame");
 const imageEditorCanvas = document.getElementById("imageEditorCanvas");
 const imageEditorForm = document.getElementById("imageEditorForm");
 const imageEditorFileName = document.getElementById("imageEditorFileName");
@@ -297,6 +305,35 @@ const canViewLeadPhone = () => hasPermissionFlag("leads_view_phone") || canViewA
 const getDisplayName = (user = state.admin) => user?.fullName || user?.username || user?.email || user?.authEmail || "مستخدم";
 
 const getUserById = (userId) => state.users.find((user) => user.userId === userId);
+
+const getUserAvatar = (user = state.admin) => user?.avatarUrl || user?.permissions?.avatarUrl || "";
+
+const getInitials = (name) => String(name || "م")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("") || "م";
+
+const renderUserAvatar = (user = state.admin, className = "user-avatar") => {
+    const avatarUrl = getUserAvatar(user);
+    return `
+        <span class="${className}">
+            ${avatarUrl
+                ? `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(getDisplayName(user))}">`
+                : `<em>${escapeHtml(getInitials(getDisplayName(user)))}</em>`}
+        </span>
+    `;
+};
+
+const updateAvatarPreview = (avatarUrl = "") => {
+    if (!userAvatarPreview) return;
+    const value = avatarUrl || userForm?.elements.avatarUrl?.value || "";
+    userAvatarPreview.innerHTML = value
+        ? `<img src="${escapeHtml(value)}" alt="صورة الموظف">`
+        : `<i data-lucide="user-round"></i>`;
+    initIcons();
+};
 
 const getLeadAssignedNotes = (leadId) => state.leadNotes.filter((note) => (
     Number(note.leadId) === Number(leadId) &&
@@ -427,7 +464,11 @@ const showApp = () => {
     adminShell.classList.remove("is-hidden");
     profileName.textContent = getDisplayName();
     profileEmail.textContent = state.admin?.email || state.admin?.authEmail || "";
+    if (profileButton) {
+        profileButton.innerHTML = getUserAvatar() ? renderUserAvatar(state.admin, "topbar-avatar") : '<i data-lucide="user-round"></i>';
+    }
     applyPermissions();
+    initIcons();
 };
 
 const showLogin = () => {
@@ -527,6 +568,11 @@ const loadAll = async () => {
     state.siteImages = sortSiteImagesByPageOrder(siteImages);
     state.interestOptions = interestOptions || [];
     state.users = users || [];
+    const currentAdminRow = state.users.find((user) => user.userId === state.admin?.userId);
+    if (currentAdminRow) {
+        state.admin = { ...state.admin, ...currentAdminRow };
+        showApp();
+    }
     state.notifications = notifications || [];
     state.profileRequests = profileRequests || [];
     renderStats(stats || {});
@@ -877,6 +923,13 @@ const renderEvents = () => {
 };
 
 const visualContentDefaults = [
+    { contentKey: "nav_home_label", label: "اسم رابط الرئيسية", value: "الرئيسية", inputType: "text", groupName: "الهيدر", sortOrder: 1 },
+    { contentKey: "nav_about_label", label: "اسم رابط عن مهيب", value: "عن مهيب", inputType: "text", groupName: "الهيدر", sortOrder: 2 },
+    { contentKey: "nav_services_label", label: "اسم رابط الخدمات", value: "الخدمات", inputType: "text", groupName: "الهيدر", sortOrder: 3 },
+    { contentKey: "nav_projects_label", label: "اسم رابط أعمالنا", value: "أعمالنا", inputType: "text", groupName: "الهيدر", sortOrder: 4 },
+    { contentKey: "nav_execution_label", label: "اسم رابط رحلة التنفيذ", value: "رحلة التنفيذ", inputType: "text", groupName: "الهيدر", sortOrder: 5 },
+    { contentKey: "nav_interest_label", label: "اسم رابط تسجيل اهتمام", value: "تسجيل اهتمام", inputType: "text", groupName: "الهيدر", sortOrder: 6 },
+    { contentKey: "nav_contact_label", label: "اسم رابط تواصل معنا", value: "تواصل معنا", inputType: "text", groupName: "الهيدر", sortOrder: 7 },
     { contentKey: "hero_badge_small", label: "عبارة بطاقة الهيرو الصغيرة", value: "من الفكرة إلى التجربة", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 10 },
     { contentKey: "hero_badge_title", label: "عبارة بطاقة الهيرو الكبيرة", value: "حضور مؤثر لا يُنسى", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 11 },
     { contentKey: "hero_eyebrow", label: "وصف أعلى العنوان الرئيسي", value: "مهيب للتسويق وتنظيم الفعاليات", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 12 },
@@ -1083,6 +1136,7 @@ const renderContentEditor = () => {
                 <span>بعد التعديل اضغط زر حفظ النصوص في أعلى الصفحة.</span>
             </div>
             <nav class="visual-editor-nav" aria-label="أقسام محرر محتوى الموقع">
+                <a href="#visualHeader"><i data-lucide="menu"></i><span>الهيدر</span></a>
                 <a href="#visualHero"><i data-lucide="layout-template"></i><span>الواجهة</span></a>
                 <a href="#visualAbout"><i data-lucide="badge-info"></i><span>عن مهيب</span></a>
                 <a href="#visualServices"><i data-lucide="sparkles"></i><span>الخدمات</span></a>
@@ -1092,6 +1146,19 @@ const renderContentEditor = () => {
                 <a href="#visualContact"><i data-lucide="messages-square"></i><span>التواصل</span></a>
                 <a href="#visualFooter"><i data-lucide="panel-bottom"></i><span>التذييل</span></a>
             </nav>
+
+            <section class="visual-preview-section visual-header-editor" id="visualHeader">
+                ${renderContentSectionHeader("00", "الهيدر والتنقل", "أسماء الروابط وترتيبها كما تظهر في أعلى الموقع", "menu")}
+                <div class="visual-nav-labels">
+                    ${renderVisualField("nav_home_label", { label: "الرابط الأول" })}
+                    ${renderVisualField("nav_about_label", { label: "الرابط الثاني" })}
+                    ${renderVisualField("nav_services_label", { label: "الرابط الثالث" })}
+                    ${renderVisualField("nav_projects_label", { label: "الرابط الرابع" })}
+                    ${renderVisualField("nav_execution_label", { label: "الرابط الخامس" })}
+                    ${renderVisualField("nav_interest_label", { label: "الرابط السادس" })}
+                    ${renderVisualField("nav_contact_label", { label: "الرابط السابع" })}
+                </div>
+            </section>
 
             <section class="visual-preview-section visual-hero-editor" id="visualHero">
                 ${renderContentSectionHeader("01", "الصفحة الرئيسية", "الواجهة الأولى للموقع", "layout-template")}
@@ -1296,6 +1363,7 @@ const renderSiteImages = () => {
     const sortedGroups = Object.entries(groups).sort(([groupA], [groupB]) => (
         (siteImageGroupOrder[groupA] || 999) - (siteImageGroupOrder[groupB] || 999)
     ));
+    const groupId = (groupName) => `site-image-group-${String(groupName || "custom").replace(/[^a-z0-9_-]/gi, "-")}`;
     const renderImageCard = (image) => `
         <article class="site-image-card" data-site-image-card="${image.id}">
             <img src="${escapeHtml(image.imagePath || "assets/logo-meheib.png")}" alt="">
@@ -1343,10 +1411,24 @@ const renderSiteImages = () => {
             </div>
         </article>
     `;
-    siteImageList.innerHTML = sortedGroups.map(([groupName, images], index) => {
+    const groupNav = sortedGroups.length ? `
+        <nav class="site-image-tabs" aria-label="تقسيمات صور الموقع">
+            ${sortedGroups.map(([groupName]) => {
+                const meta = getSiteImageGroupMeta(groupName);
+                return `
+                    <a href="#${escapeHtml(groupId(groupName))}">
+                        <i data-lucide="${escapeHtml(meta.icon)}"></i>
+                        <span>${escapeHtml(meta.title)}</span>
+                    </a>
+                `;
+            }).join("")}
+        </nav>
+    ` : "";
+    siteImageList.innerHTML = groupNav + sortedGroups.map(([groupName, images], index) => {
         const meta = getSiteImageGroupMeta(groupName);
+        const sortedImages = sortSiteImagesByPageOrder(images);
         return `
-            <section class="site-image-group">
+            <section class="site-image-group" id="${escapeHtml(groupId(groupName))}">
                 <div class="visual-section-heading">
                     <span class="visual-section-number">${String(index + 1).padStart(2, "0")}</span>
                     <div>
@@ -1355,7 +1437,7 @@ const renderSiteImages = () => {
                     </div>
                 </div>
                 <div class="site-image-group-grid">
-                    ${images.map(renderImageCard).join("")}
+                    ${sortedImages.map(renderImageCard).join("")}
                 </div>
             </section>
         `;
@@ -1505,33 +1587,98 @@ const getAspectRatio = (aspect) => {
     return 16 / 9;
 };
 
+const clampValue = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const fitCropToAspect = () => {
+    const values = getImageEditorValues();
+    const ratio = getAspectRatio(values.aspect);
+    if (!ratio) {
+        state.imageEditor.crop = { x: 10, y: 10, width: 80, height: 80 };
+        return;
+    }
+    let width = 80;
+    let height = width / ratio;
+    if (height > 80) {
+        height = 80;
+        width = height * ratio;
+    }
+    state.imageEditor.crop = {
+        x: (100 - width) / 2,
+        y: (100 - height) / 2,
+        width,
+        height,
+    };
+};
+
+const updateCropFrame = () => {
+    if (!imageCropFrame) return;
+    const crop = state.imageEditor.crop || { x: 10, y: 10, width: 80, height: 80 };
+    imageCropFrame.style.left = `${crop.x}%`;
+    imageCropFrame.style.top = `${crop.y}%`;
+    imageCropFrame.style.width = `${crop.width}%`;
+    imageCropFrame.style.height = `${crop.height}%`;
+};
+
 const updateImageEditorPreview = () => {
     if (!imageEditorPreview || !state.imageEditor.objectUrl) return;
     const values = getImageEditorValues();
+    if (state.imageEditor.aspect !== values.aspect) {
+        state.imageEditor.aspect = values.aspect;
+        fitCropToAspect();
+    }
     imageEditorPreview.src = state.imageEditor.objectUrl;
     imageEditorPreview.style.transform = `scale(${values.zoom})`;
     imageEditorPreview.style.filter = `brightness(${values.brightness}%) contrast(${values.contrast}%) grayscale(${values.grayscale}%) sepia(${values.sepia}%)`;
+    updateCropFrame();
     if (imageEditorOutput) {
-        imageEditorOutput.textContent = `تكبير ${values.zoom.toFixed(1)}x - سطوع ${values.brightness}% - تباين ${values.contrast}%`;
+        const queue = state.imageEditor.queue || [];
+        const countText = queue.length > 1 ? ` - صورة ${state.imageEditor.queueIndex + 1} من ${queue.length}` : "";
+        imageEditorOutput.textContent = `تكبير ${values.zoom.toFixed(1)}x - سطوع ${values.brightness}% - تباين ${values.contrast}%${countText}`;
     }
 };
 
-const openImageEditor = (input, file) => {
-    if (!imageEditorModal || !file || !file.type?.startsWith("image/")) return;
-    if (state.imageEditor.objectUrl) URL.revokeObjectURL(state.imageEditor.objectUrl);
-    state.imageEditor = {
-        input,
-        file,
-        objectUrl: URL.createObjectURL(file),
-    };
-    if (imageEditorFileName) imageEditorFileName.textContent = file.name;
+const resetImageEditorControls = () => {
     imageEditorForm?.reset();
     if (imageEditorForm?.elements.zoom) imageEditorForm.elements.zoom.value = "1";
     if (imageEditorForm?.elements.brightness) imageEditorForm.elements.brightness.value = "100";
     if (imageEditorForm?.elements.contrast) imageEditorForm.elements.contrast.value = "100";
     if (imageEditorForm?.elements.grayscale) imageEditorForm.elements.grayscale.value = "0";
     if (imageEditorForm?.elements.sepia) imageEditorForm.elements.sepia.value = "0";
+    state.imageEditor.aspect = "";
+};
+
+const loadCurrentImageEditorFile = () => {
+    const queue = state.imageEditor.queue || [];
+    const file = queue[state.imageEditor.queueIndex] || state.imageEditor.file;
+    if (!file) return;
+    if (state.imageEditor.objectUrl) URL.revokeObjectURL(state.imageEditor.objectUrl);
+    state.imageEditor.file = file;
+    state.imageEditor.objectUrl = URL.createObjectURL(file);
+    if (imageEditorFileName) {
+        imageEditorFileName.textContent = queue.length > 1
+            ? `${file.name} (${state.imageEditor.queueIndex + 1} من ${queue.length})`
+            : file.name;
+    }
+    resetImageEditorControls();
+    fitCropToAspect();
     updateImageEditorPreview();
+};
+
+const openImageEditor = (input, file, files = []) => {
+    if (!imageEditorModal || !file || !file.type?.startsWith("image/")) return;
+    const queue = (files.length ? Array.from(files) : [file]).filter((item) => item?.type?.startsWith("image/"));
+    if (!queue.length) return;
+    state.imageEditor = {
+        input,
+        file: queue[0],
+        objectUrl: "",
+        crop: { x: 10, y: 10, width: 80, height: 80 },
+        queue,
+        queueIndex: 0,
+        processed: [],
+        aspect: "",
+    };
+    loadCurrentImageEditorFile();
     imageEditorModal.classList.remove("is-hidden");
     document.body.classList.add("modal-open");
     initIcons();
@@ -1543,9 +1690,87 @@ const closeImageEditor = (clearInput = false) => {
         editedFiles.delete(state.imageEditor.input);
     }
     if (state.imageEditor.objectUrl) URL.revokeObjectURL(state.imageEditor.objectUrl);
-    state.imageEditor = { input: null, file: null, objectUrl: "" };
+    state.imageEditor = {
+        input: null,
+        file: null,
+        objectUrl: "",
+        crop: { x: 10, y: 10, width: 80, height: 80 },
+        queue: [],
+        queueIndex: 0,
+        processed: [],
+    };
     imageEditorModal?.classList.add("is-hidden");
     document.body.classList.remove("modal-open");
+};
+
+let cropInteraction = null;
+
+const startCropInteraction = (event) => {
+    if (!imageCropFrame || !event.target.closest("#imageCropFrame")) return;
+    event.preventDefault();
+    const previewBox = imageCropFrame.parentElement?.getBoundingClientRect();
+    if (!previewBox) return;
+    cropInteraction = {
+        mode: event.target.dataset.cropHandle || "move",
+        startX: event.clientX,
+        startY: event.clientY,
+        startCrop: { ...state.imageEditor.crop },
+        previewBox,
+    };
+    imageCropFrame.setPointerCapture?.(event.pointerId);
+};
+
+const updateCropInteraction = (event) => {
+    if (!cropInteraction) return;
+    const { mode, startX, startY, startCrop, previewBox } = cropInteraction;
+    const deltaX = ((event.clientX - startX) / previewBox.width) * 100;
+    const deltaY = ((event.clientY - startY) / previewBox.height) * 100;
+    const minSize = 12;
+    const ratio = getAspectRatio(getImageEditorValues().aspect);
+    let next = { ...startCrop };
+
+    if (mode === "move") {
+        next.x = clampValue(startCrop.x + deltaX, 0, 100 - startCrop.width);
+        next.y = clampValue(startCrop.y + deltaY, 0, 100 - startCrop.height);
+    } else {
+        const right = startCrop.x + startCrop.width;
+        const bottom = startCrop.y + startCrop.height;
+        if (mode.includes("e")) {
+            next.width = clampValue(startCrop.width + deltaX, minSize, 100 - startCrop.x);
+        }
+        if (mode.includes("s")) {
+            next.height = clampValue(startCrop.height + deltaY, minSize, 100 - startCrop.y);
+        }
+        if (mode.includes("w")) {
+            const newX = clampValue(startCrop.x + deltaX, 0, right - minSize);
+            next.x = newX;
+            next.width = right - newX;
+        }
+        if (mode.includes("n")) {
+            const newY = clampValue(startCrop.y + deltaY, 0, bottom - minSize);
+            next.y = newY;
+            next.height = bottom - newY;
+        }
+        if (ratio) {
+            const centerX = next.x + next.width / 2;
+            const centerY = next.y + next.height / 2;
+            if (next.width / next.height > ratio) {
+                next.width = next.height * ratio;
+            } else {
+                next.height = next.width / ratio;
+            }
+            next.width = clampValue(next.width, minSize, 100);
+            next.height = clampValue(next.height, minSize, 100);
+            next.x = clampValue(centerX - next.width / 2, 0, 100 - next.width);
+            next.y = clampValue(centerY - next.height / 2, 0, 100 - next.height);
+        }
+    }
+    state.imageEditor.crop = next;
+    updateCropFrame();
+};
+
+const stopCropInteraction = () => {
+    cropInteraction = null;
 };
 
 const loadImage = (src) => new Promise((resolve, reject) => {
@@ -1558,25 +1783,29 @@ const loadImage = (src) => new Promise((resolve, reject) => {
 const createEditedImageFile = async () => {
     const values = getImageEditorValues();
     const image = await loadImage(state.imageEditor.objectUrl);
-    const ratio = getAspectRatio(values.aspect) || (image.width / image.height);
-    const outputWidth = Math.min(1600, Math.max(900, image.width));
+    const crop = state.imageEditor.crop || { x: 0, y: 0, width: 100, height: 100 };
+    const ratio = getAspectRatio(values.aspect) || (crop.width / crop.height) || (image.width / image.height);
+    const outputWidth = Math.min(1600, Math.max(900, Math.round(image.width * (crop.width / 100))));
     const outputHeight = Math.round(outputWidth / ratio);
     const canvas = imageEditorCanvas;
     canvas.width = outputWidth;
     canvas.height = outputHeight;
     const ctx = canvas.getContext("2d");
-    const sourceRatio = image.width / image.height;
-    let sourceWidth = image.width;
-    let sourceHeight = image.height;
-    if (sourceRatio > ratio) {
-        sourceWidth = image.height * ratio;
+    const cropX = (crop.x / 100) * image.width;
+    const cropY = (crop.y / 100) * image.height;
+    const cropWidth = Math.max(1, (crop.width / 100) * image.width);
+    const cropHeight = Math.max(1, (crop.height / 100) * image.height);
+    let sourceWidth = cropWidth / values.zoom;
+    let sourceHeight = cropHeight / values.zoom;
+    if (sourceWidth / sourceHeight > ratio) {
+        sourceWidth = sourceHeight * ratio;
     } else {
-        sourceHeight = image.width / ratio;
+        sourceHeight = sourceWidth / ratio;
     }
-    sourceWidth = Math.max(1, sourceWidth / values.zoom);
-    sourceHeight = Math.max(1, sourceHeight / values.zoom);
-    const sourceX = Math.max(0, (image.width - sourceWidth) / 2);
-    const sourceY = Math.max(0, (image.height - sourceHeight) / 2);
+    sourceWidth = clampValue(sourceWidth, 1, image.width);
+    sourceHeight = clampValue(sourceHeight, 1, image.height);
+    const sourceX = clampValue(cropX + (cropWidth - sourceWidth) / 2, 0, image.width - sourceWidth);
+    const sourceY = clampValue(cropY + (cropHeight - sourceHeight) / 2, 0, image.height - sourceHeight);
     ctx.filter = `brightness(${values.brightness}%) contrast(${values.contrast}%) grayscale(${values.grayscale}%) sepia(${values.sepia}%)`;
     ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
     return new Promise((resolve) => {
@@ -1822,9 +2051,16 @@ const resetUserForm = () => {
     userForm?.reset();
     if (!userForm) return;
     userForm.elements.userId.value = "";
+    userForm.elements.avatarUrl.value = "";
     userForm.elements.email.disabled = false;
     userForm.elements.password.required = true;
     userForm.elements.active.checked = true;
+    if (userAvatarInput) {
+        userAvatarInput.value = "";
+        editedFiles.delete(userAvatarInput);
+    }
+    if (userAvatarName) userAvatarName.textContent = "اختياري - تظهر في ملف الموظف وقائمة المستخدمين";
+    updateAvatarPreview("");
     userFormTitle.textContent = "إضافة مستخدم";
     renderPermissionsGrid({});
 };
@@ -1880,7 +2116,12 @@ const renderUsers = () => {
                             .map((permission) => permission.label);
                         return `
                         <tr class="${user.active ? "" : "is-disabled"}">
-                            <td><strong>${escapeHtml(getDisplayName(user))}</strong></td>
+                            <td>
+                                <div class="user-cell">
+                                    ${renderUserAvatar(user, "table-avatar")}
+                                    <strong>${escapeHtml(getDisplayName(user))}</strong>
+                                </div>
+                            </td>
                             <td><span class="phone-ltr">${escapeHtml(user.phone || "-")}</span></td>
                             <td>${escapeHtml(user.email || "-")}</td>
                             <td>${activePermissions.length ? escapeHtml(activePermissions.join("، ")) : "بدون صلاحيات محددة"}</td>
@@ -1919,6 +2160,13 @@ const editUser = (userId) => {
     userForm.elements.password.value = "";
     userForm.elements.password.required = false;
     userForm.elements.active.checked = user.active !== false;
+    userForm.elements.avatarUrl.value = getUserAvatar(user);
+    if (userAvatarInput) {
+        userAvatarInput.value = "";
+        editedFiles.delete(userAvatarInput);
+    }
+    if (userAvatarName) userAvatarName.textContent = getUserAvatar(user) ? "صورة محفوظة حاليًا" : "اختياري - تظهر في ملف الموظف وقائمة المستخدمين";
+    updateAvatarPreview(getUserAvatar(user));
     userFormTitle.textContent = "تعديل مستخدم";
     renderPermissionsGrid(user.permissions || {});
     setView("usersView");
@@ -1931,13 +2179,23 @@ const saveUser = async (event) => {
     try {
         const formData = new FormData(userForm);
         const userId = formData.get("userId") || "";
+        let avatarUrl = formData.get("avatarUrl") || state.editingUser?.avatarUrl || state.editingUser?.permissions?.avatarUrl || "";
+        const avatarFiles = getInputFiles(userAvatarInput);
+        if (avatarFiles && avatarFiles.length) {
+            const uploadedAvatar = await uploadFiles(avatarFiles, "users");
+            avatarUrl = uploadedAvatar[0]?.path || avatarUrl;
+        }
+        const permissions = {
+            ...readUserPermissions(),
+            avatarUrl,
+        };
         await window.MuheebData.saveAdminUser({
             fullName: formData.get("fullName"),
             phone: formData.get("phone"),
             email: formData.get("email") || state.editingUser?.email,
             password: formData.get("password"),
             active: userForm.elements.active.checked,
-            permissions: readUserPermissions(),
+            permissions,
         }, userId || null);
         resetUserForm();
         closeUserModal();
@@ -1962,6 +2220,10 @@ const deleteUser = async (userId) => {
 const openProfileModal = () => {
     if (!profileModal || !state.admin) return;
     profileDetailGrid.innerHTML = `
+        <article class="profile-avatar-card">
+            ${renderUserAvatar(state.admin, "profile-avatar-large")}
+            <strong>${escapeHtml(getDisplayName())}</strong>
+        </article>
         <article>
             <span>الاسم</span>
             <strong>${escapeHtml(getDisplayName())}</strong>
@@ -1997,44 +2259,60 @@ const closeProfileModal = () => {
 const renderProfileRequests = () => {
     if (!profileRequestsList) return;
     const requests = state.profileRequests || [];
-    profileRequestsList.innerHTML = requests.map((request) => {
-        const user = getUserById(request.userId);
-        return `
-            <article class="profile-request-card ${request.status !== "pending" ? "is-muted" : ""}" data-profile-request="${request.id}">
-                <div>
-                    <strong>${escapeHtml(getDisplayName(user || {}))}</strong>
-                    <span>${formatDate(request.createdAt)}</span>
-                    <span class="badge ${request.status === "pending" ? "" : "is-dim"}">${request.status === "pending" ? "بانتظار الموافقة" : request.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span>
-                </div>
-                <div class="form-grid">
-                    <label>
-                        <span>الاسم المطلوب</span>
-                        <input type="text" data-profile-request-full-name value="${escapeHtml(request.requestedFullName)}" ${request.status !== "pending" ? "disabled" : ""}>
-                    </label>
-                    <label>
-                        <span>الجوال المطلوب</span>
-                        <input type="text" data-profile-request-phone value="${escapeHtml(request.requestedPhone)}" ${request.status !== "pending" ? "disabled" : ""}>
-                    </label>
-                    <label>
-                        <span>الإيميل المطلوب</span>
-                        <input type="email" data-profile-request-email value="${escapeHtml(request.requestedEmail)}" ${request.status !== "pending" ? "disabled" : ""}>
-                    </label>
-                </div>
-                ${request.status === "pending" ? `
-                    <div class="event-actions">
-                        <button class="primary-btn" type="button" data-approve-profile-request="${request.id}">
-                            <i data-lucide="check"></i>
-                            <span>قبول</span>
-                        </button>
-                        <button class="danger-btn" type="button" data-reject-profile-request="${request.id}">
-                            <i data-lucide="x"></i>
-                            <span>رفض</span>
-                        </button>
-                    </div>
-                ` : ""}
-            </article>
-        `;
-    }).join("") || `<div class="compact-item"><span>لا توجد طلبات تعديل بيانات حتى الآن.</span></div>`;
+    if (!requests.length) {
+        profileRequestsList.innerHTML = `<div class="compact-item"><span>لا توجد طلبات تعديل بيانات حتى الآن.</span></div>`;
+        return;
+    }
+    profileRequestsList.innerHTML = `
+        <div class="table-wrap">
+            <table class="profile-requests-table">
+                <thead>
+                    <tr>
+                        <th>المستخدم</th>
+                        <th>الاسم المطلوب</th>
+                        <th>الجوال المطلوب</th>
+                        <th>الإيميل المطلوب</th>
+                        <th>التاريخ</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${requests.map((request) => {
+                        const user = getUserById(request.userId);
+                        const disabled = request.status !== "pending" ? "disabled" : "";
+                        return `
+                            <tr class="${request.status !== "pending" ? "is-muted" : ""}" data-profile-request="${request.id}">
+                                <td>
+                                    <div class="user-cell">
+                                        ${renderUserAvatar(user || {}, "table-avatar")}
+                                        <strong>${escapeHtml(getDisplayName(user || {}))}</strong>
+                                    </div>
+                                </td>
+                                <td><input type="text" data-profile-request-full-name value="${escapeHtml(request.requestedFullName)}" ${disabled}></td>
+                                <td><input type="text" data-profile-request-phone value="${escapeHtml(request.requestedPhone)}" ${disabled}></td>
+                                <td><input type="email" data-profile-request-email value="${escapeHtml(request.requestedEmail)}" ${disabled}></td>
+                                <td>${formatDate(request.createdAt)}</td>
+                                <td><span class="badge ${request.status === "pending" ? "" : "is-dim"}">${request.status === "pending" ? "بانتظار الموافقة" : request.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span></td>
+                                <td>
+                                    ${request.status === "pending" ? `
+                                        <div class="lead-actions">
+                                            <button class="primary-btn icon-only small-icon" type="button" data-approve-profile-request="${request.id}" title="قبول">
+                                                <i data-lucide="check"></i>
+                                            </button>
+                                            <button class="danger-btn icon-only small-icon" type="button" data-reject-profile-request="${request.id}" title="رفض">
+                                                <i data-lucide="x"></i>
+                                            </button>
+                                        </div>
+                                    ` : "-"}
+                                </td>
+                            </tr>
+                        `;
+                    }).join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
     initIcons();
 };
 
@@ -2373,11 +2651,19 @@ newSiteImageFile?.addEventListener("change", () => {
 galleryInput.addEventListener("change", () => {
     const count = galleryInput.files?.length || 0;
     galleryName.textContent = count ? `${count} صور جاهزة للرفع عند الحفظ` : "يمكن اختيار أكثر من صورة";
+    if (count) openImageEditor(galleryInput, galleryInput.files[0], galleryInput.files);
 });
 
 eventSupportLogosInput?.addEventListener("change", () => {
     const count = eventSupportLogosInput.files?.length || 0;
     if (supportLogosName) supportLogosName.textContent = count ? `${count} شعار جاهز للرفع عند الحفظ` : "يمكن اختيار أكثر من شعار";
+    if (count) openImageEditor(eventSupportLogosInput, eventSupportLogosInput.files[0], eventSupportLogosInput.files);
+});
+
+userAvatarInput?.addEventListener("change", () => {
+    const file = userAvatarInput.files?.[0];
+    if (userAvatarName) userAvatarName.textContent = file ? file.name : "اختياري - تظهر في ملف الموظف وقائمة المستخدمين";
+    if (file) openImageEditor(userAvatarInput, file);
 });
 
 imageEditorForm?.addEventListener("input", updateImageEditorPreview);
@@ -2386,10 +2672,31 @@ imageEditorForm?.addEventListener("submit", async (event) => {
     if (!state.imageEditor.input) return;
     try {
         const editedFile = await createEditedImageFile();
-        editedFiles.set(state.imageEditor.input, [editedFile]);
-        setInputFileLabel(state.imageEditor.input, editedFile.name);
-        if (state.imageEditor.input === coverInput) {
+        const input = state.imageEditor.input;
+        const queue = state.imageEditor.queue || [];
+        const processed = [...(state.imageEditor.processed || []), editedFile];
+        if (queue.length > 1 && state.imageEditor.queueIndex < queue.length - 1) {
+            state.imageEditor.processed = processed;
+            state.imageEditor.queueIndex += 1;
+            loadCurrentImageEditorFile();
+            showMessage("تم اعتماد الصورة، اختر الجزء للصورة التالية.");
+            return;
+        }
+        editedFiles.set(input, processed);
+        setInputFileLabel(input, processed.length > 1 ? `${processed.length} صور تم تجهيزها` : editedFile.name);
+        if (input === coverInput) {
             coverPreview.src = URL.createObjectURL(editedFile);
+        }
+        if (input === galleryInput && galleryName) {
+            galleryName.textContent = `${processed.length} صور تم تجهيزها للرفع عند الحفظ`;
+        }
+        if (input === eventSupportLogosInput && supportLogosName) {
+            supportLogosName.textContent = `${processed.length} شعار تم تجهيزه للرفع عند الحفظ`;
+        }
+        if (input === userAvatarInput) {
+            const previewUrl = URL.createObjectURL(editedFile);
+            updateAvatarPreview(previewUrl);
+            if (userAvatarName) userAvatarName.textContent = "تم تجهيز صورة الموظف";
         }
         closeImageEditor(false);
         showMessage("تم اعتماد الصورة للتجهيز والرفع عند الحفظ.");
@@ -2397,6 +2704,9 @@ imageEditorForm?.addEventListener("submit", async (event) => {
         showError("تعذر تجهيز الصورة. حاول اختيار صورة أخرى.");
     }
 });
+imageCropFrame?.addEventListener("pointerdown", startCropInteraction);
+document.addEventListener("pointermove", updateCropInteraction);
+document.addEventListener("pointerup", stopCropInteraction);
 closeImageEditorButton?.addEventListener("click", () => closeImageEditor(true));
 cancelImageEditorButton?.addEventListener("click", () => closeImageEditor(true));
 imageEditorModal?.addEventListener("click", (event) => {

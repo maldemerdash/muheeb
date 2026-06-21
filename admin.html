@@ -8,7 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css?v=media-layout-20260622">
+    <link rel="icon" href="assets/logo-meheib.png">
+    <link rel="stylesheet" href="admin.css?v=event-pages-20260622">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -578,6 +579,7 @@
                 </button>
             </header>
             <input type="hidden" name="userId">
+            <input type="hidden" name="avatarUrl">
             <div class="form-grid">
                 <label>
                     <span>اسم المستخدم</span>
@@ -594,6 +596,16 @@
                 <label>
                     <span>كلمة السر</span>
                     <input type="password" name="password" autocomplete="new-password" minlength="8">
+                </label>
+            </div>
+            <div class="user-avatar-editor">
+                <div class="user-avatar-preview" id="userAvatarPreview" aria-label="معاينة صورة الموظف">
+                    <i data-lucide="user-round"></i>
+                </div>
+                <label class="upload-box">
+                    <span>صورة الموظف</span>
+                    <input type="file" id="userAvatarInput" accept="image/png,image/jpeg,image/webp,image/gif">
+                    <small id="userAvatarName">اختياري - تظهر في ملف الموظف وقائمة المستخدمين</small>
                 </label>
             </div>
             <div class="permission-grid" id="permissionsGrid"></div>
@@ -667,6 +679,12 @@
             <div class="image-editor-grid">
                 <div class="image-editor-preview">
                     <img id="imageEditorPreview" alt="">
+                    <div class="crop-frame" id="imageCropFrame" aria-hidden="true">
+                        <span class="crop-handle crop-handle-nw" data-crop-handle="nw"></span>
+                        <span class="crop-handle crop-handle-ne" data-crop-handle="ne"></span>
+                        <span class="crop-handle crop-handle-sw" data-crop-handle="sw"></span>
+                        <span class="crop-handle crop-handle-se" data-crop-handle="se"></span>
+                    </div>
                 </div>
                 <div class="image-editor-controls">
                     <label>
@@ -717,7 +735,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=media-layout-20260622"></script>
-    <script src="admin.js?v=media-layout-20260622"></script>
+    <script src="supabase-client.js?v=event-pages-20260622"></script>
+    <script src="admin.js?v=event-pages-20260622"></script>
 </body>
 </html>

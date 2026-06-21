@@ -71,9 +71,10 @@ document.querySelectorAll(".section-observe").forEach((section) => observer.obse
 
 const navObserver = new IntersectionObserver(
     (entries) => {
-        if (document.body.dataset.page === "contact") {
+        if (["contact", "event"].includes(document.body.dataset.page)) {
+            const activeHref = document.body.dataset.page === "event" ? "index.html#projects" : "contact.html";
             document.querySelectorAll(".nav-links a").forEach((link) => {
-                link.classList.toggle("active", link.getAttribute("href") === "contact.html");
+                link.classList.toggle("active", link.getAttribute("href") === activeHref);
             });
             return;
         }
@@ -166,6 +167,8 @@ const staticEvents = [
     },
 ];
 
+window.MuheebStaticEvents = staticEvents;
+
 const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (char) => ({
         "&": "&amp;",
@@ -182,6 +185,8 @@ const getContentValue = (content, key, fallback = "") => {
 };
 
 const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
+
+const getEventPageUrl = (event) => `event.html?id=${encodeURIComponent(event.id)}`;
 
 const applyContactLinks = (content) => {
     const phone = getContentValue(content, "contact_phone", "+966 59 957 5691");
@@ -309,7 +314,7 @@ const renderProjectCards = (events) => {
                             <li><i data-lucide="${index === 0 ? "map-pin" : index === 1 ? "calendar-check" : meta.icon}"></i> ${escapeHtml(highlight)}</li>
                         `).join("")}
                     </ul>
-                    <button class="project-link" type="button" data-event-detail="${escapeHtml(event.id)}">عرض التفاصيل</button>
+                    <a class="project-link" href="${escapeHtml(getEventPageUrl(event))}">عرض التفاصيل</a>
                 </div>
             </article>
         `;

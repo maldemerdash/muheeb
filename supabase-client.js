@@ -83,6 +83,7 @@
         email: user.email || "",
         role: user.role || "user",
         permissions: user.permissions || {},
+        avatarUrl: user.avatar_url || user.avatarUrl || user.permissions?.avatarUrl || "",
         active: user.active !== false,
         createdAt: user.created_at || user.createdAt,
         updatedAt: user.updated_at || user.updatedAt,

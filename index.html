@@ -8,7 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=contact-standalone-20260621">
+    <link rel="icon" href="assets/logo-meheib.png">
+    <link rel="stylesheet" href="style.css?v=event-pages-20260622">
 </head>
 <body data-page="home">
     <div class="preloader" id="preloader" aria-hidden="true">
@@ -25,13 +26,13 @@
                 <i data-lucide="menu"></i>
             </button>
             <ul class="nav-links" id="navLinks">
-                <li><a class="active" href="#top">الرئيسية</a></li>
-                <li><a href="#about">عن مهيب</a></li>
-                <li><a href="#projects">أعمالنا</a></li>
-                <li><a href="#services">الخدمات</a></li>
-                <li><a href="#after-sale">رحلة التنفيذ</a></li>
-                <li><a href="#interest">تسجيل اهتمام</a></li>
-                <li><a href="contact.html">تواصل معنا</a></li>
+                <li><a class="active" href="#top" data-content="nav_home_label">الرئيسية</a></li>
+                <li><a href="#about" data-content="nav_about_label">عن مهيب</a></li>
+                <li><a href="#services" data-content="nav_services_label">الخدمات</a></li>
+                <li><a href="#projects" data-content="nav_projects_label">أعمالنا</a></li>
+                <li><a href="#after-sale" data-content="nav_execution_label">رحلة التنفيذ</a></li>
+                <li><a href="#interest" data-content="nav_interest_label">تسجيل اهتمام</a></li>
+                <li><a href="contact.html" data-content="nav_contact_label">تواصل معنا</a></li>
             </ul>
         </nav>
     </header>
@@ -195,7 +196,7 @@
                                 <li><i data-lucide="calendar-check"></i> تخطيط وتشغيل</li>
                                 <li><i data-lucide="sparkles"></i> تجربة حضور</li>
                             </ul>
-                            <a class="project-link" href="#interest">طلب تفاصيل</a>
+                            <a class="project-link" href="event.html?id=static-event">عرض التفاصيل</a>
                         </div>
                     </article>
                     <article class="project-card" data-status="marketing">
@@ -209,7 +210,7 @@
                                 <li><i data-lucide="target"></i> خطة ظهور</li>
                                 <li><i data-lucide="palette"></i> مسار بصري</li>
                             </ul>
-                            <a class="project-link" href="#interest">طلب تفاصيل</a>
+                            <a class="project-link" href="event.html?id=static-marketing">عرض التفاصيل</a>
                         </div>
                     </article>
                     <article class="project-card" data-status="identity">
@@ -223,7 +224,7 @@
                                 <li><i data-lucide="layers-3"></i> نظام ألوان</li>
                                 <li><i data-lucide="file-check-2"></i> ملفات جاهزة</li>
                             </ul>
-                            <a class="project-link" href="#interest">طلب تفاصيل</a>
+                            <a class="project-link" href="event.html?id=static-identity">عرض التفاصيل</a>
                         </div>
                     </article>
                     <article class="project-card" data-status="operation">
@@ -237,7 +238,7 @@
                                 <li><i data-lucide="shield-check"></i> اعتماد مخرجات</li>
                                 <li><i data-lucide="handshake"></i> تنسيق شركاء</li>
                             </ul>
-                            <a class="project-link" href="#interest">طلب تفاصيل</a>
+                            <a class="project-link" href="event.html?id=static-operation">عرض التفاصيل</a>
                         </div>
                     </article>
                 </div>
@@ -426,7 +427,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=contact-standalone-20260621"></script>
-    <script src="app.js?v=contact-standalone-20260621"></script>
+    <script src="supabase-client.js?v=event-pages-20260622"></script>
+    <script src="app.js?v=event-pages-20260622"></script>
 </body>
 </html>
