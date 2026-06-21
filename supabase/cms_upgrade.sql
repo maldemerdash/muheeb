@@ -185,17 +185,17 @@ insert into public.site_images
 values
     ('hero_main', 'صورة الهيرو الرئيسية', 'site_core', 'assets/identity-wall-hero.png', 'هوية مهيب في الواجهة الرئيسية', true, 10),
     ('hero_logo', 'شعار الهيرو', 'site_core', 'assets/logo-meheib.png', 'شعار مهيب', true, 11),
-    ('service_1_image', 'صورة خدمة تنظيم الفعاليات', 'services', 'assets/identity-wall-clean.png', 'تنفيذ تجربة بصرية للفعالية', true, 20),
-    ('service_2_image', 'صورة خدمة الحملات التسويقية', 'services', 'assets/brand-palette.jpg', 'حملات تسويقية بهوية مهيب', true, 21),
-    ('service_3_image', 'صورة خدمة الهوية والتطبيقات', 'services', 'assets/identity-cards-clean.png', 'تطبيقات الهوية البصرية', true, 22),
-    ('execution_image', 'صورة رحلة التنفيذ', 'site_core', 'assets/identity-stamp-clean.png', 'توثيق واعتماد مخرجات مهيب', true, 30),
-    ('interest_background', 'خلفية نموذج الطلب', 'site_core', 'assets/brand-palette.jpg', 'لوحة ألوان مهيب', true, 31),
-    ('footer_logo', 'شعار الفوتر', 'site_core', 'assets/logo-meheib.png', 'شعار مهيب', true, 40),
-    ('identity_gallery_1', 'تطبيق الشعار', 'identity_gallery', 'assets/identity-wall-clean.png', 'تطبيق شعار مهيب على واجهة زجاجية', true, 50),
-    ('identity_gallery_2', 'بطاقات العمل', 'identity_gallery', 'assets/identity-cards-clean.png', 'بطاقات عمل مهيب', true, 51),
-    ('identity_gallery_3', 'الختم والتوثيق', 'identity_gallery', 'assets/identity-stamp-clean.png', 'ختم مهيب الرسمي', true, 52),
-    ('identity_gallery_4', 'ألوان الهوية', 'identity_gallery', 'assets/brand-palette.jpg', 'لوحة ألوان مهيب', true, 53),
-    ('identity_gallery_5', 'الشعار الأساسي', 'identity_gallery', 'assets/logo-meheib.png', 'شعار مهيب', true, 54)
+    ('identity_gallery_1', 'تطبيق الشعار', 'identity_gallery', 'assets/identity-wall-clean.png', 'تطبيق شعار مهيب على واجهة زجاجية', true, 20),
+    ('identity_gallery_2', 'بطاقات العمل', 'identity_gallery', 'assets/identity-cards-clean.png', 'بطاقات عمل مهيب', true, 21),
+    ('identity_gallery_3', 'الختم والتوثيق', 'identity_gallery', 'assets/identity-stamp-clean.png', 'ختم مهيب الرسمي', true, 22),
+    ('identity_gallery_4', 'ألوان الهوية', 'identity_gallery', 'assets/brand-palette.jpg', 'لوحة ألوان مهيب', true, 23),
+    ('identity_gallery_5', 'الشعار الأساسي', 'identity_gallery', 'assets/logo-meheib.png', 'شعار مهيب', true, 24),
+    ('service_1_image', 'صورة خدمة تنظيم الفعاليات', 'services', 'assets/identity-wall-clean.png', 'تنفيذ تجربة بصرية للفعالية', true, 30),
+    ('service_2_image', 'صورة خدمة الحملات التسويقية', 'services', 'assets/brand-palette.jpg', 'حملات تسويقية بهوية مهيب', true, 31),
+    ('service_3_image', 'صورة خدمة الهوية والتطبيقات', 'services', 'assets/identity-cards-clean.png', 'تطبيقات الهوية البصرية', true, 32),
+    ('execution_image', 'صورة رحلة التنفيذ', 'site_core', 'assets/identity-stamp-clean.png', 'توثيق واعتماد مخرجات مهيب', true, 50),
+    ('interest_background', 'خلفية نموذج الطلب', 'site_core', 'assets/brand-palette.jpg', 'لوحة ألوان مهيب', true, 60),
+    ('footer_logo', 'شعار الفوتر', 'site_core', 'assets/logo-meheib.png', 'شعار مهيب', true, 70)
 on conflict (image_key) do update
 set label = excluded.label,
     group_name = excluded.group_name,

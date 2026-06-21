@@ -200,17 +200,17 @@
     const defaultSiteImages = [
         { image_key: "hero_main", label: "صورة الهيرو الرئيسية", group_name: "site_core", image_path: "assets/identity-wall-hero.png", alt_text: "هوية مهيب في الواجهة الرئيسية", published: true, sort_order: 10 },
         { image_key: "hero_logo", label: "شعار الهيرو", group_name: "site_core", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 11 },
-        { image_key: "service_1_image", label: "صورة خدمة تنظيم الفعاليات", group_name: "services", image_path: "assets/identity-wall-clean.png", alt_text: "تنفيذ تجربة بصرية للفعالية", published: true, sort_order: 20 },
-        { image_key: "service_2_image", label: "صورة خدمة الحملات التسويقية", group_name: "services", image_path: "assets/brand-palette.jpg", alt_text: "حملات تسويقية بهوية مهيب", published: true, sort_order: 21 },
-        { image_key: "service_3_image", label: "صورة خدمة الهوية والتطبيقات", group_name: "services", image_path: "assets/identity-cards-clean.png", alt_text: "تطبيقات الهوية البصرية", published: true, sort_order: 22 },
-        { image_key: "execution_image", label: "صورة رحلة التنفيذ", group_name: "site_core", image_path: "assets/identity-stamp-clean.png", alt_text: "توثيق واعتماد مخرجات مهيب", published: true, sort_order: 30 },
-        { image_key: "interest_background", label: "خلفية نموذج الطلب", group_name: "site_core", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 31 },
-        { image_key: "footer_logo", label: "شعار الفوتر", group_name: "site_core", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 40 },
-        { image_key: "identity_gallery_1", label: "تطبيق الشعار", group_name: "identity_gallery", image_path: "assets/identity-wall-clean.png", alt_text: "تطبيق شعار مهيب على واجهة زجاجية", published: true, sort_order: 50 },
-        { image_key: "identity_gallery_2", label: "بطاقات العمل", group_name: "identity_gallery", image_path: "assets/identity-cards-clean.png", alt_text: "بطاقات عمل مهيب", published: true, sort_order: 51 },
-        { image_key: "identity_gallery_3", label: "الختم والتوثيق", group_name: "identity_gallery", image_path: "assets/identity-stamp-clean.png", alt_text: "ختم مهيب الرسمي", published: true, sort_order: 52 },
-        { image_key: "identity_gallery_4", label: "ألوان الهوية", group_name: "identity_gallery", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 53 },
-        { image_key: "identity_gallery_5", label: "الشعار الأساسي", group_name: "identity_gallery", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 54 },
+        { image_key: "identity_gallery_1", label: "تطبيق الشعار", group_name: "identity_gallery", image_path: "assets/identity-wall-clean.png", alt_text: "تطبيق شعار مهيب على واجهة زجاجية", published: true, sort_order: 20 },
+        { image_key: "identity_gallery_2", label: "بطاقات العمل", group_name: "identity_gallery", image_path: "assets/identity-cards-clean.png", alt_text: "بطاقات عمل مهيب", published: true, sort_order: 21 },
+        { image_key: "identity_gallery_3", label: "الختم والتوثيق", group_name: "identity_gallery", image_path: "assets/identity-stamp-clean.png", alt_text: "ختم مهيب الرسمي", published: true, sort_order: 22 },
+        { image_key: "identity_gallery_4", label: "ألوان الهوية", group_name: "identity_gallery", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 23 },
+        { image_key: "identity_gallery_5", label: "الشعار الأساسي", group_name: "identity_gallery", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 24 },
+        { image_key: "service_1_image", label: "صورة خدمة تنظيم الفعاليات", group_name: "services", image_path: "assets/identity-wall-clean.png", alt_text: "تنفيذ تجربة بصرية للفعالية", published: true, sort_order: 30 },
+        { image_key: "service_2_image", label: "صورة خدمة الحملات التسويقية", group_name: "services", image_path: "assets/brand-palette.jpg", alt_text: "حملات تسويقية بهوية مهيب", published: true, sort_order: 31 },
+        { image_key: "service_3_image", label: "صورة خدمة الهوية والتطبيقات", group_name: "services", image_path: "assets/identity-cards-clean.png", alt_text: "تطبيقات الهوية البصرية", published: true, sort_order: 32 },
+        { image_key: "execution_image", label: "صورة رحلة التنفيذ", group_name: "site_core", image_path: "assets/identity-stamp-clean.png", alt_text: "توثيق واعتماد مخرجات مهيب", published: true, sort_order: 50 },
+        { image_key: "interest_background", label: "خلفية نموذج الطلب", group_name: "site_core", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 60 },
+        { image_key: "footer_logo", label: "شعار الفوتر", group_name: "site_core", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 70 },
     ];
 
     const contentRowsToObject = (rows) =>
@@ -543,7 +543,6 @@
             const { data, error } = await client
                 .from("site_images")
                 .select("*")
-                .order("group_name", { ascending: true })
                 .order("sort_order", { ascending: true })
                 .order("id", { ascending: true });
             if (error) throw error;

@@ -36,6 +36,29 @@ const statusClasses = {
     archived: "lead-status-archived",
 };
 
+const siteImagePageOrder = {
+    hero_main: 10,
+    hero_logo: 11,
+    identity_gallery_1: 20,
+    identity_gallery_2: 21,
+    identity_gallery_3: 22,
+    identity_gallery_4: 23,
+    identity_gallery_5: 24,
+    service_1_image: 30,
+    service_2_image: 31,
+    service_3_image: 32,
+    execution_image: 50,
+    interest_background: 60,
+    footer_logo: 70,
+};
+
+const siteImageGroupOrder = {
+    identity_gallery: 25,
+    services: 40,
+    site_core: 80,
+    custom: 90,
+};
+
 const loginView = document.getElementById("loginView");
 const adminShell = document.getElementById("adminShell");
 const loginForm = document.getElementById("loginForm");
@@ -134,6 +157,21 @@ const getLatestNoteText = (lead) => {
     return `${latest.done ? "تم: " : ""}${latest.text}`;
 };
 
+const getSiteImagePageRank = (image) => {
+    if (Object.prototype.hasOwnProperty.call(siteImagePageOrder, image.imageKey)) {
+        return siteImagePageOrder[image.imageKey];
+    }
+    return siteImageGroupOrder[image.groupName] || 100;
+};
+
+const sortSiteImagesByPageOrder = (images) => [...(images || [])].sort((a, b) => {
+    const rankDiff = getSiteImagePageRank(a) - getSiteImagePageRank(b);
+    if (rankDiff) return rankDiff;
+    const sortDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+    if (sortDiff) return sortDiff;
+    return (a.id || 0) - (b.id || 0);
+});
+
 const showMessage = (message, target = globalMessage) => {
     if (!target) return;
     target.textContent = message;
@@ -187,7 +225,7 @@ const loadAll = async () => {
     state.leads = leads || [];
     state.events = events || [];
     state.siteContent = siteContent || [];
-    state.siteImages = siteImages || [];
+    state.siteImages = sortSiteImagesByPageOrder(siteImages);
     state.interestOptions = interestOptions || [];
     renderStats(stats || {});
     renderLeads();
