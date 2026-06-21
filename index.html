@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=workflow-fix-20260621">
+    <link rel="stylesheet" href="style.css?v=footer-fix-20260621">
 </head>
 <body>
     <div class="preloader" id="preloader" aria-hidden="true">
@@ -361,24 +361,65 @@
         </section>
     </main>
 
-    <footer class="site-footer">
+    <footer class="site-footer" id="siteFooter">
         <div class="container footer-grid">
-            <div>
+            <section class="footer-brand">
                 <img data-image="footer_logo" src="assets/logo-meheib.png" alt="شعار مهيب">
                 <p data-content="footer_text">مهيب - حضور بصري وتجارب مؤثرة في التسويق وتنظيم الفعاليات.</p>
-                <div class="official-data">
-                    <span><b>رقم السجل التجاري</b><em data-content="commercial_registration">يضاف من لوحة التحكم</em></span>
-                    <span><b>الرقم الضريبي</b><em data-content="tax_number">يضاف من لوحة التحكم</em></span>
-                    <span><b>رقم الحساب البنكي</b><em data-content="bank_account">يضاف من لوحة التحكم</em></span>
-                </div>
-            </div>
-            <div>
+            </section>
+            <section class="footer-contact">
                 <h3 data-content="footer_contact_title">تواصل معنا</h3>
-                <a class="phone-ltr" data-phone-link href="tel:+966599575691" data-content="contact_phone">+966 59 957 5691</a>
-                <a data-email-link href="mailto:info.muheeb0@gmail.com" data-content="contact_email">info.muheeb0@gmail.com</a>
-                <a data-whatsapp-link href="https://wa.me/966599575691" target="_blank" rel="noopener" data-content="contact_whatsapp_label">واتساب</a>
-                <span data-content="contact_location">المدينة المنورة، السعودية</span>
-            </div>
+                <div class="footer-contact-list">
+                    <a class="footer-contact-item" data-phone-link href="tel:+966599575691">
+                        <span class="footer-icon"><i data-lucide="phone"></i></span>
+                        <span>
+                            <b>اتصال مباشر</b>
+                            <em class="phone-ltr" data-content="contact_phone">+966 59 957 5691</em>
+                        </span>
+                    </a>
+                    <a class="footer-contact-item" data-whatsapp-link href="https://wa.me/966599575691" target="_blank" rel="noopener">
+                        <span class="footer-icon"><i data-lucide="message-circle"></i></span>
+                        <span>
+                            <b data-content="contact_whatsapp_label">واتساب</b>
+                            <em>راسلنا مباشرة</em>
+                        </span>
+                    </a>
+                    <a class="footer-contact-item" data-email-link href="mailto:info.muheeb0@gmail.com">
+                        <span class="footer-icon"><i data-lucide="mail"></i></span>
+                        <span>
+                            <b>البريد الإلكتروني</b>
+                            <em class="phone-ltr" data-content="contact_email">info.muheeb0@gmail.com</em>
+                        </span>
+                    </a>
+                    <span class="footer-contact-item">
+                        <span class="footer-icon"><i data-lucide="map-pin"></i></span>
+                        <span>
+                            <b>الموقع</b>
+                            <em data-content="contact_location">المدينة المنورة، السعودية</em>
+                        </span>
+                    </span>
+                </div>
+            </section>
+            <section class="footer-official">
+                <h3>البيانات الرسمية</h3>
+                <div class="official-data">
+                    <span>
+                        <i data-lucide="badge-check"></i>
+                        <b>رقم السجل التجاري</b>
+                        <em data-content="commercial_registration">يضاف من لوحة التحكم</em>
+                    </span>
+                    <span>
+                        <i data-lucide="file-check-2"></i>
+                        <b>الرقم الضريبي</b>
+                        <em data-content="tax_number">يضاف من لوحة التحكم</em>
+                    </span>
+                    <span>
+                        <i data-lucide="landmark"></i>
+                        <b>رقم الحساب البنكي</b>
+                        <em data-content="bank_account">يضاف من لوحة التحكم</em>
+                    </span>
+                </div>
+            </section>
         </div>
         <div class="copyright" data-content="footer_copyright">جميع الحقوق محفوظة لمهيب 2026 ©</div>
     </footer>
@@ -398,7 +439,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=workflow-fix-20260621"></script>
-    <script src="app.js?v=workflow-fix-20260621"></script>
+    <script src="supabase-client.js?v=footer-fix-20260621"></script>
+    <script src="app.js?v=footer-fix-20260621"></script>
 </body>
 </html>

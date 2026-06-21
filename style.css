@@ -913,14 +913,38 @@ button {
     position: relative;
     z-index: 2;
     color: rgba(255, 255, 255, 0.84);
-    background: var(--charcoal);
+    background:
+        radial-gradient(circle at 14% 10%, rgba(196, 155, 58, 0.08), transparent 34%),
+        linear-gradient(135deg, #252626 0%, #202121 100%);
 }
 
 .footer-grid {
     display: grid;
-    grid-template-columns: 1.4fr 0.8fr;
-    gap: 34px;
-    padding: 56px 0;
+    grid-template-columns: minmax(260px, 1.1fr) minmax(300px, 1fr) minmax(280px, 0.9fr);
+    gap: 22px;
+    padding: 58px 0;
+    align-items: stretch;
+}
+
+.footer-brand,
+.footer-contact,
+.footer-official {
+    display: grid;
+    align-content: start;
+    gap: 16px;
+    min-height: 100%;
+}
+
+.footer-brand {
+    padding-inline-end: 16px;
+}
+
+.footer-contact,
+.footer-official {
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.035);
 }
 
 .site-footer img {
@@ -934,18 +958,93 @@ button {
 }
 
 .site-footer h3 {
-    margin-bottom: 14px;
+    margin: 0;
     color: var(--gold);
-    font-size: 1.05rem;
+    font-size: 1.12rem;
 }
 
-.site-footer a {
+.footer-contact-list,
+.official-data {
+    display: grid;
+    gap: 10px;
+}
+
+.footer-contact-item,
+.official-data span {
+    min-height: 68px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.86);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.footer-contact-item {
+    margin: 0;
+}
+
+.footer-contact-item span:last-child,
+.official-data span {
+    min-width: 0;
+}
+
+.footer-contact-item b,
+.official-data b {
     display: block;
-    margin: 8px 0;
+    margin-bottom: 3px;
+    color: var(--white);
+    font-weight: 800;
+    font-style: normal;
+}
+
+.footer-contact-item em,
+.official-data em {
+    display: block;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: normal;
+    overflow-wrap: anywhere;
+}
+
+.footer-icon,
+.official-data > span > svg {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--gold);
+    background: rgba(196, 155, 58, 0.12);
+}
+
+.official-data > span > svg {
+    padding: 11px;
+    stroke-width: 2.2;
+}
+
+.footer-icon svg {
+    width: 21px;
+    height: 21px;
+    padding: 0;
+    stroke-width: 2.2;
+}
+
+.official-data > span > svg {
+    grid-row: 1 / span 2;
+}
+
+.official-data > span > b,
+.official-data > span > em {
+    grid-column: 2;
 }
 
 .site-footer a:hover {
     color: var(--gold);
+    border-color: rgba(196, 155, 58, 0.3);
+    background: rgba(196, 155, 58, 0.08);
 }
 
 .copyright {
@@ -968,6 +1067,7 @@ button {
     width: 52px;
     height: 52px;
     border-radius: 50%;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
 }
 
 .float-btn.whatsapp {
@@ -985,6 +1085,20 @@ button {
 .to-top.visible {
     opacity: 1;
     visibility: visible;
+    transform: translateY(0);
+}
+
+.floating-actions.over-footer a.float-btn {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(8px) scale(0.88);
+}
+
+.floating-actions.over-footer .to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
     transform: translateY(0);
 }
 
@@ -1051,33 +1165,6 @@ body.modal-open {
     unicode-bidi: plaintext;
     display: inline-block;
     text-align: left;
-}
-
-.official-data {
-    display: grid;
-    gap: 8px;
-    margin-top: 16px;
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 0.92rem;
-}
-
-.official-data span {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.official-data b {
-    color: var(--gold);
-    font-weight: 800;
-}
-
-.official-data em {
-    direction: ltr;
-    unicode-bidi: plaintext;
-    color: rgba(255, 255, 255, 0.82);
-    font-style: normal;
 }
 
 .project-link {

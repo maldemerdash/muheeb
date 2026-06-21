@@ -185,7 +185,6 @@ const applyContactLinks = (content) => {
 
     document.querySelectorAll("[data-phone-link]").forEach((link) => {
         if (phoneDigits) link.href = `tel:+${phoneDigits}`;
-        link.classList.add("phone-ltr");
     });
     document.querySelectorAll("[data-whatsapp-link]").forEach((link) => {
         if (whatsappDigits) link.href = `https://wa.me/${whatsappDigits}`;
@@ -506,6 +505,8 @@ leadForm?.addEventListener("submit", async (event) => {
 });
 
 const toTop = document.getElementById("toTop");
+const floatingActions = document.querySelector(".floating-actions");
+const siteFooter = document.getElementById("siteFooter");
 
 window.addEventListener("scroll", () => {
     toTop?.classList.toggle("visible", window.scrollY > 500);
@@ -514,6 +515,16 @@ window.addEventListener("scroll", () => {
 toTop?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
 });
+
+if (floatingActions && siteFooter) {
+    const footerObserver = new IntersectionObserver(
+        ([entry]) => {
+            floatingActions.classList.toggle("over-footer", entry.isIntersecting);
+        },
+        { threshold: 0.08 }
+    );
+    footerObserver.observe(siteFooter);
+}
 
 initIcons();
 renderProjectCards(staticEvents);
