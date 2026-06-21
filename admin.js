@@ -65,9 +65,9 @@ const siteImagePageOrder = {
 };
 
 const siteImageGroupOrder = {
-    identity_gallery: 25,
-    services: 40,
-    site_core: 80,
+    site_core: 10,
+    identity_gallery: 20,
+    services: 30,
     custom: 90,
 };
 
@@ -173,6 +173,10 @@ const siteImageForm = document.getElementById("siteImageForm");
 const newSiteImageFile = document.getElementById("newSiteImageFile");
 const siteImageFormMessage = document.getElementById("siteImageFormMessage");
 const restoreSiteImagesButton = document.getElementById("restoreSiteImagesButton");
+const openSiteImageModalButton = document.getElementById("openSiteImageModalButton");
+const siteImageModal = document.getElementById("siteImageModal");
+const closeSiteImageModalButton = document.getElementById("closeSiteImageModal");
+const cancelSiteImageModalButton = document.getElementById("cancelSiteImageModal");
 const interestOptionForm = document.getElementById("interestOptionForm");
 const interestOptionFormTitle = document.getElementById("interestOptionFormTitle");
 const interestOptionMessage = document.getElementById("interestOptionMessage");
@@ -1268,9 +1272,31 @@ const renderContentEditor = () => {
     initIcons();
 };
 
+const siteImageGroupMeta = {
+    site_core: { title: "صور الواجهة والأقسام الأساسية", description: "الصور التي تظهر في الهيرو، رحلة التنفيذ، نموذج الطلب، والتذييل.", icon: "layout-template" },
+    identity_gallery: { title: "معرض الهوية المتحرك", description: "صور الشريط المتحرك لتطبيقات الهوية في الصفحة الرئيسية.", icon: "gallery-horizontal-end" },
+    services: { title: "صور الخدمات", description: "صور بطاقات الخدمات الثلاثة في الموقع.", icon: "sparkles" },
+    custom: { title: "صور إضافية", description: "صور مخصصة يمكن إضافتها لاستخدامات لاحقة أو أقسام جديدة.", icon: "image-plus" },
+};
+
+const getSiteImageGroupMeta = (groupName) => siteImageGroupMeta[groupName] || {
+    title: groupName || "صور أخرى",
+    description: "مجموعة صور مخصصة من لوحة التحكم.",
+    icon: "images",
+};
+
 const renderSiteImages = () => {
     if (!siteImageList) return;
-    siteImageList.innerHTML = state.siteImages.map((image) => `
+    const groups = state.siteImages.reduce((items, image) => {
+        const groupName = image.groupName || "custom";
+        if (!items[groupName]) items[groupName] = [];
+        items[groupName].push(image);
+        return items;
+    }, {});
+    const sortedGroups = Object.entries(groups).sort(([groupA], [groupB]) => (
+        (siteImageGroupOrder[groupA] || 999) - (siteImageGroupOrder[groupB] || 999)
+    ));
+    const renderImageCard = (image) => `
         <article class="site-image-card" data-site-image-card="${image.id}">
             <img src="${escapeHtml(image.imagePath || "assets/logo-meheib.png")}" alt="">
             <div class="site-image-fields">
@@ -1316,7 +1342,24 @@ const renderSiteImages = () => {
                 </div>
             </div>
         </article>
-    `).join("") || `<div class="compact-item"><span>لا توجد صور في المكتبة.</span></div>`;
+    `;
+    siteImageList.innerHTML = sortedGroups.map(([groupName, images], index) => {
+        const meta = getSiteImageGroupMeta(groupName);
+        return `
+            <section class="site-image-group">
+                <div class="visual-section-heading">
+                    <span class="visual-section-number">${String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                        <p class="eyebrow"><i data-lucide="${escapeHtml(meta.icon)}"></i>${escapeHtml(meta.title)}</p>
+                        <h3>${escapeHtml(meta.description)}</h3>
+                    </div>
+                </div>
+                <div class="site-image-group-grid">
+                    ${images.map(renderImageCard).join("")}
+                </div>
+            </section>
+        `;
+    }).join("") || `<div class="compact-item"><span>لا توجد صور في المكتبة.</span></div>`;
     initIcons();
 };
 
@@ -1593,6 +1636,30 @@ const saveEvent = async (event) => {
     }
 };
 
+const openSiteImageModal = () => {
+    siteImageForm?.reset();
+    if (newSiteImageFile) {
+        newSiteImageFile.value = "";
+        editedFiles.delete(newSiteImageFile);
+    }
+    if (siteImageForm?.elements.published) siteImageForm.elements.published.checked = true;
+    if (siteImageForm?.elements.sortOrder) siteImageForm.elements.sortOrder.value = "0";
+    if (siteImageFormMessage) siteImageFormMessage.textContent = "";
+    siteImageModal?.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    initIcons();
+};
+
+const closeSiteImageModal = () => {
+    siteImageModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
+    if (newSiteImageFile) {
+        newSiteImageFile.value = "";
+        editedFiles.delete(newSiteImageFile);
+    }
+    if (siteImageFormMessage) siteImageFormMessage.textContent = "";
+};
+
 const saveSiteContent = async () => {
     showMessage("جاري حفظ النصوص...", contentMessage);
     try {
@@ -1670,6 +1737,7 @@ const saveNewSiteImage = async (event) => {
         siteImageForm.elements.published.checked = true;
         await loadAll();
         showMessage("تمت إضافة الصورة بنجاح.", siteImageFormMessage);
+        closeSiteImageModal();
     } catch (error) {
         showError(error.message, siteImageFormMessage);
     }
@@ -2060,6 +2128,12 @@ leadSearch?.addEventListener("input", renderLeads);
 saveContentButton?.addEventListener("click", saveSiteContent);
 siteImageForm?.addEventListener("submit", saveNewSiteImage);
 restoreSiteImagesButton?.addEventListener("click", restoreDefaultSiteImages);
+openSiteImageModalButton?.addEventListener("click", openSiteImageModal);
+closeSiteImageModalButton?.addEventListener("click", closeSiteImageModal);
+cancelSiteImageModalButton?.addEventListener("click", closeSiteImageModal);
+siteImageModal?.addEventListener("click", (event) => {
+    if (event.target === siteImageModal) closeSiteImageModal();
+});
 interestOptionForm?.addEventListener("submit", saveInterestOption);
 document.getElementById("resetInterestOptionForm")?.addEventListener("click", resetInterestOptionForm);
 userForm?.addEventListener("submit", saveUser);

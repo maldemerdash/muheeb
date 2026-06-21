@@ -755,6 +755,33 @@ td {
     align-items: start;
 }
 
+.media-library-page,
+.events-page-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+}
+
+.media-library-card,
+.events-list-panel {
+    width: 100%;
+}
+
+.media-add-button {
+    width: 48px;
+    min-width: 48px;
+    padding: 0;
+    flex: 0 0 48px;
+}
+
+.events-page-layout .event-form {
+    width: 100%;
+}
+
+.events-page-layout .event-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .event-form,
 .user-form {
     display: grid;
@@ -1220,18 +1247,44 @@ td {
     gap: 14px;
 }
 
+.site-image-list {
+    gap: 18px;
+}
+
+.site-image-group {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(244, 241, 237, 0.7), rgba(255, 255, 255, 0.92));
+}
+
+.site-image-group .visual-section-heading h3 {
+    color: var(--muted);
+    font-size: 0.98rem;
+    font-weight: 800;
+}
+
+.site-image-group-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
 .site-image-card {
     display: grid;
-    grid-template-columns: 190px minmax(0, 1fr);
+    grid-template-columns: 170px minmax(0, 1fr);
     gap: 14px;
     padding: 14px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #fbfaf7;
+    background: var(--white);
+    box-shadow: 0 12px 28px rgba(40, 40, 40, 0.06);
 }
 
 .site-image-card > img {
-    width: 190px;
+    width: 170px;
     height: 160px;
     object-fit: cover;
     border-radius: 8px;
@@ -1248,6 +1301,10 @@ td {
 .option-form {
     display: grid;
     gap: 14px;
+}
+
+.site-image-modal {
+    width: min(920px, calc(100% - 28px));
 }
 
 .compact-toggle {
@@ -1583,6 +1640,13 @@ td {
     .visual-channel-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+
+    .media-library-page,
+    .events-page-layout,
+    .events-page-layout .event-list,
+    .site-image-group-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 760px) {
@@ -1621,6 +1685,7 @@ td {
     .visual-card-grid,
     .visual-card-grid-four,
     .visual-channel-grid,
+    .site-image-group-grid,
     .visual-metrics-grid,
     .visual-button-row,
     .visual-chip-grid {
@@ -1650,6 +1715,11 @@ td {
     .danger-btn,
     .primary-btn {
         width: 100%;
+    }
+
+    .media-add-button {
+        width: 48px;
+        align-self: flex-start;
     }
 
     .event-item {
