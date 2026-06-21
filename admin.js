@@ -817,13 +817,11 @@ const renderEvents = () => {
                 <div class="meta-text">${escapeHtml(event.dateFrom || event.eventDate || "بدون تاريخ")}${event.dateTo ? ` إلى ${escapeHtml(event.dateTo)}` : ""}</div>
                 <span class="badge ${event.published ? "" : "is-dim"}">${event.published ? "منشور" : "مخفي"}</span>
                 <div class="event-actions">
-                    <button class="ghost-btn" type="button" data-edit-event="${event.id}">
+                    <button class="ghost-btn icon-only small-icon" type="button" data-edit-event="${event.id}" title="تعديل" aria-label="تعديل الفعالية">
                         <i data-lucide="pencil"></i>
-                        <span>تعديل</span>
                     </button>
-                    <button class="danger-btn" type="button" data-delete-event="${event.id}">
+                    <button class="danger-btn icon-only small-icon" type="button" data-delete-event="${event.id}" title="حذف" aria-label="حذف الفعالية">
                         <i data-lucide="trash-2"></i>
-                        <span>حذف</span>
                     </button>
                 </div>
             </div>
@@ -990,7 +988,7 @@ const editEvent = (eventId) => {
     eventForm.elements.published.checked = Boolean(event.published);
     state.pendingSupportLogos = event.supportLogos || [];
     if (supportLogosName) supportLogosName.textContent = state.pendingSupportLogos.length ? `${state.pendingSupportLogos.length} شعار محفوظ` : "يمكن اختيار أكثر من شعار";
-    coverName.textContent = event.coverImage ? event.coverImage : "لم يتم اختيار صورة جديدة";
+    coverName.textContent = event.coverImage ? "صورة محفوظة حاليًا" : "لم يتم اختيار صورة جديدة";
     if (event.coverImage) {
         coverPreview.src = event.coverImage;
     } else {
@@ -1015,6 +1013,15 @@ const uploadFiles = async (files, folder = "events") => {
 
 const getInputFiles = (input) => editedFiles.get(input) || input?.files || [];
 
+const getFriendlyFileLabel = (label, fallback = "تم تجهيز الصورة") => {
+    const value = String(label || "").trim();
+    if (!value) return fallback;
+    if (/^(https?:|data:|assets\/|event-images\/|storage\/)/i.test(value) || value.length > 72) {
+        return fallback;
+    }
+    return value;
+};
+
 const setInputFileLabel = (input, label) => {
     if (!input) return;
     const box = input.closest(".upload-box");
@@ -1024,8 +1031,9 @@ const setInputFileLabel = (input, label) => {
         labelElement.dataset.fileLabel = "true";
         box.appendChild(labelElement);
     }
-    if (labelElement) labelElement.textContent = label || "تم تجهيز الصورة";
-    if (input === coverInput && coverName) coverName.textContent = label || "تم تجهيز الصورة";
+    const friendlyLabel = getFriendlyFileLabel(label);
+    if (labelElement) labelElement.textContent = friendlyLabel;
+    if (input === coverInput && coverName) coverName.textContent = friendlyLabel;
 };
 
 const getImageEditorValues = () => {

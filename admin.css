@@ -989,13 +989,13 @@ td {
 }
 
 .event-item {
-    grid-template-columns: 116px minmax(0, 1fr);
-    align-items: start;
+    grid-template-columns: 148px minmax(0, 1fr);
+    align-items: stretch;
 }
 
 .event-item img {
-    width: 116px;
-    height: 92px;
+    width: 148px;
+    height: 120px;
     object-fit: cover;
     border-radius: 8px;
 }
@@ -1010,6 +1010,12 @@ td {
 .event-actions button {
     min-height: 36px;
     padding: 0 10px;
+}
+
+.event-actions .icon-only {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
 }
 
 .badge {
@@ -1276,8 +1282,20 @@ td {
 
 .phone-ltr {
     direction: ltr;
-    unicode-bidi: isolate;
+    unicode-bidi: plaintext;
     display: inline-block;
+    text-align: left;
+}
+
+input[type="tel"],
+input[type="email"],
+input[type="date"],
+input[type="time"],
+[data-profile-request-phone],
+[data-profile-request-email] {
+    direction: ltr;
+    unicode-bidi: plaintext;
+    text-align: left;
 }
 
 .compact-action {
@@ -1363,11 +1381,33 @@ td {
 
 .profile-request-form {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 12px;
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 14px;
     background: #fbfaf7;
+}
+
+.profile-request-form.note-compose {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+}
+
+.profile-request-form h3 {
+    margin: 0;
+    color: var(--burgundy);
+}
+
+.profile-request-form .form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.profile-request-form .primary-btn {
+    width: fit-content;
+    min-width: 210px;
+    justify-self: start;
+    padding: 0 18px;
 }
 
 .profile-requests-panel {
@@ -1389,13 +1429,15 @@ td {
 
 .image-editor-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
     gap: 18px;
-    align-items: stretch;
+    align-items: start;
+    min-height: 0;
 }
 
 .image-editor-preview {
-    min-height: 420px;
+    height: min(56vh, 520px);
+    min-height: 320px;
     overflow: hidden;
     display: grid;
     place-items: center;
@@ -1407,13 +1449,30 @@ td {
 .image-editor-preview img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    background: var(--white);
     transition: transform 0.16s ease, filter 0.16s ease;
 }
 
 .image-editor-controls {
     display: grid;
     gap: 12px;
+    max-height: min(56vh, 520px);
+    overflow: auto;
+    padding-inline-end: 4px;
+}
+
+.image-editor-controls .modal-actions {
+    position: sticky;
+    bottom: 0;
+    padding-top: 10px;
+    background: var(--white);
+    border-top: 1px solid var(--line);
+}
+
+.image-editor-modal {
+    max-height: min(86vh, 820px);
+    overflow: auto;
 }
 
 .upload-box {
@@ -1439,7 +1498,11 @@ td {
 }
 
 .upload-box small[data-file-label] {
-    overflow-wrap: anywhere;
+    max-width: 100%;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @media (max-width: 920px) {
@@ -1449,5 +1512,16 @@ td {
 
     .image-editor-preview {
         min-height: 300px;
+    }
+}
+
+@media (max-width: 760px) {
+    .profile-request-form .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-request-form .primary-btn {
+        width: 100%;
+        min-width: 0;
     }
 }

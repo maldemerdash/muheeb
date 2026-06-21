@@ -828,6 +828,7 @@ button {
         linear-gradient(90deg, rgba(69, 18, 22, 0.93), rgba(69, 18, 22, 0.78)),
         url("assets/brand-palette.jpg") center 36% / cover;
     color: var(--white);
+    padding-bottom: 118px;
 }
 
 .interest-grid {
@@ -909,6 +910,8 @@ button {
 }
 
 .site-footer {
+    position: relative;
+    z-index: 2;
     color: rgba(255, 255, 255, 0.84);
     background: var(--charcoal);
 }
@@ -954,7 +957,7 @@ button {
 .floating-actions {
     position: fixed;
     left: 22px;
-    bottom: 22px;
+    bottom: 72px;
     z-index: 90;
     display: flex;
     align-items: center;
@@ -1045,16 +1048,36 @@ body.modal-open {
 
 .phone-ltr {
     direction: ltr;
-    unicode-bidi: isolate;
+    unicode-bidi: plaintext;
     display: inline-block;
+    text-align: left;
 }
 
 .official-data {
     display: grid;
-    gap: 6px;
+    gap: 8px;
     margin-top: 16px;
     color: rgba(255, 255, 255, 0.72);
     font-size: 0.92rem;
+}
+
+.official-data span {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.official-data b {
+    color: var(--gold);
+    font-weight: 800;
+}
+
+.official-data em {
+    direction: ltr;
+    unicode-bidi: plaintext;
+    color: rgba(255, 255, 255, 0.82);
+    font-style: normal;
 }
 
 .project-link {
@@ -1115,14 +1138,16 @@ body.modal-open {
 .event-detail-hero img {
     width: 100%;
     aspect-ratio: 16 / 10;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
+    background: var(--white);
     border-radius: 8px;
 }
 
 .event-detail-hero h2 {
     margin: 14px 0;
     color: var(--burgundy);
-    font-size: clamp(2rem, 4vw, 4rem);
+    font-size: clamp(2rem, 3.2vw, 3.4rem);
     line-height: 1.2;
 }
 
