@@ -37,11 +37,15 @@ create table if not exists public.interest_options (
     id bigint generated always as identity primary key,
     label text not null,
     value text not null unique,
+    option_type text not null default 'interest',
     published boolean not null default true,
     sort_order integer not null default 0,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table public.interest_options
+add column if not exists option_type text not null default 'interest';
 
 drop trigger if exists set_site_content_updated_at on public.site_content;
 create trigger set_site_content_updated_at
@@ -110,6 +114,13 @@ with check (public.is_admin());
 insert into public.site_content
     (content_key, label, value, input_type, group_name, sort_order)
 values
+    ('nav_home_label', 'اسم رابط الرئيسية', 'الرئيسية', 'text', 'الهيدر', 1),
+    ('nav_about_label', 'اسم رابط عن مهيب', 'عن مهيب', 'text', 'الهيدر', 2),
+    ('nav_services_label', 'اسم رابط الخدمات', 'الخدمات', 'text', 'الهيدر', 3),
+    ('nav_projects_label', 'اسم رابط أعمالنا', 'أعمالنا', 'text', 'الهيدر', 4),
+    ('nav_execution_label', 'اسم رابط رحلة التنفيذ', 'رحلة التنفيذ', 'text', 'الهيدر', 5),
+    ('nav_interest_label', 'اسم رابط تسجيل اهتمام', 'تسجيل اهتمام', 'text', 'الهيدر', 6),
+    ('nav_contact_label', 'اسم رابط تواصل معنا', 'تواصل معنا', 'text', 'الهيدر', 7),
     ('hero_badge_small', 'عبارة بطاقة الهيرو الصغيرة', 'من الفكرة إلى التجربة', 'text', 'الصفحة الرئيسية', 10),
     ('hero_badge_title', 'عبارة بطاقة الهيرو الكبيرة', 'حضور مؤثر لا يُنسى', 'text', 'الصفحة الرئيسية', 11),
     ('hero_eyebrow', 'وصف أعلى العنوان الرئيسي', 'مهيب للتسويق وتنظيم الفعاليات', 'text', 'الصفحة الرئيسية', 12),
@@ -202,7 +213,18 @@ values
     ('contact_maps_url', 'رابط موقع خرائط جوجل', '#contact', 'url', 'صفحة التواصل', 155),
     ('commercial_registration', 'رقم السجل التجاري', 'يضاف من لوحة التحكم', 'text', 'التواصل والفوتر', 156),
     ('tax_number', 'الرقم الضريبي', 'يضاف من لوحة التحكم', 'text', 'التواصل والفوتر', 157),
-    ('bank_account', 'رقم الحساب البنكي', 'يضاف من لوحة التحكم', 'text', 'التواصل والفوتر', 158)
+    ('bank_account', 'رقم الحساب البنكي', 'يضاف من لوحة التحكم', 'text', 'التواصل والفوتر', 158),
+    ('event_about_eyebrow', 'عنوان صغير لقسم عن الفعالية', 'عن الفعالية', 'text', 'صفحة الفعالية', 170),
+    ('event_highlights_eyebrow', 'عنوان صغير للنقاط المختصرة', 'نقاط مختصرة للعرض', 'text', 'صفحة الفعالية', 171),
+    ('event_highlights_title', 'عنوان النقاط المختصرة', 'ملخص سريع لما يميز الفعالية', 'text', 'صفحة الفعالية', 172),
+    ('event_achievements_eyebrow', 'عنوان صغير للإنجازات', 'الإنجازات المحققة', 'text', 'صفحة الفعالية', 173),
+    ('event_achievements_title', 'عنوان الإنجازات', 'نتائج ومخرجات الفعالية', 'text', 'صفحة الفعالية', 174),
+    ('event_gallery_eyebrow', 'عنوان صغير لمعرض صور الفعالية', 'معرض الصور', 'text', 'صفحة الفعالية', 175),
+    ('event_gallery_title', 'عنوان معرض صور الفعالية', 'مشاهد من الفعالية', 'text', 'صفحة الفعالية', 176),
+    ('event_partners_eyebrow', 'عنوان صغير للجهات المشاركة', 'الجهات والشركاء', 'text', 'صفحة الفعالية', 177),
+    ('event_partners_title', 'عنوان الجهات المشاركة', 'الجهات المشاركة أو الداعمة', 'text', 'صفحة الفعالية', 178),
+    ('event_sections_eyebrow', 'عنوان صغير لأقسام الفعالية', 'تفاصيل إضافية', 'text', 'صفحة الفعالية', 179),
+    ('event_sections_title', 'عنوان أقسام الفعالية', 'كل ما يتعلق بالفعالية', 'text', 'صفحة الفعالية', 180)
 on conflict (content_key) do update
 set label = excluded.label,
     input_type = excluded.input_type,
@@ -234,14 +256,19 @@ set label = excluded.label,
     sort_order = excluded.sort_order;
 
 insert into public.interest_options
-    (label, value, published, sort_order)
+    (label, value, option_type, published, sort_order)
 values
-    ('تنظيم فعالية أو معرض', 'تنظيم فعالية أو معرض', true, 1),
-    ('حملة تسويقية', 'حملة تسويقية', true, 2),
-    ('هوية وتطبيقات بصرية', 'هوية وتطبيقات بصرية', true, 3),
-    ('تشغيل وتوثيق تجربة', 'تشغيل وتوثيق تجربة', true, 4),
-    ('استشارة عامة', 'استشارة عامة', true, 5)
+    ('تنظيم فعالية أو معرض', 'تنظيم فعالية أو معرض', 'interest', true, 1),
+    ('حملة تسويقية', 'حملة تسويقية', 'interest', true, 2),
+    ('هوية وتطبيقات بصرية', 'هوية وتطبيقات بصرية', 'interest', true, 3),
+    ('تشغيل وتوثيق تجربة', 'تشغيل وتوثيق تجربة', 'interest', true, 4),
+    ('استشارة عامة', 'استشارة عامة', 'interest', true, 5),
+    ('فعاليات', 'event', 'event_category', true, 1),
+    ('تسويق', 'marketing', 'event_category', true, 2),
+    ('هوية', 'identity', 'event_category', true, 3),
+    ('تشغيل', 'operation', 'event_category', true, 4)
 on conflict (value) do update
 set label = excluded.label,
+    option_type = excluded.option_type,
     published = excluded.published,
     sort_order = excluded.sort_order;

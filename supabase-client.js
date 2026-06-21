@@ -288,6 +288,7 @@
         id: row.id,
         label: row.label || "",
         value: row.value || row.label || "",
+        optionType: row.option_type || row.optionType || "interest",
         published: row.published !== false,
         sortOrder: row.sort_order || row.sortOrder || 0,
         createdAt: row.created_at || row.createdAt,
@@ -335,11 +336,13 @@
             if (imagesResult.error) throw imagesResult.error;
             if (optionsResult.error) throw optionsResult.error;
             const contentRows = (contentResult.data || []).map(toCamelContent);
+            const dropdownOptions = (optionsResult.data || []).map(toCamelInterestOption);
             return {
                 content: contentRowsToObject(contentResult.data || []),
                 contentRows,
                 images: (imagesResult.data || []).map(toCamelSiteImage),
-                interestOptions: (optionsResult.data || []).map(toCamelInterestOption),
+                interestOptions: dropdownOptions.filter((option) => option.optionType === "interest"),
+                eventCategoryOptions: dropdownOptions.filter((option) => option.optionType === "event_category"),
             };
         },
 
@@ -1003,6 +1006,7 @@
             const row = {
                 label,
                 value: String(payload.value || label).trim(),
+                option_type: payload.optionType || payload.option_type || "interest",
                 published: Boolean(payload.published),
                 sort_order: Number(payload.sortOrder || 0),
                 updated_at: new Date().toISOString(),
@@ -1018,13 +1022,7 @@
         async deleteInterestOption(optionId) {
             const client = await requireSupabase();
             await requireAdmin();
-            const { error } = await client
-                .from("interest_options")
-                .update({
-                    published: false,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", optionId);
+            const { error } = await client.from("interest_options").delete().eq("id", optionId);
             if (error) throw error;
         },
 

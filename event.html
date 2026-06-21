@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="style.css?v=event-pages-20260622">
+    <link rel="stylesheet" href="style.css?v=event-controls-20260622">
 </head>
 <body data-page="event">
     <div class="preloader" id="preloader" aria-hidden="true">
@@ -63,9 +63,20 @@
         <section class="event-about section-observe">
             <div class="container event-two-column">
                 <div class="intro-text">
-                    <p class="eyebrow">عن الفعالية</p>
+                    <p class="eyebrow" data-content="event_about_eyebrow">عن الفعالية</p>
                     <h2 id="eventAboutTitle">نظرة مركزة على التجربة</h2>
                     <p id="eventAboutText">تفاصيل الفعالية تظهر هنا من لوحة التحكم، وتشمل الفكرة، نطاق العمل، ومخرجات التجربة.</p>
+                </div>
+                <div class="event-highlight-panel">
+                    <p class="eyebrow" data-content="event_highlights_eyebrow">نقاط مختصرة للعرض</p>
+                    <h3 data-content="event_highlights_title">ملخص سريع لما يميز الفعالية</h3>
+                    <div class="event-highlight-grid" id="eventHighlights"></div>
+                </div>
+            </div>
+            <div class="container event-achievements-block">
+                <div class="section-heading">
+                    <p class="eyebrow" data-content="event_achievements_eyebrow">الإنجازات المحققة</p>
+                    <h2 data-content="event_achievements_title">نتائج ومخرجات الفعالية</h2>
                 </div>
                 <div class="event-achievement-grid" id="eventAchievements"></div>
             </div>
@@ -73,8 +84,8 @@
 
         <section class="projects-strip event-gallery-section section-observe" aria-labelledby="eventGalleryTitle">
             <div class="section-heading">
-                <p class="eyebrow">معرض الصور</p>
-                <h2 id="eventGalleryTitle">مشاهد من الفعالية</h2>
+                <p class="eyebrow" data-content="event_gallery_eyebrow">معرض الصور</p>
+                <h2 id="eventGalleryTitle" data-content="event_gallery_title">مشاهد من الفعالية</h2>
             </div>
             <div class="marquee" aria-label="صور الفعالية">
                 <div class="marquee-track" id="eventGalleryTrack"></div>
@@ -84,8 +95,8 @@
         <section class="event-partners section-observe">
             <div class="container">
                 <div class="section-heading">
-                    <p class="eyebrow">الجهات والشركاء</p>
-                    <h2>شعارات الجهات المشاركة أو الداعمة</h2>
+                    <p class="eyebrow" data-content="event_partners_eyebrow">الجهات والشركاء</p>
+                    <h2 data-content="event_partners_title">الجهات المشاركة أو الداعمة</h2>
                 </div>
                 <div class="event-logo-marquee" id="eventPartnersTrack"></div>
             </div>
@@ -94,8 +105,8 @@
         <section class="event-sections section-observe">
             <div class="container">
                 <div class="section-heading">
-                    <p class="eyebrow">تفاصيل إضافية</p>
-                    <h2>كل ما يتعلق بالفعالية</h2>
+                    <p class="eyebrow" data-content="event_sections_eyebrow">تفاصيل إضافية</p>
+                    <h2 data-content="event_sections_title">كل ما يتعلق بالفعالية</h2>
                 </div>
                 <div class="event-section-list" id="eventSectionList"></div>
             </div>
@@ -159,8 +170,8 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=event-pages-20260622"></script>
-    <script src="app.js?v=event-pages-20260622"></script>
-    <script src="event.js?v=event-pages-20260622"></script>
+    <script src="supabase-client.js?v=event-controls-20260622"></script>
+    <script src="app.js?v=event-controls-20260622"></script>
+    <script src="event.js?v=event-controls-20260622"></script>
 </body>
 </html>

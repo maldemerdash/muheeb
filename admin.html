@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=event-pages-20260622">
+    <link rel="stylesheet" href="admin.css?v=event-controls-20260622">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -58,7 +58,7 @@
                 </button>
                 <button class="nav-item" type="button" data-view="interestOptionsView" data-permission="interest_options">
                     <i data-lucide="list-plus"></i>
-                    <span>اختيارات النموذج</span>
+                    <span>القوائم المنسدلة</span>
                 </button>
                 <button class="nav-item" type="button" data-view="eventsView" data-permission="events">
                     <i data-lucide="images"></i>
@@ -238,8 +238,8 @@
                     <form class="panel-card option-form" id="interestOptionForm">
                         <div class="panel-header">
                             <div>
-                                <p class="eyebrow">نموذج الطلب</p>
-                                <h2 id="interestOptionFormTitle">إضافة اختيار اهتمام</h2>
+                                <p class="eyebrow">القوائم المنسدلة</p>
+                                <h2 id="interestOptionFormTitle">إضافة عنصر للقوائم</h2>
                             </div>
                             <button class="ghost-btn" type="button" id="resetInterestOptionForm">
                                 <i data-lucide="plus"></i>
@@ -248,7 +248,14 @@
                         </div>
                         <input type="hidden" name="optionId">
                         <label>
-                            <span>اسم الاختيار الظاهر للعميل</span>
+                            <span>نوع القائمة</span>
+                            <select name="optionType" required>
+                                <option value="interest">مجال الاهتمام في نموذج الطلب</option>
+                                <option value="event_category">تصنيف الفعاليات</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>الاسم الظاهر</span>
                             <input type="text" name="label" required>
                         </label>
                         <label>
@@ -262,7 +269,7 @@
                             </label>
                             <label class="toggle-field">
                                 <input type="checkbox" name="published" checked>
-                                <span>إظهار الاختيار في النموذج</span>
+                                <span>إظهار العنصر في قائمته</span>
                             </label>
                         </div>
                         <button class="primary-btn" type="submit">
@@ -274,8 +281,8 @@
                     <div class="panel-card">
                         <div class="panel-header">
                             <div>
-                                <p class="eyebrow">الاختيارات الحالية</p>
-                                <h2>تظهر في خانة مجال الاهتمام</h2>
+                                <p class="eyebrow">العناصر الحالية</p>
+                                <h2>اختيارات نموذج الطلب وتصنيفات الفعاليات</h2>
                             </div>
                         </div>
                         <div class="interest-option-list" id="interestOptionList"></div>
@@ -297,73 +304,144 @@
                             </button>
                         </div>
                         <input type="hidden" name="eventId" id="eventId">
-                        <div class="form-grid">
+                        <input type="hidden" name="eventDate">
+                        <section class="event-editor-section event-cover-editor">
+                            <div class="event-editor-section-head">
+                                <div>
+                                    <p class="eyebrow">غلاف الفعالية</p>
+                                    <h3>معاينة الغلاف قبل الحفظ</h3>
+                                </div>
+                                <label class="upload-box compact-upload">
+                                    <span>اختيار صورة الغلاف</span>
+                                    <input type="file" id="coverInput" accept="image/png,image/jpeg,image/webp,image/gif">
+                                    <small id="coverName">لم يتم اختيار صورة جديدة</small>
+                                </label>
+                            </div>
+                            <div class="event-cover-preview">
+                                <img id="coverPreview" alt="">
+                            </div>
+                        </section>
+
+                        <section class="event-editor-section">
+                            <div class="event-editor-section-head">
+                                <div>
+                                    <p class="eyebrow">تفاصيل الفعالية</p>
+                                    <h3>البيانات الأساسية التي تظهر في صفحة الفعالية</h3>
+                                </div>
+                            </div>
+                            <div class="form-grid event-main-fields">
+                                <label>
+                                    <span>اسم الفعالية</span>
+                                    <input type="text" name="title" required>
+                                </label>
+                                <label>
+                                    <span>التصنيف</span>
+                                    <select name="category" id="eventCategorySelect" required>
+                                        <option value="event">فعاليات</option>
+                                        <option value="marketing">تسويق</option>
+                                        <option value="identity">هوية</option>
+                                        <option value="operation">تشغيل</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>المدينة</span>
+                                    <input type="text" name="location" placeholder="مثال: المدينة المنورة">
+                                </label>
+                            </div>
+                            <div class="form-grid event-venue-fields">
+                                <label>
+                                    <span>مكان إقامة الفعالية</span>
+                                    <input type="text" name="venueName" placeholder="مثال: مركز المؤتمرات">
+                                </label>
+                                <label>
+                                    <span>رابط موقع الفعالية من الخرائط</span>
+                                    <input type="url" name="mapUrl" placeholder="https://maps.google.com/...">
+                                </label>
+                            </div>
+                            <div class="form-grid event-time-fields">
+                                <label>
+                                    <span>تاريخ البداية</span>
+                                    <input type="date" name="dateFrom">
+                                </label>
+                                <label>
+                                    <span>تاريخ النهاية</span>
+                                    <input type="date" name="dateTo">
+                                </label>
+                                <label>
+                                    <span>وقت البداية</span>
+                                    <input type="time" name="timeFrom">
+                                </label>
+                                <label>
+                                    <span>وقت النهاية</span>
+                                    <input type="time" name="timeTo">
+                                </label>
+                            </div>
                             <label>
-                                <span>اسم الفعالية</span>
-                                <input type="text" name="title" required>
+                                <span>وصف الفعالية</span>
+                                <textarea name="description" rows="4" required></textarea>
                             </label>
+                            <div class="event-help-box">
+                                <strong>ما هي نقاط مختصرة للعرض؟</strong>
+                                <span>هي بطاقات قصيرة تظهر بسرعة للزائر مثل: عدد الحضور، عدد الجهات، مدة الفعالية، أو أبرز ما يميز التجربة. اكتب كل نقطة في سطر مستقل.</span>
+                            </div>
+                            <div class="form-grid">
+                                <label>
+                                    <span>نقاط مختصرة للعرض</span>
+                                    <textarea name="highlights" rows="3" placeholder="مثال: 300 زائر&#10;6 جهات مشاركة&#10;تجربة تسجيل منظمة"></textarea>
+                                </label>
+                                <label>
+                                    <span>الإنجازات المحققة</span>
+                                    <textarea name="achievements" rows="3" placeholder="اكتب كل إنجاز في سطر مستقل"></textarea>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="event-editor-section">
+                            <div class="event-editor-section-head">
+                                <div>
+                                    <p class="eyebrow">الجهات المشاركة</p>
+                                    <h3>أسماء الجهات وشعاراتها</h3>
+                                </div>
+                            </div>
                             <label>
-                                <span>التصنيف</span>
-                                <select name="category" required>
-                                    <option value="event">فعاليات</option>
-                                    <option value="marketing">تسويق</option>
-                                    <option value="identity">هوية</option>
-                                    <option value="operation">تشغيل</option>
-                                </select>
+                                <span>أسماء المشاركين أو الجهات</span>
+                                <textarea name="participants" rows="3" placeholder="اكتب كل جهة في سطر مستقل، وسيظهر الاسم تحت الشعار الموافق له"></textarea>
                             </label>
+                            <label class="upload-box">
+                                <span>شعارات الجهات الداعمة أو المنفذة</span>
+                                <input type="file" id="supportLogosInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+                                <small id="supportLogosName">يمكن اختيار أكثر من شعار</small>
+                            </label>
+                            <div class="gallery-preview support-preview" id="supportLogosPreview"></div>
+                        </section>
+
+                        <section class="event-editor-section">
+                            <div class="event-editor-section-head">
+                                <div>
+                                    <p class="eyebrow">معرض الصور</p>
+                                    <h3>صور تظهر في شريط متحرك داخل صفحة الفعالية</h3>
+                                </div>
+                                <label class="upload-box compact-upload">
+                                    <span>صور إضافية للمعرض</span>
+                                    <input type="file" id="galleryInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+                                    <small id="galleryName">يمكن اختيار أكثر من صورة</small>
+                                </label>
+                            </div>
+                            <div class="gallery-preview gallery-wide-preview" id="galleryPreview"></div>
+                        </section>
+
+                        <section class="event-editor-section">
+                            <div class="event-editor-section-head">
+                                <div>
+                                    <p class="eyebrow">أقسام صفحة الفعالية</p>
+                                    <h3>أقسام اختيارية تظهر أسفل صفحة الفعالية</h3>
+                                </div>
+                            </div>
                             <label>
-                                <span>المدينة أو الموقع</span>
-                                <input type="text" name="location" placeholder="مثال: المدينة المنورة">
+                                <span>الأقسام</span>
+                                <textarea name="detailSections" rows="4" placeholder="كل سطر: عنوان القسم | النص | رابط الصورة اختياري"></textarea>
                             </label>
-                            <label>
-                                <span>مكان إقامة الفعالية</span>
-                                <input type="text" name="venueName" placeholder="مثال: مركز المؤتمرات">
-                            </label>
-                            <label>
-                                <span>رابط موقع الفعالية من الخرائط</span>
-                                <input type="url" name="mapUrl" placeholder="https://maps.google.com/...">
-                            </label>
-                            <label>
-                                <span>التاريخ أو المرحلة</span>
-                                <input type="text" name="eventDate" placeholder="مثال: 2026 / تخطيط وتشغيل">
-                            </label>
-                            <label>
-                                <span>تاريخ البداية</span>
-                                <input type="date" name="dateFrom">
-                            </label>
-                            <label>
-                                <span>تاريخ النهاية</span>
-                                <input type="date" name="dateTo">
-                            </label>
-                            <label>
-                                <span>وقت البداية</span>
-                                <input type="time" name="timeFrom">
-                            </label>
-                            <label>
-                                <span>وقت النهاية</span>
-                                <input type="time" name="timeTo">
-                            </label>
-                        </div>
-                        <label>
-                            <span>الوصف</span>
-                            <textarea name="description" rows="4" required></textarea>
-                        </label>
-                        <label>
-                            <span>نقاط مختصرة للعرض</span>
-                            <textarea name="highlights" rows="3" placeholder="اكتب كل نقطة في سطر مستقل"></textarea>
-                        </label>
-                        <label>
-                            <span>الإنجازات المحققة</span>
-                            <textarea name="achievements" rows="3" placeholder="اكتب كل إنجاز في سطر مستقل"></textarea>
-                        </label>
-                        <label>
-                            <span>المشاركون أو الجهات</span>
-                            <textarea name="participants" rows="3" placeholder="اكتب كل مشارك أو جهة في سطر مستقل"></textarea>
-                        </label>
-                        <label>
-                            <span>أقسام داخل صفحة الفعالية</span>
-                            <textarea name="detailSections" rows="4" placeholder="كل سطر: عنوان القسم | النص | رابط الصورة اختياري"></textarea>
-                        </label>
+                        </section>
                         <div class="form-grid">
                             <label>
                                 <span>ترتيب الظهور</span>
@@ -373,33 +451,6 @@
                                 <input type="checkbox" name="published" checked>
                                 <span>نشر الفعالية في الموقع</span>
                             </label>
-                        </div>
-                        <div class="upload-grid">
-                            <label class="upload-box">
-                                <span>صورة الغلاف</span>
-                                <input type="file" id="coverInput" accept="image/png,image/jpeg,image/webp,image/gif">
-                                <small id="coverName">لم يتم اختيار صورة جديدة</small>
-                            </label>
-                            <label class="upload-box">
-                                <span>صور إضافية للمعرض</span>
-                                <input type="file" id="galleryInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
-                                <small id="galleryName">يمكن اختيار أكثر من صورة</small>
-                            </label>
-                            <label class="upload-box">
-                                <span>شعارات الجهات الداعمة أو المنفذة</span>
-                                <input type="file" id="supportLogosInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
-                                <small id="supportLogosName">يمكن اختيار أكثر من شعار</small>
-                            </label>
-                        </div>
-                        <div class="preview-grid">
-                            <div>
-                                <span>معاينة الغلاف</span>
-                                <img id="coverPreview" alt="">
-                            </div>
-                            <div>
-                                <span>صور المعرض الحالية</span>
-                                <div class="gallery-preview" id="galleryPreview"></div>
-                            </div>
                         </div>
                         <button class="primary-btn" type="submit">
                             <i data-lucide="save"></i>
@@ -735,7 +786,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=event-pages-20260622"></script>
-    <script src="admin.js?v=event-pages-20260622"></script>
+    <script src="supabase-client.js?v=event-controls-20260622"></script>
+    <script src="admin.js?v=event-controls-20260622"></script>
 </body>
 </html>

@@ -45,6 +45,18 @@ const labels = {
     operation: "تشغيل",
 };
 
+const dropdownTypeLabels = {
+    interest: "مجال الاهتمام في نموذج الطلب",
+    event_category: "تصنيف الفعاليات",
+};
+
+const defaultEventCategoryOptions = [
+    { label: "فعاليات", value: "event", optionType: "event_category", published: true, sortOrder: 1 },
+    { label: "تسويق", value: "marketing", optionType: "event_category", published: true, sortOrder: 2 },
+    { label: "هوية", value: "identity", optionType: "event_category", published: true, sortOrder: 3 },
+    { label: "تشغيل", value: "operation", optionType: "event_category", published: true, sortOrder: 4 },
+];
+
 const statusClasses = {
     new: "lead-status-new",
     contacted: "lead-status-contacted",
@@ -105,6 +117,17 @@ const defaultSiteContentRows = [
     { contentKey: "commercial_registration", label: "رقم السجل التجاري", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 156 },
     { contentKey: "tax_number", label: "الرقم الضريبي", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 157 },
     { contentKey: "bank_account", label: "رقم الحساب البنكي", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 158 },
+    { contentKey: "event_about_eyebrow", label: "عنوان صغير لقسم عن الفعالية", value: "عن الفعالية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 170 },
+    { contentKey: "event_highlights_eyebrow", label: "عنوان صغير للنقاط المختصرة", value: "نقاط مختصرة للعرض", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 171 },
+    { contentKey: "event_highlights_title", label: "عنوان النقاط المختصرة", value: "ملخص سريع لما يميز الفعالية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 172 },
+    { contentKey: "event_achievements_eyebrow", label: "عنوان صغير للإنجازات", value: "الإنجازات المحققة", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 173 },
+    { contentKey: "event_achievements_title", label: "عنوان الإنجازات", value: "نتائج ومخرجات الفعالية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 174 },
+    { contentKey: "event_gallery_eyebrow", label: "عنوان صغير لمعرض صور الفعالية", value: "معرض الصور", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 175 },
+    { contentKey: "event_gallery_title", label: "عنوان معرض صور الفعالية", value: "مشاهد من الفعالية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 176 },
+    { contentKey: "event_partners_eyebrow", label: "عنوان صغير للجهات المشاركة", value: "الجهات والشركاء", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 177 },
+    { contentKey: "event_partners_title", label: "عنوان الجهات المشاركة", value: "الجهات المشاركة أو الداعمة", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 178 },
+    { contentKey: "event_sections_eyebrow", label: "عنوان صغير لأقسام الفعالية", value: "تفاصيل إضافية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 179 },
+    { contentKey: "event_sections_title", label: "عنوان أقسام الفعالية", value: "كل ما يتعلق بالفعالية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 180 },
 ];
 
 const ensureSiteContentRows = (rows = []) => {
@@ -125,7 +148,7 @@ const permissionItems = [
     { key: "leads_view_phone", label: "إظهار رقم الجوال والواتساب" },
     { key: "content", label: "محتوى الموقع" },
     { key: "site_images", label: "صور الموقع" },
-    { key: "interest_options", label: "اختيارات النموذج" },
+    { key: "interest_options", label: "القوائم المنسدلة" },
     { key: "events", label: "الفعاليات والمعرض" },
     { key: "users", label: "المستخدمون والصلاحيات" },
     { key: "security", label: "الأمان" },
@@ -158,6 +181,7 @@ const eventsList = document.getElementById("eventsList");
 const eventForm = document.getElementById("eventForm");
 const eventFormTitle = document.getElementById("eventFormTitle");
 const eventFormMessage = document.getElementById("eventFormMessage");
+const eventCategorySelect = document.getElementById("eventCategorySelect");
 const passwordForm = document.getElementById("passwordForm");
 const passwordMessage = document.getElementById("passwordMessage");
 const eventIdInput = document.getElementById("eventId");
@@ -167,6 +191,7 @@ const coverName = document.getElementById("coverName");
 const galleryName = document.getElementById("galleryName");
 const coverPreview = document.getElementById("coverPreview");
 const galleryPreview = document.getElementById("galleryPreview");
+const supportLogosPreview = document.getElementById("supportLogosPreview");
 const leadStatusFilter = document.getElementById("leadStatusFilter");
 const leadSearch = document.getElementById("leadSearch");
 const contentEditor = document.getElementById("contentEditor");
@@ -905,7 +930,7 @@ const renderEvents = () => {
             <img src="${escapeHtml(event.coverImage || "assets/logo-meheib.png")}" alt="">
             <div>
                 <strong>${escapeHtml(event.title)}</strong>
-                <div class="meta-text">${escapeHtml(labels[event.category] || event.category)} - ${escapeHtml(event.venueName || event.location || "بدون موقع")}</div>
+                <div class="meta-text">${escapeHtml(getCategoryLabel(event.category))} - ${escapeHtml(event.venueName || event.location || "بدون موقع")}</div>
                 <div class="meta-text">${escapeHtml(event.dateFrom || event.eventDate || "بدون تاريخ")}${event.dateTo ? ` إلى ${escapeHtml(event.dateTo)}` : ""}</div>
                 <span class="badge ${event.published ? "" : "is-dim"}">${event.published ? "منشور" : "مخفي"}</span>
                 <div class="event-actions">
@@ -1449,32 +1474,83 @@ const resetInterestOptionForm = () => {
     state.editingInterestOption = null;
     interestOptionForm.reset();
     interestOptionForm.elements.optionId.value = "";
+    if (interestOptionForm.elements.optionType) interestOptionForm.elements.optionType.value = "interest";
     interestOptionForm.elements.published.checked = true;
     interestOptionForm.elements.sortOrder.value = "0";
-    interestOptionFormTitle.textContent = "إضافة اختيار اهتمام";
+    interestOptionFormTitle.textContent = "إضافة عنصر للقوائم";
+};
+
+const getDropdownOptions = (type, includeHidden = true) => {
+    const savedEventCategories = state.interestOptions.filter((option) => option.optionType === "event_category");
+    const source = type === "event_category"
+        ? (savedEventCategories.length ? savedEventCategories : defaultEventCategoryOptions)
+        : state.interestOptions.filter((option) => (option.optionType || "interest") === "interest");
+    const byValue = new Map();
+    source.forEach((option) => {
+        if (!includeHidden && option.published === false) return;
+        const value = option.value || option.label;
+        if (!value) return;
+        byValue.set(value, option);
+    });
+    return Array.from(byValue.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+};
+
+const getCategoryLabel = (category) => {
+    const option = getDropdownOptions("event_category").find((item) => item.value === category || item.label === category);
+    return option?.label || labels[category] || category || "بدون تصنيف";
+};
+
+const renderEventCategorySelect = () => {
+    if (!eventCategorySelect) return;
+    const currentValue = eventCategorySelect.value || state.editingEvent?.category || "event";
+    const options = getDropdownOptions("event_category", false);
+    eventCategorySelect.innerHTML = options.map((option) => `
+        <option value="${escapeHtml(option.value || option.label)}">${escapeHtml(option.label)}</option>
+    `).join("");
+    if (![...eventCategorySelect.options].some((option) => option.value === currentValue)) {
+        eventCategorySelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(currentValue)}">${escapeHtml(getCategoryLabel(currentValue))}</option>`);
+    }
+    eventCategorySelect.value = currentValue;
 };
 
 const renderInterestOptions = () => {
     if (!interestOptionList) return;
-    interestOptionList.innerHTML = state.interestOptions.map((option) => `
-        <article class="interest-option-item">
-            <div>
-                <strong>${escapeHtml(option.label)}</strong>
-                <span>${escapeHtml(option.value)} - ترتيب ${escapeHtml(option.sortOrder)}</span>
-                <span class="badge ${option.published ? "" : "is-dim"}">${option.published ? "ظاهر" : "مخفي"}</span>
-            </div>
-            <div class="event-actions">
-                <button class="ghost-btn" type="button" data-edit-interest-option="${option.id}">
-                    <i data-lucide="pencil"></i>
-                    <span>تعديل</span>
-                </button>
-                <button class="ghost-btn" type="button" data-toggle-interest-option="${option.id}">
-                    <i data-lucide="${option.published ? "eye-off" : "eye"}"></i>
-                    <span>${option.published ? "إخفاء" : "إظهار"}</span>
-                </button>
-            </div>
-        </article>
-    `).join("") || `<div class="compact-item"><span>لا توجد اختيارات بعد.</span></div>`;
+    const renderGroup = (type) => {
+        const options = state.interestOptions.filter((option) => (option.optionType || "interest") === type);
+        return `
+            <section class="dropdown-option-group">
+                <div class="visual-section-heading compact-heading">
+                    <span class="visual-section-number">${type === "interest" ? "01" : "02"}</span>
+                    <div>
+                        <p class="eyebrow">${escapeHtml(dropdownTypeLabels[type])}</p>
+                        <h3>${type === "interest" ? "تظهر في نموذج إرسال الطلب" : "تظهر في إضافة أو تعديل الفعالية"}</h3>
+                    </div>
+                </div>
+                ${options.map((option) => `
+                    <article class="interest-option-item">
+                        <div>
+                            <strong>${escapeHtml(option.label)}</strong>
+                            <span>${escapeHtml(option.value)} - ترتيب ${escapeHtml(option.sortOrder)}</span>
+                            <span class="badge ${option.published ? "" : "is-dim"}">${option.published ? "ظاهر" : "مخفي"}</span>
+                        </div>
+                        <div class="event-actions">
+                            <button class="ghost-btn icon-only small-icon" type="button" data-edit-interest-option="${option.id}" title="تعديل" aria-label="تعديل">
+                                <i data-lucide="pencil"></i>
+                            </button>
+                            <button class="ghost-btn icon-only small-icon" type="button" data-toggle-interest-option="${option.id}" title="${option.published ? "إخفاء" : "إظهار"}" aria-label="${option.published ? "إخفاء" : "إظهار"}">
+                                <i data-lucide="${option.published ? "eye-off" : "eye"}"></i>
+                            </button>
+                            <button class="danger-btn icon-only small-icon" type="button" data-delete-interest-option="${option.id}" title="حذف" aria-label="حذف">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </article>
+                `).join("") || `<div class="compact-item"><span>لا توجد عناصر في هذه القائمة.</span></div>`}
+            </section>
+        `;
+    };
+    interestOptionList.innerHTML = `${renderGroup("interest")}${renderGroup("event_category")}`;
+    renderEventCategorySelect();
     initIcons();
 };
 
@@ -1490,6 +1566,8 @@ const resetEventForm = () => {
     state.pendingSupportLogos = [];
     coverPreview.removeAttribute("src");
     galleryPreview.innerHTML = "";
+    renderSupportLogos([]);
+    renderEventCategorySelect();
     eventForm.elements.published.checked = true;
     eventForm.elements.sortOrder.value = "0";
 };
@@ -1502,6 +1580,7 @@ const editEvent = (eventId) => {
     eventIdInput.value = event.id;
     eventFormTitle.textContent = "تعديل فعالية";
     eventForm.elements.title.value = event.title || "";
+    renderEventCategorySelect();
     eventForm.elements.category.value = event.category || "event";
     eventForm.elements.location.value = event.location || "";
     if (eventForm.elements.venueName) eventForm.elements.venueName.value = event.venueName || "";
@@ -1527,6 +1606,7 @@ const editEvent = (eventId) => {
         coverPreview.removeAttribute("src");
     }
     renderGallery(event.gallery || []);
+    renderSupportLogos(state.pendingSupportLogos, event.participants || []);
     setView("eventsView");
 };
 
@@ -1537,6 +1617,30 @@ const renderGallery = (gallery) => {
             <button type="button" title="حذف الصورة" data-delete-image="${image.id}">×</button>
         </div>
     `).join("") || `<span class="meta-text">لا توجد صور إضافية.</span>`;
+};
+
+const renderSupportLogos = (logos = [], participants = []) => {
+    if (!supportLogosPreview) return;
+    const safeParticipants = Array.isArray(participants) ? participants : [];
+    supportLogosPreview.innerHTML = (logos || []).map((logo, index) => `
+        <div class="gallery-thumb support-thumb">
+            <img src="${escapeHtml(logo)}" alt="${escapeHtml(safeParticipants[index] || "شعار جهة مشاركة")}">
+            <span>${escapeHtml(safeParticipants[index] || `جهة ${index + 1}`)}</span>
+        </div>
+    `).join("") || `<span class="meta-text">لا توجد شعارات محفوظة للجهات.</span>`;
+};
+
+const renderTemporaryFilePreview = (container, files = [], names = [], className = "") => {
+    if (!container) return;
+    const items = Array.from(files || []);
+    container.innerHTML = items.length
+        ? items.map((file, index) => `
+            <div class="gallery-thumb ${escapeHtml(className)}">
+                <img src="${escapeHtml(URL.createObjectURL(file))}" alt="${escapeHtml(names[index] || file.name || "صورة جاهزة")}">
+                ${names[index] || className ? `<span>${escapeHtml(names[index] || `صورة ${index + 1}`)}</span>` : ""}
+            </div>
+        `).join("")
+        : `<span class="meta-text">لا توجد صور جاهزة للرفع.</span>`;
 };
 
 const uploadFiles = async (files, folder = "events") => {
@@ -2003,11 +2107,12 @@ const editInterestOption = (optionId) => {
     if (!option) return;
     state.editingInterestOption = option;
     interestOptionForm.elements.optionId.value = option.id;
+    if (interestOptionForm.elements.optionType) interestOptionForm.elements.optionType.value = option.optionType || "interest";
     interestOptionForm.elements.label.value = option.label || "";
     interestOptionForm.elements.value.value = option.value || "";
     interestOptionForm.elements.sortOrder.value = option.sortOrder || 0;
     interestOptionForm.elements.published.checked = Boolean(option.published);
-    interestOptionFormTitle.textContent = "تعديل اختيار اهتمام";
+    interestOptionFormTitle.textContent = "تعديل عنصر من القوائم";
     setView("interestOptionsView");
 };
 
@@ -2018,6 +2123,7 @@ const saveInterestOption = async (event) => {
         const formData = new FormData(interestOptionForm);
         const optionId = Number(formData.get("optionId") || 0);
         await window.MuheebData.saveInterestOption({
+            optionType: formData.get("optionType") || "interest",
             label: formData.get("label"),
             value: formData.get("value"),
             sortOrder: Number(formData.get("sortOrder") || 0),
@@ -2037,10 +2143,24 @@ const toggleInterestOption = async (optionId) => {
     try {
         await window.MuheebData.saveInterestOption({
             ...option,
+            optionType: option.optionType || "interest",
             published: !option.published,
         }, optionId);
         await loadAll();
-        showMessage(option.published ? "تم إخفاء الاختيار من النموذج." : "تم إظهار الاختيار في النموذج.");
+        showMessage(option.published ? "تم إخفاء العنصر من قائمته." : "تم إظهار العنصر في قائمته.");
+    } catch (error) {
+        showError(error.message);
+    }
+};
+
+const deleteInterestOption = async (optionId) => {
+    const option = state.interestOptions.find((item) => item.id === optionId);
+    if (!option) return;
+    if (!confirm(`هل تريد حذف "${option.label}" من القوائم المنسدلة؟`)) return;
+    try {
+        await window.MuheebData.deleteInterestOption(optionId);
+        await loadAll();
+        showMessage("تم حذف العنصر من القوائم.");
     } catch (error) {
         showError(error.message);
     }
@@ -2591,11 +2711,15 @@ siteImageList?.addEventListener("change", (event) => {
 interestOptionList?.addEventListener("click", async (event) => {
     const editButton = event.target.closest("[data-edit-interest-option]");
     const toggleButton = event.target.closest("[data-toggle-interest-option]");
+    const deleteButton = event.target.closest("[data-delete-interest-option]");
     if (editButton) {
         editInterestOption(Number(editButton.dataset.editInterestOption));
     }
     if (toggleButton) {
         await toggleInterestOption(Number(toggleButton.dataset.toggleInterestOption));
+    }
+    if (deleteButton) {
+        await deleteInterestOption(Number(deleteButton.dataset.deleteInterestOption));
     }
 });
 
@@ -2689,9 +2813,11 @@ imageEditorForm?.addEventListener("submit", async (event) => {
         }
         if (input === galleryInput && galleryName) {
             galleryName.textContent = `${processed.length} صور تم تجهيزها للرفع عند الحفظ`;
+            renderTemporaryFilePreview(galleryPreview, processed);
         }
         if (input === eventSupportLogosInput && supportLogosName) {
             supportLogosName.textContent = `${processed.length} شعار تم تجهيزه للرفع عند الحفظ`;
+            renderTemporaryFilePreview(supportLogosPreview, processed, splitLines(eventForm.elements.participants?.value || ""), "support-thumb");
         }
         if (input === userAvatarInput) {
             const previewUrl = URL.createObjectURL(editedFile);

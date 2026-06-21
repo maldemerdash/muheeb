@@ -14,6 +14,17 @@ const eventCategoryMeta = {
     operation: { label: "تشغيل", icon: "clipboard-check" },
 };
 
+let eventPageCategoryOptions = [];
+
+const getEventCategoryMeta = (category) => {
+    const fallback = eventCategoryMeta[category] || { label: category || "فعالية", icon: "sparkles" };
+    const option = eventPageCategoryOptions.find((item) => item.value === category || item.label === category);
+    return {
+        ...fallback,
+        label: option?.label || fallback.label,
+    };
+};
+
 const staticEventFallback = window.MuheebStaticEvents || [
     {
         id: "static-event",
@@ -75,13 +86,44 @@ const repeatForMarquee = (items) => {
     return items.length < 6 ? [...items, ...items, ...items] : [...items, ...items];
 };
 
+const looksLikeImagePath = (value) => /^(https?:|data:|assets\/|uploads\/|event-images\/|storage\/)/i.test(String(value || ""));
+
+const normalizePartner = (logo, index, participants) => {
+    if (typeof logo === "object" && logo !== null) {
+        return {
+            logo: logo.image || logo.logo || logo.path || logo.imagePath || "",
+            name: logo.name || logo.label || participants[index] || `جهة ${index + 1}`,
+        };
+    }
+    const raw = String(logo || "").trim();
+    if (raw.includes("|")) {
+        const [first = "", second = ""] = raw.split("|").map((part) => part.trim());
+        return looksLikeImagePath(first)
+            ? { logo: first, name: second || participants[index] || `جهة ${index + 1}` }
+            : { logo: second, name: first || participants[index] || `جهة ${index + 1}` };
+    }
+    return {
+        logo: raw,
+        name: participants[index] || `جهة ${index + 1}`,
+    };
+};
+
+const buildPartners = (event) => {
+    const participants = Array.isArray(event.participants) ? event.participants : [];
+    const logos = Array.isArray(event.supportLogos) ? event.supportLogos : [];
+    const count = Math.max(participants.length, logos.length);
+    return Array.from({ length: count }, (_, index) => normalizePartner(logos[index] || "", index, participants))
+        .filter((partner) => partner.logo || partner.name);
+};
+
 const renderEvent = (event) => {
-    const meta = eventCategoryMeta[event.category] || eventCategoryMeta.event;
+    const meta = getEventCategoryMeta(event.category);
     const gallery = event.gallery?.length
         ? event.gallery
         : [{ imagePath: event.coverImage || "assets/logo-meheib.png", altText: event.title }];
-    const achievements = event.achievements?.length ? event.achievements : event.highlights || [];
-    const partners = event.supportLogos?.length ? event.supportLogos : [];
+    const highlights = Array.isArray(event.highlights) ? event.highlights : [];
+    const achievements = Array.isArray(event.achievements) ? event.achievements : [];
+    const partners = buildPartners(event);
     const detailSections = event.detailSections?.length ? event.detailSections : [
         {
             title: "تفاصيل التجربة",
@@ -99,6 +141,14 @@ const renderEvent = (event) => {
     document.getElementById("eventMeta").innerHTML = renderEventMeta(event);
     document.getElementById("eventAboutTitle").textContent = event.title;
     document.getElementById("eventAboutText").textContent = event.description || "فعالية من أعمال مهيب.";
+    document.getElementById("eventHighlights").innerHTML = highlights.length
+        ? highlights.map((item, index) => `
+            <article>
+                <i data-lucide="${index === 0 ? "activity" : index === 1 ? "users" : meta.icon}"></i>
+                <span>${eventEscapeHtml(item)}</span>
+            </article>
+        `).join("")
+        : `<article><i data-lucide="sparkles"></i><span>يمكن إضافة نقاط مختصرة من لوحة التحكم.</span></article>`;
 
     document.getElementById("eventAchievements").innerHTML = achievements.length
         ? achievements.map((item, index) => `
@@ -107,7 +157,7 @@ const renderEvent = (event) => {
                 <span>${eventEscapeHtml(item)}</span>
             </article>
         `).join("")
-        : `<article><i data-lucide="sparkles"></i><span>تجربة مصممة بعناية</span></article>`;
+        : `<article><i data-lucide="badge-check"></i><span>يمكن إضافة الإنجازات المحققة من لوحة التحكم.</span></article>`;
 
     document.getElementById("eventGalleryTrack").innerHTML = repeatForMarquee(gallery).map((image) => `
         <article class="slide">
@@ -118,9 +168,12 @@ const renderEvent = (event) => {
 
     document.getElementById("eventPartnersTrack").innerHTML = partners.length
         ? `<div class="event-logo-track">${repeatForMarquee(partners).map((logo) => `
-            <span><img src="${eventEscapeHtml(logo)}" alt="شعار جهة مشاركة"></span>
+            <article class="event-partner-card">
+                ${logo.logo ? `<img src="${eventEscapeHtml(logo.logo)}" alt="${eventEscapeHtml(logo.name)}">` : `<i data-lucide="building-2"></i>`}
+                <strong>${eventEscapeHtml(logo.name)}</strong>
+            </article>
         `).join("")}</div>`
-        : `<div class="event-empty-panel">يمكن إضافة شعارات الجهات الداعمة أو المنفذة من لوحة التحكم.</div>`;
+        : `<div class="event-empty-panel">يمكن إضافة أسماء وشعارات الجهات المشاركة من لوحة التحكم.</div>`;
 
     document.getElementById("eventSectionList").innerHTML = detailSections.map((section) => `
         <article class="event-info-card">
@@ -145,6 +198,7 @@ const renderEventNotFound = () => {
         </a>
     `;
     document.getElementById("eventAchievements").innerHTML = "";
+    document.getElementById("eventHighlights").innerHTML = "";
     document.getElementById("eventGalleryTrack").innerHTML = "";
     document.getElementById("eventPartnersTrack").innerHTML = "";
     document.getElementById("eventSectionList").innerHTML = "";
@@ -155,7 +209,11 @@ const loadEventPage = async () => {
     const eventId = new URLSearchParams(window.location.search).get("id") || "static-event";
     let events = staticEventFallback;
     try {
-        const publishedEvents = await window.MuheebData.listPublishedEvents();
+        const [publishedEvents, siteData] = await Promise.all([
+            window.MuheebData.listPublishedEvents(),
+            window.MuheebData.getSiteContent().catch(() => ({})),
+        ]);
+        eventPageCategoryOptions = siteData.eventCategoryOptions || [];
         if (Array.isArray(publishedEvents) && publishedEvents.length) {
             events = [...publishedEvents, ...staticEventFallback];
         }

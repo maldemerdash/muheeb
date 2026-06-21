@@ -96,6 +96,7 @@ const filterButtons = document.querySelectorAll(".filter-btn");
 const projectGrid = document.querySelector(".project-grid");
 let projectCards = document.querySelectorAll(".project-card");
 let publishedEvents = [];
+let eventCategoryOptions = [];
 const eventDetailModal = document.getElementById("eventDetailModal");
 const eventDetailContent = document.getElementById("eventDetailContent");
 const closeEventDetail = document.getElementById("closeEventDetail");
@@ -105,6 +106,15 @@ const categoryMeta = {
     marketing: { label: "تسويق", statusClass: "soon", icon: "target" },
     identity: { label: "هوية", statusClass: "available", icon: "palette" },
     operation: { label: "تشغيل", statusClass: "sold", icon: "clipboard-check" },
+};
+
+const getCategoryMeta = (category) => {
+    const fallback = categoryMeta[category] || { label: category || "فعالية", statusClass: "available", icon: "sparkles" };
+    const option = eventCategoryOptions.find((item) => item.value === category || item.label === category);
+    return {
+        ...fallback,
+        label: option?.label || fallback.label,
+    };
 };
 
 const staticEvents = [
@@ -276,7 +286,7 @@ const applySiteImages = (images) => {
 
 const renderInterestOptions = (options) => {
     const interestSelect = document.getElementById("interestSelect");
-    const publishedOptions = (options || []).filter((option) => option.published !== false);
+    const publishedOptions = (options || []).filter((option) => option.published !== false && (option.optionType || "interest") === "interest");
     if (!interestSelect || !publishedOptions.length) return;
     interestSelect.innerHTML = publishedOptions.map((option) => `
         <option value="${escapeHtml(option.value || option.label)}">${escapeHtml(option.label)}</option>
@@ -286,6 +296,7 @@ const renderInterestOptions = (options) => {
 const loadSiteCms = async () => {
     try {
         const siteData = await window.MuheebData.getSiteContent();
+        eventCategoryOptions = siteData.eventCategoryOptions || [];
         applyTextContent(siteData.content || {});
         applySiteImages(siteData.images || []);
         renderInterestOptions(siteData.interestOptions || []);
@@ -298,7 +309,7 @@ const renderProjectCards = (events) => {
     if (!projectGrid || !events.length) return;
     publishedEvents = events;
     projectGrid.innerHTML = events.map((event) => {
-        const meta = categoryMeta[event.category] || categoryMeta.event;
+        const meta = getCategoryMeta(event.category);
         const highlights = Array.isArray(event.highlights) && event.highlights.length
             ? event.highlights
             : [event.location || "المدينة المنورة", event.eventDate || "تخطيط وتنفيذ", meta.label];
@@ -306,7 +317,7 @@ const renderProjectCards = (events) => {
             <article class="project-card" data-status="${escapeHtml(event.category)}">
                 <img src="${escapeHtml(event.coverImage || "assets/logo-meheib.png")}" alt="${escapeHtml(event.title)}">
                 <div class="project-content">
-                    <span class="status ${meta.statusClass}">${escapeHtml(event.categoryLabel || meta.label)}</span>
+                    <span class="status ${meta.statusClass}">${escapeHtml(meta.label || event.categoryLabel)}</span>
                     <h3>${escapeHtml(event.title)}</h3>
                     <p>${escapeHtml(event.description)}</p>
                     <ul>
@@ -337,14 +348,14 @@ const eventTimeRange = (event) => {
 const openEventDetail = (eventId) => {
     const event = publishedEvents.find((item) => String(item.id) === String(eventId));
     if (!event || !eventDetailModal || !eventDetailContent) return;
-    const meta = categoryMeta[event.category] || categoryMeta.event;
+    const meta = getCategoryMeta(event.category);
     const gallery = event.gallery || [];
     const achievements = event.achievements?.length ? event.achievements : event.highlights || [];
     eventDetailContent.innerHTML = `
         <div class="event-detail-hero">
             <img src="${escapeHtml(event.coverImage || "assets/logo-meheib.png")}" alt="${escapeHtml(event.title)}">
             <div>
-                <span class="status ${meta.statusClass}">${escapeHtml(event.categoryLabel || meta.label)}</span>
+                <span class="status ${meta.statusClass}">${escapeHtml(meta.label || event.categoryLabel)}</span>
                 <h2 id="eventDetailTitle">${escapeHtml(event.title)}</h2>
                 <p>${escapeHtml(event.description || "")}</p>
                 <div class="event-detail-meta">
@@ -557,7 +568,11 @@ if (floatingActions && siteFooter) {
 
 updateFloatingActions();
 
-initIcons();
-renderProjectCards(staticEvents);
-loadSiteCms();
-loadPublishedEvents();
+const bootSite = async () => {
+    initIcons();
+    renderProjectCards(staticEvents);
+    await loadSiteCms();
+    await loadPublishedEvents();
+};
+
+bootSite();
