@@ -961,6 +961,7 @@ button {
     text-align: right;
 }
 
+.contact-copy h1,
 .contact-copy h2 {
     max-width: 650px;
     margin: 0;
@@ -1676,6 +1677,7 @@ body.modal-open {
     .section-heading h2,
     .after-sale-content h2,
     .interest-copy h2,
+    .contact-copy h1,
     .contact-copy h2 {
         font-size: 1.95rem;
     }

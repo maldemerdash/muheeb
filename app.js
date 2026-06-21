@@ -71,6 +71,12 @@ document.querySelectorAll(".section-observe").forEach((section) => observer.obse
 
 const navObserver = new IntersectionObserver(
     (entries) => {
+        if (document.body.dataset.page === "contact") {
+            document.querySelectorAll(".nav-links a").forEach((link) => {
+                link.classList.toggle("active", link.getAttribute("href") === "contact.html");
+            });
+            return;
+        }
         entries.forEach((entry) => {
             if (!entry.isIntersecting) return;
             const id = entry.target.id;
