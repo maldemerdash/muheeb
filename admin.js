@@ -872,35 +872,400 @@ const renderEvents = () => {
     initIcons();
 };
 
-const groupBy = (items, key) => items.reduce((groups, item) => {
-    const groupName = item[key] || "عام";
-    if (!groups[groupName]) groups[groupName] = [];
-    groups[groupName].push(item);
-    return groups;
-}, {});
+const visualContentDefaults = [
+    { contentKey: "hero_badge_small", label: "عبارة بطاقة الهيرو الصغيرة", value: "من الفكرة إلى التجربة", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 10 },
+    { contentKey: "hero_badge_title", label: "عبارة بطاقة الهيرو الكبيرة", value: "حضور مؤثر لا يُنسى", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 11 },
+    { contentKey: "hero_eyebrow", label: "وصف أعلى العنوان الرئيسي", value: "مهيب للتسويق وتنظيم الفعاليات", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 12 },
+    { contentKey: "hero_title", label: "العنوان الرئيسي", value: "نصنع تجارب مؤثرة بحضور يليق باسمك", inputType: "textarea", groupName: "الصفحة الرئيسية", sortOrder: 13 },
+    { contentKey: "hero_copy", label: "نص العنوان الرئيسي", value: "تعكس هوية مهيب مزيجًا من الهيبة والابتكار، وتحول الفكرة إلى حملة أو فعالية متقنة تترك أثرًا قويًا وذكرى لا تُنسى.", inputType: "textarea", groupName: "الصفحة الرئيسية", sortOrder: 14 },
+    { contentKey: "hero_primary_button", label: "زر الطلب الرئيسي", value: "اطلب استشارة", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 15 },
+    { contentKey: "hero_secondary_button", label: "زر استعراض الأعمال", value: "استعرض الأعمال", inputType: "text", groupName: "الصفحة الرئيسية", sortOrder: 16 },
+    { contentKey: "about_eyebrow", label: "عنوان صغير لقسم عن مهيب", value: "عن مهيب", inputType: "text", groupName: "عن مهيب", sortOrder: 20 },
+    { contentKey: "about_title", label: "عنوان قسم عن مهيب", value: "هوية مبنية على الهيبة، الاتزان، والابتكار.", inputType: "textarea", groupName: "عن مهيب", sortOrder: 21 },
+    { contentKey: "about_text", label: "نص تعريف مهيب", value: "يمتد خط مهيب بانسيابية عربية متزنة ليجسد رحلة الفعالية أو الحملة من الفكرة إلى التجربة، مع حضور بصري محترف يعزز الثقة ويصنع انطباعًا ثابتًا.", inputType: "textarea", groupName: "عن مهيب", sortOrder: 22 },
+    { contentKey: "metric_1_number", label: "رقم الإحصائية الأولى", value: "01", inputType: "text", groupName: "عن مهيب", sortOrder: 23 },
+    { contentKey: "metric_1_label", label: "نص الإحصائية الأولى", value: "تسويق وتجارب", inputType: "text", groupName: "عن مهيب", sortOrder: 24 },
+    { contentKey: "metric_2_number", label: "رقم الإحصائية الثانية", value: "02", inputType: "text", groupName: "عن مهيب", sortOrder: 25 },
+    { contentKey: "metric_2_label", label: "نص الإحصائية الثانية", value: "تنظيم فعاليات", inputType: "text", groupName: "عن مهيب", sortOrder: 26 },
+    { contentKey: "metric_3_number", label: "رقم الإحصائية الثالثة", value: "03", inputType: "text", groupName: "عن مهيب", sortOrder: 27 },
+    { contentKey: "metric_3_label", label: "نص الإحصائية الثالثة", value: "هوية وتطبيقات", inputType: "text", groupName: "عن مهيب", sortOrder: 28 },
+    { contentKey: "identity_eyebrow", label: "عنوان صغير لمعرض الهوية", value: "تطبيقات الهوية", inputType: "text", groupName: "معرض الهوية", sortOrder: 30 },
+    { contentKey: "identity_title", label: "عنوان معرض الهوية", value: "تفاصيل بصرية تعزز حضور العلامة", inputType: "textarea", groupName: "معرض الهوية", sortOrder: 31 },
+    { contentKey: "services_eyebrow", label: "عنوان صغير للخدمات", value: "خدمات مهيب", inputType: "text", groupName: "الخدمات", sortOrder: 40 },
+    { contentKey: "services_title", label: "عنوان الخدمات", value: "حلول متكاملة للحملات والفعاليات", inputType: "textarea", groupName: "الخدمات", sortOrder: 41 },
+    { contentKey: "service_1_title", label: "عنوان الخدمة الأولى", value: "تنظيم الفعاليات", inputType: "text", groupName: "الخدمات", sortOrder: 42 },
+    { contentKey: "service_1_text", label: "وصف الخدمة الأولى", value: "تخطيط، تشغيل، تنسيق موردين، وإدارة تفاصيل التجربة من البداية حتى لحظة الختام.", inputType: "textarea", groupName: "الخدمات", sortOrder: 43 },
+    { contentKey: "service_2_title", label: "عنوان الخدمة الثانية", value: "الحملات التسويقية", inputType: "text", groupName: "الخدمات", sortOrder: 44 },
+    { contentKey: "service_2_text", label: "وصف الخدمة الثانية", value: "تصميم الفكرة، الرسالة، المسار البصري، وخطة الظهور بما يخدم أهداف الحملة.", inputType: "textarea", groupName: "الخدمات", sortOrder: 45 },
+    { contentKey: "service_3_title", label: "عنوان الخدمة الثالثة", value: "الهوية والتطبيقات", inputType: "text", groupName: "الخدمات", sortOrder: 46 },
+    { contentKey: "service_3_text", label: "وصف الخدمة الثالثة", value: "تحويل الهوية إلى أدوات ملموسة: بطاقات، مطبوعات، أجنحة، ولوحات تعريفية.", inputType: "textarea", groupName: "الخدمات", sortOrder: 47 },
+    { contentKey: "service_button", label: "نص زر الخدمة", value: "عرض التفاصيل", inputType: "text", groupName: "الخدمات", sortOrder: 48 },
+    { contentKey: "projects_eyebrow", label: "عنوان صغير للأعمال", value: "مجالات العمل", inputType: "text", groupName: "الأعمال والفعاليات", sortOrder: 50 },
+    { contentKey: "projects_title", label: "عنوان الأعمال", value: "ما الذي يمكن أن تصنعه مهيب؟", inputType: "textarea", groupName: "الأعمال والفعاليات", sortOrder: 51 },
+    { contentKey: "features_eyebrow", label: "عنوان صغير للمميزات", value: "مميزات مهيب", inputType: "text", groupName: "المميزات", sortOrder: 60 },
+    { contentKey: "features_title", label: "عنوان المميزات", value: "تفاصيل صغيرة تصنع حضورًا أكبر", inputType: "textarea", groupName: "المميزات", sortOrder: 61 },
+    { contentKey: "feature_1_title", label: "عنوان الميزة الأولى", value: "احترافية التنفيذ", inputType: "text", groupName: "المميزات", sortOrder: 62 },
+    { contentKey: "feature_1_text", label: "نص الميزة الأولى", value: "تخطيط واضح، أدوار منظمة، ومخرجات تليق باسم الجهة.", inputType: "textarea", groupName: "المميزات", sortOrder: 63 },
+    { contentKey: "feature_2_title", label: "عنوان الميزة الثانية", value: "تجربة منسجمة", inputType: "text", groupName: "المميزات", sortOrder: 64 },
+    { contentKey: "feature_2_text", label: "نص الميزة الثانية", value: "رسالة واحدة تنتقل من الإعلان إلى مساحة الفعالية.", inputType: "textarea", groupName: "المميزات", sortOrder: 65 },
+    { contentKey: "feature_3_title", label: "عنوان الميزة الثالثة", value: "هوية راقية", inputType: "text", groupName: "المميزات", sortOrder: 66 },
+    { contentKey: "feature_3_text", label: "نص الميزة الثالثة", value: "ألوان وخطوط وتطبيقات تحافظ على الطابع العام للعلامة.", inputType: "textarea", groupName: "المميزات", sortOrder: 67 },
+    { contentKey: "feature_4_title", label: "عنوان الميزة الرابعة", value: "رحلة واضحة", inputType: "text", groupName: "المميزات", sortOrder: 68 },
+    { contentKey: "feature_4_text", label: "نص الميزة الرابعة", value: "من الفكرة الأولية إلى التنفيذ والتوثيق النهائي.", inputType: "textarea", groupName: "المميزات", sortOrder: 69 },
+    { contentKey: "execution_eyebrow", label: "عنوان صغير لرحلة التنفيذ", value: "رحلة التنفيذ", inputType: "text", groupName: "رحلة التنفيذ", sortOrder: 70 },
+    { contentKey: "execution_title", label: "عنوان رحلة التنفيذ", value: "لا نترك التجربة للصدفة.", inputType: "textarea", groupName: "رحلة التنفيذ", sortOrder: 71 },
+    { contentKey: "execution_text", label: "نص رحلة التنفيذ", value: "نبدأ بفهم الهدف، ثم نبني فكرة قابلة للتنفيذ، ونحوّلها إلى تفاصيل تشغيلية وبصرية تحفظ جودة الحضور من أول إعلان حتى آخر لحظة في الحدث.", inputType: "textarea", groupName: "رحلة التنفيذ", sortOrder: 72 },
+    { contentKey: "execution_step_1", label: "خطوة التنفيذ الأولى", value: "تخطيط الفكرة", inputType: "text", groupName: "رحلة التنفيذ", sortOrder: 73 },
+    { contentKey: "execution_step_2", label: "خطوة التنفيذ الثانية", value: "تشغيل وتنفيذ", inputType: "text", groupName: "رحلة التنفيذ", sortOrder: 74 },
+    { contentKey: "execution_step_3", label: "خطوة التنفيذ الثالثة", value: "توثيق واعتماد", inputType: "text", groupName: "رحلة التنفيذ", sortOrder: 75 },
+    { contentKey: "interest_eyebrow", label: "عنوان صغير لنموذج الطلب", value: "سجل اهتمامك", inputType: "text", groupName: "نموذج الطلب", sortOrder: 80 },
+    { contentKey: "interest_title", label: "عنوان نموذج الطلب", value: "حدثنا عن فكرتك، ونحوّلها إلى تجربة قابلة للتنفيذ.", inputType: "textarea", groupName: "نموذج الطلب", sortOrder: 81 },
+    { contentKey: "interest_text", label: "نص نموذج الطلب", value: "املأ النموذج وسيتم التواصل معك لمناقشة نوع الفعالية أو الحملة، نطاق العمل، والاحتياجات البصرية والتشغيلية.", inputType: "textarea", groupName: "نموذج الطلب", sortOrder: 82 },
+    { contentKey: "form_name_label", label: "حقل الاسم", value: "الاسم", inputType: "text", groupName: "نموذج الطلب", sortOrder: 83 },
+    { contentKey: "form_country_label", label: "حقل رمز الدولة", value: "رمز الدولة", inputType: "text", groupName: "نموذج الطلب", sortOrder: 84 },
+    { contentKey: "form_phone_label", label: "حقل الجوال", value: "رقم الجوال", inputType: "text", groupName: "نموذج الطلب", sortOrder: 85 },
+    { contentKey: "form_interest_label", label: "حقل الاهتمام", value: "مجال الاهتمام", inputType: "text", groupName: "نموذج الطلب", sortOrder: 86 },
+    { contentKey: "form_source_label", label: "حقل مصدر المعرفة", value: "كيف سمعت عن مهيب؟", inputType: "text", groupName: "نموذج الطلب", sortOrder: 87 },
+    { contentKey: "form_message_label", label: "حقل الملاحظات", value: "ملاحظاتك", inputType: "text", groupName: "نموذج الطلب", sortOrder: 88 },
+    { contentKey: "form_message_placeholder", label: "تلميح حقل الملاحظات", value: "اكتب نوع الفعالية، موعدها التقريبي، أو الهدف من الحملة", inputType: "textarea", groupName: "نموذج الطلب", sortOrder: 89 },
+    { contentKey: "form_submit_button", label: "زر إرسال الطلب", value: "إرسال الطلب", inputType: "text", groupName: "نموذج الطلب", sortOrder: 90 },
+    { contentKey: "contact_phone", label: "رقم الاتصال", value: "+966 59 957 5691", inputType: "phone", groupName: "التواصل والفوتر", sortOrder: 100 },
+    { contentKey: "contact_whatsapp_number", label: "رقم واتساب بدون علامة +", value: "966599575691", inputType: "phone", groupName: "التواصل والفوتر", sortOrder: 101 },
+    { contentKey: "contact_whatsapp_label", label: "نص رابط واتساب", value: "واتساب", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 102 },
+    { contentKey: "contact_email", label: "البريد الإلكتروني", value: "info.muheeb0@gmail.com", inputType: "email", groupName: "التواصل والفوتر", sortOrder: 103 },
+    { contentKey: "contact_location", label: "الموقع النصي", value: "المدينة المنورة، السعودية", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 104 },
+    { contentKey: "footer_text", label: "نص الفوتر", value: "مهيب - حضور بصري وتجارب مؤثرة في التسويق وتنظيم الفعاليات.", inputType: "textarea", groupName: "التواصل والفوتر", sortOrder: 105 },
+    { contentKey: "footer_contact_title", label: "عنوان بيانات التواصل في الفوتر", value: "تواصل معنا", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 106 },
+    { contentKey: "footer_copyright", label: "حقوق النشر", value: "جميع الحقوق محفوظة لمهيب 2026 ©", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 107 },
+    { contentKey: "commercial_registration", label: "رقم السجل التجاري", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 156 },
+    { contentKey: "tax_number", label: "الرقم الضريبي", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 157 },
+    { contentKey: "bank_account", label: "رقم الحساب البنكي", value: "يضاف من لوحة التحكم", inputType: "text", groupName: "التواصل والفوتر", sortOrder: 158 },
+    { contentKey: "contact_page_eyebrow", label: "عنوان صغير لصفحة التواصل", value: "تواصل معنا", inputType: "text", groupName: "صفحة التواصل", sortOrder: 130 },
+    { contentKey: "contact_page_title", label: "العنوان الكبير لصفحة التواصل", value: "نسعد بتواصلكم والإجابة على استفساراتكم ومساعدتكم", inputType: "textarea", groupName: "صفحة التواصل", sortOrder: 131 },
+    { contentKey: "contact_calls_title", label: "عنوان أوقات المكالمات", value: "أوقات استقبال المكالمات:", inputType: "text", groupName: "صفحة التواصل", sortOrder: 132 },
+    { contentKey: "contact_calls_text", label: "نص أوقات المكالمات", value: "من الساعة 8 صباحًا وحتى الساعة 12 عند منتصف الليل", inputType: "textarea", groupName: "صفحة التواصل", sortOrder: 133 },
+    { contentKey: "contact_visits_title", label: "عنوان أوقات تنسيق الفعاليات", value: "أوقات تنسيق الفعاليات:", inputType: "text", groupName: "صفحة التواصل", sortOrder: 134 },
+    { contentKey: "contact_visits_text", label: "نص أوقات تنسيق الفعاليات", value: "من الساعة 4 مساءً وحتى الساعة 11 مساءً على مدار الأسبوع", inputType: "textarea", groupName: "صفحة التواصل", sortOrder: 135 },
+    { contentKey: "contact_location_title", label: "عنوان الموقع في صفحة التواصل", value: "الموقع:", inputType: "text", groupName: "صفحة التواصل", sortOrder: 136 },
+    { contentKey: "contact_channel_whatsapp", label: "اسم قناة واتساب", value: "واتساب المبيعات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 137 },
+    { contentKey: "contact_channel_instagram", label: "اسم قناة الانستقرام", value: "الانستقرام", inputType: "text", groupName: "صفحة التواصل", sortOrder: 138 },
+    { contentKey: "social_instagram_label", label: "وصف الانستقرام", value: "تابع أعمالنا اليومية", inputType: "text", groupName: "صفحة التواصل", sortOrder: 139 },
+    { contentKey: "social_instagram_url", label: "رابط الانستقرام", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 140 },
+    { contentKey: "contact_channel_x", label: "اسم قناة أكس", value: "أكس", inputType: "text", groupName: "صفحة التواصل", sortOrder: 141 },
+    { contentKey: "social_x_label", label: "وصف أكس", value: "آخر الأخبار والتحديثات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 142 },
+    { contentKey: "social_x_url", label: "رابط أكس", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 143 },
+    { contentKey: "contact_channel_youtube", label: "اسم قناة اليوتيوب", value: "اليوتيوب", inputType: "text", groupName: "صفحة التواصل", sortOrder: 144 },
+    { contentKey: "social_youtube_label", label: "وصف اليوتيوب", value: "مشاهد من الفعاليات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 145 },
+    { contentKey: "social_youtube_url", label: "رابط اليوتيوب", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 146 },
+    { contentKey: "contact_channel_tiktok", label: "اسم قناة تيك توك", value: "تيك توك", inputType: "text", groupName: "صفحة التواصل", sortOrder: 147 },
+    { contentKey: "social_tiktok_label", label: "وصف تيك توك", value: "لقطات قصيرة من التجارب", inputType: "text", groupName: "صفحة التواصل", sortOrder: 148 },
+    { contentKey: "social_tiktok_url", label: "رابط تيك توك", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 149 },
+    { contentKey: "contact_channel_snapchat", label: "اسم قناة سناب شات", value: "سناب شات", inputType: "text", groupName: "صفحة التواصل", sortOrder: 150 },
+    { contentKey: "social_snapchat_label", label: "وصف سناب شات", value: "تغطيات مباشرة ومقاطع سريعة", inputType: "text", groupName: "صفحة التواصل", sortOrder: 151 },
+    { contentKey: "social_snapchat_url", label: "رابط سناب شات", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 152 },
+    { contentKey: "contact_channel_email", label: "اسم قناة البريد الإلكتروني", value: "البريد الإلكتروني", inputType: "text", groupName: "صفحة التواصل", sortOrder: 153 },
+    { contentKey: "contact_channel_location", label: "اسم قناة الموقع", value: "موقعنا", inputType: "text", groupName: "صفحة التواصل", sortOrder: 154 },
+    { contentKey: "contact_maps_url", label: "رابط موقع خرائط جوجل", value: "#contact", inputType: "url", groupName: "صفحة التواصل", sortOrder: 155 },
+];
+
+const contentDefaultMap = new Map([...defaultSiteContentRows, ...visualContentDefaults].map((row) => [row.contentKey, row]));
+const visualContentKeys = new Set(visualContentDefaults.map((row) => row.contentKey));
+
+const getContentRow = (key) => {
+    const fallback = contentDefaultMap.get(key) || {};
+    const source = state.siteContent.find((item) => item.contentKey === key) || {};
+    return {
+        ...fallback,
+        ...source,
+        contentKey: key,
+        label: source.label || fallback.label || key,
+        value: source.value ?? fallback.value ?? "",
+        inputType: source.inputType || fallback.inputType || "text",
+        groupName: source.groupName || fallback.groupName || "عام",
+        sortOrder: Number(source.sortOrder ?? fallback.sortOrder ?? 999),
+    };
+};
+
+const getContentInputType = (row) => {
+    if (row.inputType === "email") return "email";
+    if (row.inputType === "url") return "url";
+    if (row.inputType === "phone") return "tel";
+    return "text";
+};
+
+const renderVisualField = (key, options = {}) => {
+    const row = getContentRow(key);
+    const multiline = options.multiline ?? row.inputType === "textarea";
+    const label = options.label || row.label;
+    const rows = options.rows || (multiline ? 3 : 1);
+    const classes = ["visual-field", options.className || "", multiline ? "is-multiline" : ""].filter(Boolean).join(" ");
+    const direction = options.ltr || ["email", "phone", "url"].includes(row.inputType) ? "ltr" : "rtl";
+    const input = multiline
+        ? `<textarea rows="${rows}" dir="${direction}" data-content-input="${escapeHtml(row.contentKey)}">${escapeHtml(row.value)}</textarea>`
+        : `<input type="${getContentInputType(row)}" dir="${direction}" value="${escapeHtml(row.value)}" data-content-input="${escapeHtml(row.contentKey)}">`;
+    return `
+        <label class="${classes}">
+            <span>${escapeHtml(label)}</span>
+            ${input}
+        </label>
+    `;
+};
+
+const renderContentSectionHeader = (number, eyebrow, title, icon) => `
+    <div class="visual-section-heading">
+        <span class="visual-section-number">${escapeHtml(number)}</span>
+        <div>
+            <p class="eyebrow"><i data-lucide="${escapeHtml(icon)}"></i>${escapeHtml(eyebrow)}</p>
+            <h3>${escapeHtml(title)}</h3>
+        </div>
+    </div>
+`;
+
+const renderServicePreviewCard = (index, icon) => `
+    <article class="visual-service-card">
+        <i data-lucide="${escapeHtml(icon)}"></i>
+        ${renderVisualField(`service_${index}_title`, { label: `عنوان الخدمة ${index}`, className: "is-card-title" })}
+        ${renderVisualField(`service_${index}_text`, { label: `وصف الخدمة ${index}`, multiline: true, rows: 3, className: "is-card-copy" })}
+    </article>
+`;
+
+const renderFeaturePreviewCard = (index, icon) => `
+    <article class="visual-feature-card">
+        <i data-lucide="${escapeHtml(icon)}"></i>
+        ${renderVisualField(`feature_${index}_title`, { label: `عنوان الميزة ${index}`, className: "is-card-title" })}
+        ${renderVisualField(`feature_${index}_text`, { label: `نص الميزة ${index}`, multiline: true, rows: 3, className: "is-card-copy" })}
+    </article>
+`;
+
+const renderContactChannel = (titleKey, labelKey, urlKey, icon) => `
+    <article class="visual-contact-channel">
+        <i data-lucide="${escapeHtml(icon)}"></i>
+        ${renderVisualField(titleKey, { className: "is-card-title" })}
+        ${labelKey ? renderVisualField(labelKey, { className: "is-card-copy" }) : ""}
+        ${urlKey ? renderVisualField(urlKey, { label: "الرابط", ltr: true }) : ""}
+    </article>
+`;
+
+const renderExtraContentFields = () => {
+    const extras = state.siteContent
+        .filter((row) => !visualContentKeys.has(row.contentKey))
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    if (!extras.length) return "";
+    return `
+        <details class="visual-extra-fields">
+            <summary>
+                <i data-lucide="settings-2"></i>
+                <span>حقول إضافية متقدمة</span>
+            </summary>
+            <div class="content-fields">
+                ${extras.map((row) => renderVisualField(row.contentKey, {
+                    multiline: row.inputType === "textarea",
+                    rows: 4,
+                })).join("")}
+            </div>
+        </details>
+    `;
+};
 
 const renderContentEditor = () => {
     if (!contentEditor) return;
-    const groups = groupBy(state.siteContent, "groupName");
-    contentEditor.innerHTML = Object.entries(groups).map(([groupName, rows]) => `
-        <section class="content-group">
-            <h3>${escapeHtml(groupName)}</h3>
-            <div class="content-fields">
-                ${rows.map((row) => {
-                    const tag = row.inputType === "textarea" ? "textarea" : "input";
-                    const input = tag === "textarea"
-                        ? `<textarea rows="4" data-content-input="${escapeHtml(row.contentKey)}">${escapeHtml(row.value)}</textarea>`
-                        : `<input type="${row.inputType === "email" ? "email" : row.inputType === "url" ? "url" : "text"}" value="${escapeHtml(row.value)}" data-content-input="${escapeHtml(row.contentKey)}">`;
-                    return `
-                        <label>
-                            <span>${escapeHtml(row.label)}</span>
-                            ${input}
-                        </label>
-                    `;
-                }).join("")}
+    contentEditor.innerHTML = `
+        <div class="visual-content-editor">
+            <div class="visual-editor-intro">
+                <div>
+                    <p class="eyebrow">طريقة التعديل الجديدة</p>
+                    <h3>عدّل العبارة في مكانها الطبيعي داخل شكل قريب من الموقع.</h3>
+                </div>
+                <span>بعد التعديل اضغط زر حفظ النصوص في أعلى الصفحة.</span>
             </div>
-        </section>
-    `).join("") || `<div class="compact-item"><span>لم يتم تجهيز جدول محتوى الموقع بعد. شغّل ملف ترقية Supabase أولًا.</span></div>`;
+            <nav class="visual-editor-nav" aria-label="أقسام محرر محتوى الموقع">
+                <a href="#visualHero"><i data-lucide="layout-template"></i><span>الواجهة</span></a>
+                <a href="#visualAbout"><i data-lucide="badge-info"></i><span>عن مهيب</span></a>
+                <a href="#visualServices"><i data-lucide="sparkles"></i><span>الخدمات</span></a>
+                <a href="#visualWorks"><i data-lucide="layers-3"></i><span>الأعمال</span></a>
+                <a href="#visualJourney"><i data-lucide="route"></i><span>الرحلة</span></a>
+                <a href="#visualForm"><i data-lucide="send"></i><span>النموذج</span></a>
+                <a href="#visualContact"><i data-lucide="messages-square"></i><span>التواصل</span></a>
+                <a href="#visualFooter"><i data-lucide="panel-bottom"></i><span>التذييل</span></a>
+            </nav>
+
+            <section class="visual-preview-section visual-hero-editor" id="visualHero">
+                ${renderContentSectionHeader("01", "الصفحة الرئيسية", "الواجهة الأولى للموقع", "layout-template")}
+                <div class="visual-hero-surface">
+                    <div class="visual-hero-media">
+                        <div class="visual-logo-word">مُهيب</div>
+                        <div class="visual-badge-editor">
+                            ${renderVisualField("hero_badge_small", { label: "نص البطاقة الصغير" })}
+                            ${renderVisualField("hero_badge_title", { label: "نص البطاقة الكبير" })}
+                        </div>
+                    </div>
+                    <div class="visual-hero-copy">
+                        ${renderVisualField("hero_eyebrow", { label: "العنوان الصغير أعلى الهيرو" })}
+                        ${renderVisualField("hero_title", { label: "العنوان الرئيسي", multiline: true, rows: 3, className: "is-main-title" })}
+                        ${renderVisualField("hero_copy", { label: "النص التعريفي", multiline: true, rows: 4 })}
+                        <div class="visual-button-row">
+                            ${renderVisualField("hero_primary_button", { label: "زر الطلب" })}
+                            ${renderVisualField("hero_secondary_button", { label: "زر الأعمال" })}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="visual-preview-section" id="visualAbout">
+                ${renderContentSectionHeader("02", "عن مهيب", "التعريف والإحصائيات", "badge-info")}
+                <div class="visual-about-grid">
+                    <div class="visual-copy-block">
+                        ${renderVisualField("about_eyebrow", { label: "العنوان الصغير" })}
+                        ${renderVisualField("about_title", { label: "عنوان التعريف", multiline: true, rows: 3, className: "is-section-title" })}
+                        ${renderVisualField("about_text", { label: "نص التعريف", multiline: true, rows: 5 })}
+                    </div>
+                    <div class="visual-metrics-grid">
+                        ${[1, 2, 3].map((index) => `
+                            <article class="visual-metric-card">
+                                ${renderVisualField(`metric_${index}_number`, { label: `رقم ${index}`, className: "is-metric-number" })}
+                                ${renderVisualField(`metric_${index}_label`, { label: `وصف ${index}` })}
+                            </article>
+                        `).join("")}
+                    </div>
+                </div>
+            </section>
+
+            <section class="visual-preview-section" id="visualServices">
+                ${renderContentSectionHeader("03", "الخدمات", "بطاقات الخدمات كما يراها الزائر", "sparkles")}
+                <div class="visual-copy-block visual-copy-wide">
+                    ${renderVisualField("services_eyebrow", { label: "العنوان الصغير" })}
+                    ${renderVisualField("services_title", { label: "عنوان الخدمات", multiline: true, rows: 2, className: "is-section-title" })}
+                    ${renderVisualField("service_button", { label: "نص زر تفاصيل الخدمة" })}
+                </div>
+                <div class="visual-card-grid">
+                    ${renderServicePreviewCard(1, "calendar-check")}
+                    ${renderServicePreviewCard(2, "megaphone")}
+                    ${renderServicePreviewCard(3, "palette")}
+                </div>
+            </section>
+
+            <section class="visual-preview-section" id="visualWorks">
+                ${renderContentSectionHeader("04", "الأعمال والمميزات", "العناوين ومربعات نقاط القوة", "layers-3")}
+                <div class="visual-two-column">
+                    <div class="visual-copy-block">
+                        ${renderVisualField("identity_eyebrow", { label: "عنوان صغير لمعرض الهوية" })}
+                        ${renderVisualField("identity_title", { label: "عنوان معرض الهوية", multiline: true, rows: 2 })}
+                        ${renderVisualField("projects_eyebrow", { label: "عنوان صغير للأعمال" })}
+                        ${renderVisualField("projects_title", { label: "عنوان الأعمال", multiline: true, rows: 2 })}
+                    </div>
+                    <div class="visual-copy-block">
+                        ${renderVisualField("features_eyebrow", { label: "عنوان صغير للمميزات" })}
+                        ${renderVisualField("features_title", { label: "عنوان المميزات", multiline: true, rows: 2, className: "is-section-title" })}
+                    </div>
+                </div>
+                <div class="visual-card-grid visual-card-grid-four">
+                    ${renderFeaturePreviewCard(1, "badge-check")}
+                    ${renderFeaturePreviewCard(2, "smartphone")}
+                    ${renderFeaturePreviewCard(3, "sparkles")}
+                    ${renderFeaturePreviewCard(4, "handshake")}
+                </div>
+            </section>
+
+            <section class="visual-preview-section visual-journey-editor" id="visualJourney">
+                ${renderContentSectionHeader("05", "رحلة التنفيذ", "من الفكرة إلى التوثيق", "route")}
+                <div class="visual-two-column">
+                    <div class="visual-stamp-preview">
+                        <span>تخطيط</span>
+                        <strong>تنفيذ</strong>
+                        <em>توثيق</em>
+                    </div>
+                    <div class="visual-copy-block">
+                        ${renderVisualField("execution_eyebrow", { label: "العنوان الصغير" })}
+                        ${renderVisualField("execution_title", { label: "عنوان الرحلة", multiline: true, rows: 2, className: "is-section-title" })}
+                        ${renderVisualField("execution_text", { label: "نص الرحلة", multiline: true, rows: 5 })}
+                        <div class="visual-chip-grid">
+                            ${renderVisualField("execution_step_1", { label: "الخطوة الأولى" })}
+                            ${renderVisualField("execution_step_2", { label: "الخطوة الثانية" })}
+                            ${renderVisualField("execution_step_3", { label: "الخطوة الثالثة" })}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="visual-preview-section" id="visualForm">
+                ${renderContentSectionHeader("06", "نموذج الطلب", "النصوص التي يراها العميل قبل الإرسال", "send")}
+                <div class="visual-form-editor">
+                    <div class="visual-copy-block">
+                        ${renderVisualField("interest_eyebrow", { label: "العنوان الصغير" })}
+                        ${renderVisualField("interest_title", { label: "عنوان نموذج الطلب", multiline: true, rows: 3, className: "is-section-title" })}
+                        ${renderVisualField("interest_text", { label: "نص قبل النموذج", multiline: true, rows: 4 })}
+                        ${renderVisualField("contact_whatsapp_label", { label: "نص زر واتساب في النموذج" })}
+                    </div>
+                    <div class="visual-form-card">
+                        ${renderVisualField("form_name_label", { label: "اسم حقل الاسم" })}
+                        <div class="visual-button-row">
+                            ${renderVisualField("form_country_label", { label: "حقل رمز الدولة" })}
+                            ${renderVisualField("form_phone_label", { label: "حقل الجوال" })}
+                        </div>
+                        ${renderVisualField("form_interest_label", { label: "حقل الاهتمام" })}
+                        ${renderVisualField("form_source_label", { label: "حقل مصدر المعرفة" })}
+                        ${renderVisualField("form_message_label", { label: "حقل الملاحظات" })}
+                        ${renderVisualField("form_message_placeholder", { label: "النص المساعد داخل الملاحظات", multiline: true, rows: 2 })}
+                        ${renderVisualField("form_submit_button", { label: "زر الإرسال" })}
+                    </div>
+                </div>
+            </section>
+
+            <section class="visual-preview-section visual-contact-editor" id="visualContact">
+                ${renderContentSectionHeader("07", "صفحة تواصل معنا", "محتوى الصفحة المستقلة", "messages-square")}
+                <div class="visual-contact-hero">
+                    <div>
+                        ${renderVisualField("contact_page_eyebrow", { label: "العنوان الصغير" })}
+                        ${renderVisualField("contact_page_title", { label: "العنوان الكبير", multiline: true, rows: 3, className: "is-main-title" })}
+                    </div>
+                    <div class="visual-contact-details">
+                        ${renderVisualField("contact_calls_title", { label: "عنوان أوقات المكالمات" })}
+                        ${renderVisualField("contact_calls_text", { label: "نص أوقات المكالمات", multiline: true, rows: 2 })}
+                        ${renderVisualField("contact_visits_title", { label: "عنوان أوقات تنسيق الفعاليات" })}
+                        ${renderVisualField("contact_visits_text", { label: "نص أوقات تنسيق الفعاليات", multiline: true, rows: 2 })}
+                        ${renderVisualField("contact_location_title", { label: "عنوان الموقع" })}
+                        ${renderVisualField("contact_maps_url", { label: "رابط خرائط جوجل", ltr: true })}
+                    </div>
+                </div>
+                <div class="visual-channel-grid">
+                    ${renderContactChannel("contact_channel_whatsapp", null, null, "message-circle")}
+                    ${renderContactChannel("contact_channel_instagram", "social_instagram_label", "social_instagram_url", "instagram")}
+                    ${renderContactChannel("contact_channel_x", "social_x_label", "social_x_url", "twitter")}
+                    ${renderContactChannel("contact_channel_youtube", "social_youtube_label", "social_youtube_url", "youtube")}
+                    ${renderContactChannel("contact_channel_tiktok", "social_tiktok_label", "social_tiktok_url", "music-2")}
+                    ${renderContactChannel("contact_channel_snapchat", "social_snapchat_label", "social_snapchat_url", "ghost")}
+                    ${renderContactChannel("contact_channel_email", null, null, "mail")}
+                    ${renderContactChannel("contact_channel_location", null, null, "map-pin")}
+                </div>
+            </section>
+
+            <section class="visual-preview-section visual-footer-editor" id="visualFooter">
+                ${renderContentSectionHeader("08", "التذييل والبيانات الرسمية", "النصوص الصغيرة أسفل الموقع", "panel-bottom")}
+                <div class="visual-footer-surface">
+                    <div class="visual-footer-brand">
+                        <div class="visual-logo-word is-light">مُهيب</div>
+                        ${renderVisualField("footer_text", { label: "جملة أسفل الشعار", multiline: true, rows: 3 })}
+                        ${renderVisualField("footer_copyright", { label: "حقوق النشر" })}
+                    </div>
+                    <div class="visual-footer-lines">
+                        ${renderVisualField("contact_phone", { label: "رقم الاتصال", ltr: true })}
+                        ${renderVisualField("contact_whatsapp_number", { label: "رقم الواتساب", ltr: true })}
+                        ${renderVisualField("contact_email", { label: "البريد الإلكتروني", ltr: true })}
+                        ${renderVisualField("contact_location", { label: "الموقع" })}
+                    </div>
+                    <div class="visual-footer-lines">
+                        ${renderVisualField("commercial_registration", { label: "رقم السجل التجاري", ltr: true })}
+                        ${renderVisualField("tax_number", { label: "الرقم الضريبي", ltr: true })}
+                        ${renderVisualField("bank_account", { label: "رقم الحساب البنكي", ltr: true })}
+                        ${renderVisualField("footer_contact_title", { label: "عنوان بيانات التواصل" })}
+                    </div>
+                </div>
+            </section>
+
+            ${renderExtraContentFields()}
+        </div>
+    `;
+    initIcons();
 };
 
 const renderSiteImages = () => {
@@ -1231,8 +1596,12 @@ const saveEvent = async (event) => {
 const saveSiteContent = async () => {
     showMessage("جاري حفظ النصوص...", contentMessage);
     try {
-        const rows = Array.from(contentEditor.querySelectorAll("[data-content-input]")).map((input) => {
-            const source = state.siteContent.find((item) => item.contentKey === input.dataset.contentInput) || {};
+        const inputMap = new Map();
+        Array.from(contentEditor.querySelectorAll("[data-content-input]")).forEach((input) => {
+            inputMap.set(input.dataset.contentInput, input);
+        });
+        const rows = Array.from(inputMap.values()).map((input) => {
+            const source = getContentRow(input.dataset.contentInput);
             return {
                 ...source,
                 contentKey: input.dataset.contentInput,
