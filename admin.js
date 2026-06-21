@@ -478,7 +478,6 @@ const renderSiteImages = () => {
                 <label class="upload-box">
                     <span>استبدال الصورة</span>
                     <input type="file" data-site-image-file accept="image/png,image/jpeg,image/webp,image/gif">
-                    <small>${escapeHtml(image.imagePath)}</small>
                 </label>
                 <label class="toggle-field compact-toggle">
                     <input type="checkbox" data-site-image-published ${image.published ? "checked" : ""}>
