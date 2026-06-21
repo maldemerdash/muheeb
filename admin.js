@@ -14,12 +14,20 @@ const state = {
     interestOptions: [],
     users: [],
     notifications: [],
+    noteInquiries: [],
+    profileRequests: [],
     activeView: "overviewView",
     editingEvent: null,
     editingInterestOption: null,
     editingUser: null,
     activeLeadId: null,
     coverPath: "",
+    pendingSupportLogos: [],
+    imageEditor: {
+        input: null,
+        file: null,
+        objectUrl: "",
+    },
 };
 
 const labels = {
@@ -66,6 +74,9 @@ const siteImageGroupOrder = {
 const permissionItems = [
     { key: "overview", label: "نظرة عامة" },
     { key: "leads", label: "طلبات العملاء" },
+    { key: "leads_view_all", label: "الاطلاع على كامل طلبات العملاء" },
+    { key: "leads_assigned_only", label: "إظهار الطلبات المسندة فقط" },
+    { key: "leads_view_phone", label: "إظهار رقم الجوال والواتساب" },
     { key: "content", label: "محتوى الموقع" },
     { key: "site_images", label: "صور الموقع" },
     { key: "interest_options", label: "اختيارات النموذج" },
@@ -74,6 +85,8 @@ const permissionItems = [
     { key: "security", label: "الأمان" },
     { key: "delete_leads", label: "حذف طلبات العملاء" },
     { key: "assign_notes", label: "إسناد ملاحظات المتابعة" },
+    { key: "manage_note_inquiries", label: "متابعة استفسارات الملاحظات" },
+    { key: "profile_requests", label: "مراجعة طلبات تعديل البيانات" },
 ];
 
 const loginView = document.getElementById("loginView");
@@ -134,6 +147,27 @@ const userFormTitle = document.getElementById("userFormTitle");
 const userFormMessage = document.getElementById("userFormMessage");
 const permissionsGrid = document.getElementById("permissionsGrid");
 const usersList = document.getElementById("usersList");
+const openUserModalButton = document.getElementById("openUserModalButton");
+const userModal = document.getElementById("userModal");
+const closeUserModalButton = document.getElementById("closeUserModal");
+const profileModal = document.getElementById("profileModal");
+const closeProfileModalButton = document.getElementById("closeProfileModal");
+const profileDetailGrid = document.getElementById("profileDetailGrid");
+const profileRequestForm = document.getElementById("profileRequestForm");
+const profileRequestMessage = document.getElementById("profileRequestMessage");
+const profileRequestsList = document.getElementById("profileRequestsList");
+const imageEditorModal = document.getElementById("imageEditorModal");
+const imageEditorPreview = document.getElementById("imageEditorPreview");
+const imageEditorCanvas = document.getElementById("imageEditorCanvas");
+const imageEditorForm = document.getElementById("imageEditorForm");
+const imageEditorFileName = document.getElementById("imageEditorFileName");
+const imageEditorOutput = document.getElementById("imageEditorOutput");
+const closeImageEditorButton = document.getElementById("closeImageEditor");
+const cancelImageEditorButton = document.getElementById("cancelImageEditor");
+const eventSupportLogosInput = document.getElementById("supportLogosInput");
+const supportLogosName = document.getElementById("supportLogosName");
+
+const editedFiles = new WeakMap();
 
 const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -195,18 +229,50 @@ const getActiveLead = () => state.leads.find((lead) => lead.id === state.activeL
 
 const isOwner = () => state.admin?.role === "owner";
 
-const can = (permission) => (
+const hasPermissionFlag = (permission) => (
     isOwner() ||
     state.admin?.permissions?.all === true ||
     state.admin?.permissions?.[permission] === true
 );
 
+const can = (permission) => {
+    if (permission === "leads") {
+        return hasPermissionFlag("leads") || hasPermissionFlag("leads_view_all") || hasPermissionFlag("leads_assigned_only");
+    }
+    return hasPermissionFlag(permission);
+};
+
+const canViewAllLeads = () => hasPermissionFlag("leads") || hasPermissionFlag("leads_view_all");
+
+const canViewAssignedLeads = () => canViewAllLeads() || hasPermissionFlag("leads_assigned_only");
+
+const canViewLeadPhone = () => hasPermissionFlag("leads_view_phone") || canViewAllLeads();
+
 const getDisplayName = (user = state.admin) => user?.fullName || user?.username || user?.email || user?.authEmail || "مستخدم";
 
 const getUserById = (userId) => state.users.find((user) => user.userId === userId);
 
+const getLeadAssignedNotes = (leadId) => state.leadNotes.filter((note) => (
+    Number(note.leadId) === Number(leadId) &&
+    note.assignedTo === state.admin?.userId
+));
+
+const canAccessLead = (lead) => (
+    canViewAllLeads() ||
+    getLeadAssignedNotes(lead.id).length > 0
+);
+
+const getVisibleLeads = () => (state.leads || []).filter(canAccessLead);
+
+const formatLeadPhone = (lead) => `+${lead.countryCode || ""} ${lead.phone || ""}`.trim();
+
+const renderPhoneValue = (lead) => {
+    if (!canViewLeadPhone()) return `<span class="muted-text">مخفي حسب الصلاحية</span>`;
+    return `<span class="phone-ltr">${escapeHtml(formatLeadPhone(lead))}</span>`;
+};
+
 const canViewNote = (note) => {
-    if (isOwner() || can("users")) return true;
+    if (isOwner() || can("users") || can("assign_notes") || canViewAllLeads()) return true;
     if (!note.assignedTo) return true;
     return note.assignedTo === state.admin?.userId;
 };
@@ -229,6 +295,13 @@ const getLeadNotes = (lead) => [
 ];
 
 const getVisibleNotes = (lead) => getLeadNotes(lead).filter(canViewNote);
+
+const getNoteInquiries = (noteId) => state.noteInquiries
+    .filter((inquiry) => inquiry.noteId === noteId)
+    .map((inquiry) => ({
+        ...inquiry,
+        createdByName: getDisplayName(getUserById(inquiry.createdBy) || {}),
+    }));
 
 const getProgress = (lead) => {
     const notes = getVisibleNotes(lead);
@@ -368,6 +441,8 @@ const loadAll = async () => {
     let users = [];
     let notifications = [];
     let leadNotes = [];
+    let noteInquiries = [];
+    let profileRequests = [];
     try {
         [siteContent, siteImages, interestOptions] = await Promise.all([
             window.MuheebData.listSiteContent(),
@@ -389,14 +464,25 @@ const loadAll = async () => {
         leadNotes = [];
         showMessage("لتفعيل المستخدمين والصلاحيات شغّل ملف supabase/team_permissions_upgrade.sql في Supabase.", globalMessage, "error");
     }
+    try {
+        [noteInquiries, profileRequests] = await Promise.all([
+            window.MuheebData.listLeadNoteInquiries(),
+            window.MuheebData.listProfileChangeRequests(),
+        ]);
+    } catch (error) {
+        noteInquiries = [];
+        profileRequests = [];
+    }
     state.leads = leads || [];
     state.leadNotes = leadNotes || [];
+    state.noteInquiries = noteInquiries || [];
     state.events = events || [];
     state.siteContent = siteContent || [];
     state.siteImages = sortSiteImagesByPageOrder(siteImages);
     state.interestOptions = interestOptions || [];
     state.users = users || [];
     state.notifications = notifications || [];
+    state.profileRequests = profileRequests || [];
     renderStats(stats || {});
     renderLeads();
     renderEvents();
@@ -404,6 +490,7 @@ const loadAll = async () => {
     renderSiteImages();
     renderInterestOptions();
     renderUsers();
+    renderProfileRequests();
     renderNotifications();
     applyPermissions();
     initIcons();
@@ -415,10 +502,10 @@ const renderStats = (stats) => {
     document.getElementById("eventTotal").textContent = stats.eventTotal || 0;
     document.getElementById("eventPublished").textContent = stats.eventPublished || 0;
 
-    latestLeads.innerHTML = state.leads.slice(0, 5).map((lead) => `
+    latestLeads.innerHTML = getVisibleLeads().slice(0, 5).map((lead) => `
         <button class="compact-item clickable-compact" type="button" data-open-lead="${lead.id}">
             <strong>${escapeHtml(lead.name)}</strong>
-            <span>${escapeHtml(lead.countryCode)} ${escapeHtml(lead.phone)} - ${escapeHtml(lead.service)}</span>
+            <span>${canViewLeadPhone() ? `${escapeHtml(lead.countryCode)} ${escapeHtml(lead.phone)} - ` : ""}${escapeHtml(lead.service)}</span>
             <span>${formatDate(lead.createdAt)}</span>
             ${renderProgressBar(lead, true)}
         </button>
@@ -445,12 +532,12 @@ const renderStats = (stats) => {
 const renderLeads = () => {
     const filter = leadStatusFilter.value || "all";
     const term = String(leadSearch?.value || "").trim().toLowerCase();
-    const leads = (filter === "all" ? state.leads : state.leads.filter((lead) => lead.status === filter))
+    const leads = (filter === "all" ? getVisibleLeads() : getVisibleLeads().filter((lead) => lead.status === filter))
         .filter((lead) => {
             if (!term) return true;
             return [
                 lead.name,
-                lead.phone,
+                canViewLeadPhone() ? lead.phone : "",
                 lead.countryCode,
                 lead.service,
                 lead.source,
@@ -463,33 +550,22 @@ const renderLeads = () => {
             <td>
                 <div class="lead-name">
                     <button class="lead-link" type="button" data-open-lead="${lead.id}">${escapeHtml(lead.name)}</button>
-                    <small>${escapeHtml(labels[lead.status] || lead.status)}</small>
                 </div>
             </td>
             <td>
-                <a href="tel:+${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}">+${escapeHtml(lead.countryCode)} ${escapeHtml(lead.phone)}</a>
+                ${canViewLeadPhone()
+                    ? `<a class="phone-ltr" href="tel:+${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}">${escapeHtml(formatLeadPhone(lead))}</a>`
+                    : `<span class="muted-text">مخفي</span>`}
             </td>
             <td>${escapeHtml(lead.service)}</td>
-            <td>${escapeHtml(lead.source)}</td>
-            <td class="message-cell">${escapeHtml(lead.message || "لا توجد رسالة")}</td>
-            <td>
-                <select class="status-select ${escapeHtml(statusClasses[lead.status] || "")}" data-lead-status="${lead.id}">
-                    ${Object.entries(labels).filter(([key]) => ["new", "contacted", "done", "archived"].includes(key)).map(([key, label]) => `
-                        <option value="${key}" ${lead.status === key ? "selected" : ""}>${label}</option>
-                    `).join("")}
-                </select>
-            </td>
-            <td class="message-cell">
-                <span>${escapeHtml(getLatestNoteText(lead))}</span>
-                ${renderProgressBar(lead, true)}
-            </td>
             <td>${formatDate(lead.createdAt)}</td>
             <td>
                 <div class="lead-actions">
-                    <a class="ghost-btn" href="https://wa.me/${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}" target="_blank" rel="noopener">
+                    ${canViewLeadPhone() ? `
+                    <a class="ghost-btn icon-only small-icon" href="https://wa.me/${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}" target="_blank" rel="noopener" title="واتساب" aria-label="واتساب">
                         <i data-lucide="message-circle"></i>
-                        <span>واتساب</span>
                     </a>
+                    ` : ""}
                     ${can("delete_leads") ? `
                         <button class="danger-btn icon-only small-icon" type="button" data-delete-lead="${lead.id}" title="حذف الطلب">
                             <i data-lucide="trash-2"></i>
@@ -498,7 +574,10 @@ const renderLeads = () => {
                 </div>
             </td>
         </tr>
-    `).join("") || `<tr><td colspan="10">لا توجد طلبات بهذه الحالة.</td></tr>`;
+        <tr class="lead-progress-row ${escapeHtml(statusClasses[lead.status] || "")}">
+            <td colspan="6">${renderProgressBar(lead, true)}</td>
+        </tr>
+    `).join("") || `<tr><td colspan="6">لا توجد طلبات بهذه الحالة.</td></tr>`;
     initIcons();
 };
 
@@ -518,11 +597,15 @@ const renderLeadModal = () => {
         </article>
         <article>
             <span>الجوال</span>
-            <a href="tel:+${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}">+${escapeHtml(lead.countryCode)} ${escapeHtml(lead.phone)}</a>
+            ${canViewLeadPhone()
+                ? `<a class="phone-ltr" href="tel:+${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}">${escapeHtml(formatLeadPhone(lead))}</a>`
+                : `<strong class="muted-text">مخفي حسب الصلاحية</strong>`}
         </article>
         <article>
             <span>واتساب</span>
-            <a href="https://wa.me/${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}" target="_blank" rel="noopener">فتح واتساب</a>
+            ${canViewLeadPhone()
+                ? `<a href="https://wa.me/${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}" target="_blank" rel="noopener">فتح واتساب</a>`
+                : `<strong class="muted-text">غير متاح</strong>`}
         </article>
         <article>
             <span>مجال الاهتمام</span>
@@ -534,7 +617,7 @@ const renderLeadModal = () => {
         </article>
         <article>
             <span>الحالة</span>
-            <select class="status-select ${escapeHtml(statusClasses[lead.status] || "")}" data-modal-lead-status="${lead.id}">
+            <select class="status-select ${escapeHtml(statusClasses[lead.status] || "")}" data-modal-lead-status="${lead.id}" ${canViewAllLeads() ? "" : "disabled"}>
                 ${Object.entries(labels).filter(([key]) => ["new", "contacted", "done", "archived"].includes(key)).map(([key, label]) => `
                     <option value="${key}" ${lead.status === key ? "selected" : ""}>${label}</option>
                 `).join("")}
@@ -549,6 +632,8 @@ const renderLeadModal = () => {
             <p>${escapeHtml(lead.message || "لا توجد رسالة")}</p>
         </article>
     `;
+    const canComposeLeadNote = can("assign_notes") || canViewAllLeads();
+    leadNoteForm?.classList.toggle("is-hidden", !canComposeLeadNote);
     const assignableUsers = can("assign_notes") ? state.users.filter((user) => user.active) : [state.admin];
     leadNoteAssignee.innerHTML = assignableUsers
         .filter((user) => user.active)
@@ -567,7 +652,16 @@ const renderLeadModal = () => {
 
 const renderLeadNotes = (lead) => {
     const notes = getVisibleNotes(lead);
-    leadNotesList.innerHTML = notes.map((note) => `
+    leadNotesList.innerHTML = notes.map((note) => {
+        const inquiries = getNoteInquiries(note.id);
+        const canCompleteNote = !note.legacy && !note.done && (
+            note.assignedTo === state.admin?.userId ||
+            isOwner() ||
+            can("users") ||
+            can("assign_notes")
+        );
+        const canAskInquiry = !note.legacy && !note.done && note.assignedTo === state.admin?.userId;
+        return `
         <article class="lead-note ${note.done ? "is-done" : ""}">
             <div>
                 <p>${escapeHtml(note.text)}</p>
@@ -575,13 +669,34 @@ const renderLeadNotes = (lead) => {
                 <span>مسندة إلى: ${escapeHtml(note.assignedToName || getUserById(note.assignedTo)?.fullName || "غير محدد")}</span>
                 ${note.createdByName ? `<span>أضيفت بواسطة: ${escapeHtml(note.createdByName)}</span>` : ""}
                 ${note.doneAt ? `<span>أُنجزت: ${formatDate(note.doneAt)}</span>` : ""}
+                ${inquiries.length ? `
+                    <div class="note-inquiries">
+                        ${inquiries.map((inquiry) => `
+                            <div class="note-inquiry">
+                                <i data-lucide="message-square-text"></i>
+                                <div>
+                                    <strong>${escapeHtml(inquiry.createdByName || "مستخدم")}</strong>
+                                    <p>${escapeHtml(inquiry.body)}</p>
+                                    <span>${formatDate(inquiry.createdAt)}</span>
+                                </div>
+                            </div>
+                        `).join("")}
+                    </div>
+                ` : ""}
             </div>
-            <button class="${note.done ? "ghost-btn" : "primary-btn"}" type="button" data-complete-note="${escapeHtml(note.id)}" ${note.legacy || note.done || (note.assignedTo && note.assignedTo !== state.admin?.userId && !isOwner() && !can("users")) ? "disabled" : ""}>
-                <i data-lucide="check"></i>
-                <span>${note.legacy ? "قديمة" : note.done ? "تم" : "إنجاز"}</span>
-            </button>
+            <div class="note-actions">
+                ${canAskInquiry ? `
+                    <button class="ghost-btn icon-only small-icon" type="button" data-inquire-note="${escapeHtml(note.id)}" title="إضافة استفسار">
+                        <i data-lucide="circle-help"></i>
+                    </button>
+                ` : ""}
+                <button class="${note.done ? "ghost-btn" : "primary-btn"} icon-only small-icon" type="button" data-complete-note="${escapeHtml(note.id)}" title="${note.done ? "تم الإنجاز" : "تم الإنجاز"}" ${canCompleteNote ? "" : "disabled"}>
+                    <i data-lucide="${note.done ? "check-check" : "check"}"></i>
+                </button>
+            </div>
         </article>
-    `).join("") || `<div class="compact-item"><span>لا توجد ملاحظات متابعة حتى الآن.</span></div>`;
+    `;
+    }).join("") || `<div class="compact-item"><span>لا توجد ملاحظات متابعة حتى الآن.</span></div>`;
     initIcons();
 };
 
@@ -611,11 +726,21 @@ const addLeadNote = async (text, assignedTo = "") => {
     const lead = getActiveLead();
     if (!lead || !text.trim()) return;
     const assignee = getUserById(assignedTo) || state.admin;
-    await window.MuheebData.createLeadNote({
+    const note = await window.MuheebData.createLeadNote({
         leadId: lead.id,
         text: text.trim(),
         assignedTo: assignee?.userId || state.admin?.userId || "",
     });
+    if (note?.assignedTo && note.assignedTo !== state.admin?.userId) {
+        await window.MuheebData.createNotification({
+            targetUserId: note.assignedTo,
+            leadId: lead.id,
+            noteId: note.id,
+            kind: "note_assigned",
+            title: "مهمة مسندة إليك",
+            message: `${getDisplayName()} أسند إليك ملاحظة على طلب ${lead.name}.`,
+        }).catch(() => null);
+    }
     await loadAll();
     state.activeLeadId = lead.id;
     renderLeadModal();
@@ -626,19 +751,61 @@ const completeLeadNote = async (noteId) => {
     if (!lead) return;
     const completedNote = await window.MuheebData.completeLeadNote(noteId);
     if (completedNote) {
-        await window.MuheebData.createNotification({
-            targetUserId: completedNote.createdBy || null,
-            leadId: lead.id,
-            noteId,
-            kind: "note_done",
-            title: "تم إنجاز ملاحظة متابعة",
-            message: `${getDisplayName()} أنجز ملاحظة على طلب ${lead.name}.`,
-        }).catch(() => null);
+        if (completedNote.createdBy && completedNote.createdBy !== state.admin?.userId) {
+            await window.MuheebData.createNotification({
+                targetUserId: completedNote.createdBy,
+                leadId: lead.id,
+                noteId,
+                kind: "note_done",
+                title: "تم إنجاز ملاحظة متابعة",
+                message: `${getDisplayName()} أنجز ملاحظة على طلب ${lead.name}.`,
+            }).catch(() => null);
+        }
         await loadAll();
         state.activeLeadId = lead.id;
         renderLeadModal();
     }
 };
+
+const addNoteInquiry = async (noteId, body) => {
+    const lead = getActiveLead();
+    const note = state.leadNotes.find((item) => item.id === noteId);
+    if (!lead || !note || !body.trim()) return;
+    await window.MuheebData.createLeadNoteInquiry({
+        leadId: lead.id,
+        noteId,
+        body: body.trim(),
+    });
+    if (note.createdBy && note.createdBy !== state.admin?.userId) {
+        await window.MuheebData.createNotification({
+            targetUserId: note.createdBy,
+            leadId: lead.id,
+            noteId,
+            kind: "note_inquiry",
+            title: "استفسار على ملاحظة متابعة",
+            message: `${getDisplayName()} أضاف استفسارًا على طلب ${lead.name}.`,
+        }).catch(() => null);
+    }
+    await loadAll();
+    state.activeLeadId = lead.id;
+    renderLeadModal();
+};
+
+const splitLines = (value) => String(value || "")
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const parseEventSections = (value) => splitLines(value).map((line) => {
+    const [title = "", text = "", image = ""] = line.split("|").map((part) => part.trim());
+    return { title, text, image };
+}).filter((section) => section.title || section.text || section.image);
+
+const stringifyEventSections = (sections) => (sections || []).map((section) => [
+    section.title || "",
+    section.text || "",
+    section.image || "",
+].join(" | ")).join("\n");
 
 const renderEvents = () => {
     eventsList.innerHTML = state.events.map((event) => `
@@ -646,7 +813,8 @@ const renderEvents = () => {
             <img src="${escapeHtml(event.coverImage || "assets/logo-meheib.png")}" alt="">
             <div>
                 <strong>${escapeHtml(event.title)}</strong>
-                <div class="meta-text">${escapeHtml(labels[event.category] || event.category)} - ${escapeHtml(event.location || "بدون موقع")}</div>
+                <div class="meta-text">${escapeHtml(labels[event.category] || event.category)} - ${escapeHtml(event.venueName || event.location || "بدون موقع")}</div>
+                <div class="meta-text">${escapeHtml(event.dateFrom || event.eventDate || "بدون تاريخ")}${event.dateTo ? ` إلى ${escapeHtml(event.dateTo)}` : ""}</div>
                 <span class="badge ${event.published ? "" : "is-dim"}">${event.published ? "منشور" : "مخفي"}</span>
                 <div class="event-actions">
                     <button class="ghost-btn" type="button" data-edit-event="${event.id}">
@@ -788,6 +956,8 @@ const resetEventForm = () => {
     eventFormTitle.textContent = "إضافة فعالية";
     coverName.textContent = "لم يتم اختيار صورة جديدة";
     galleryName.textContent = "يمكن اختيار أكثر من صورة";
+    if (supportLogosName) supportLogosName.textContent = "يمكن اختيار أكثر من شعار";
+    state.pendingSupportLogos = [];
     coverPreview.removeAttribute("src");
     galleryPreview.innerHTML = "";
     eventForm.elements.published.checked = true;
@@ -804,11 +974,22 @@ const editEvent = (eventId) => {
     eventForm.elements.title.value = event.title || "";
     eventForm.elements.category.value = event.category || "event";
     eventForm.elements.location.value = event.location || "";
+    if (eventForm.elements.venueName) eventForm.elements.venueName.value = event.venueName || "";
+    if (eventForm.elements.mapUrl) eventForm.elements.mapUrl.value = event.mapUrl || "";
     eventForm.elements.eventDate.value = event.eventDate || "";
+    if (eventForm.elements.dateFrom) eventForm.elements.dateFrom.value = event.dateFrom || "";
+    if (eventForm.elements.dateTo) eventForm.elements.dateTo.value = event.dateTo || "";
+    if (eventForm.elements.timeFrom) eventForm.elements.timeFrom.value = event.timeFrom || "";
+    if (eventForm.elements.timeTo) eventForm.elements.timeTo.value = event.timeTo || "";
     eventForm.elements.description.value = event.description || "";
     eventForm.elements.highlights.value = (event.highlights || []).join("\n");
+    if (eventForm.elements.participants) eventForm.elements.participants.value = (event.participants || []).join("\n");
+    if (eventForm.elements.achievements) eventForm.elements.achievements.value = (event.achievements || []).join("\n");
+    if (eventForm.elements.detailSections) eventForm.elements.detailSections.value = stringifyEventSections(event.detailSections || []);
     eventForm.elements.sortOrder.value = event.sortOrder || 0;
     eventForm.elements.published.checked = Boolean(event.published);
+    state.pendingSupportLogos = event.supportLogos || [];
+    if (supportLogosName) supportLogosName.textContent = state.pendingSupportLogos.length ? `${state.pendingSupportLogos.length} شعار محفوظ` : "يمكن اختيار أكثر من شعار";
     coverName.textContent = event.coverImage ? event.coverImage : "لم يتم اختيار صورة جديدة";
     if (event.coverImage) {
         coverPreview.src = event.coverImage;
@@ -832,24 +1013,156 @@ const uploadFiles = async (files, folder = "events") => {
     return window.MuheebData.uploadFiles(files, folder);
 };
 
+const getInputFiles = (input) => editedFiles.get(input) || input?.files || [];
+
+const setInputFileLabel = (input, label) => {
+    if (!input) return;
+    const box = input.closest(".upload-box");
+    let labelElement = box?.querySelector("[data-file-label]");
+    if (!labelElement && box) {
+        labelElement = document.createElement("small");
+        labelElement.dataset.fileLabel = "true";
+        box.appendChild(labelElement);
+    }
+    if (labelElement) labelElement.textContent = label || "تم تجهيز الصورة";
+    if (input === coverInput && coverName) coverName.textContent = label || "تم تجهيز الصورة";
+};
+
+const getImageEditorValues = () => {
+    const elements = imageEditorForm?.elements || {};
+    return {
+        aspect: elements.aspect?.value || "16:9",
+        zoom: Number(elements.zoom?.value || 1),
+        brightness: Number(elements.brightness?.value || 100),
+        contrast: Number(elements.contrast?.value || 100),
+        grayscale: Number(elements.grayscale?.value || 0),
+        sepia: Number(elements.sepia?.value || 0),
+    };
+};
+
+const getAspectRatio = (aspect) => {
+    if (aspect === "1:1") return 1;
+    if (aspect === "4:3") return 4 / 3;
+    if (aspect === "free") return null;
+    return 16 / 9;
+};
+
+const updateImageEditorPreview = () => {
+    if (!imageEditorPreview || !state.imageEditor.objectUrl) return;
+    const values = getImageEditorValues();
+    imageEditorPreview.src = state.imageEditor.objectUrl;
+    imageEditorPreview.style.transform = `scale(${values.zoom})`;
+    imageEditorPreview.style.filter = `brightness(${values.brightness}%) contrast(${values.contrast}%) grayscale(${values.grayscale}%) sepia(${values.sepia}%)`;
+    if (imageEditorOutput) {
+        imageEditorOutput.textContent = `تكبير ${values.zoom.toFixed(1)}x - سطوع ${values.brightness}% - تباين ${values.contrast}%`;
+    }
+};
+
+const openImageEditor = (input, file) => {
+    if (!imageEditorModal || !file || !file.type?.startsWith("image/")) return;
+    if (state.imageEditor.objectUrl) URL.revokeObjectURL(state.imageEditor.objectUrl);
+    state.imageEditor = {
+        input,
+        file,
+        objectUrl: URL.createObjectURL(file),
+    };
+    if (imageEditorFileName) imageEditorFileName.textContent = file.name;
+    imageEditorForm?.reset();
+    if (imageEditorForm?.elements.zoom) imageEditorForm.elements.zoom.value = "1";
+    if (imageEditorForm?.elements.brightness) imageEditorForm.elements.brightness.value = "100";
+    if (imageEditorForm?.elements.contrast) imageEditorForm.elements.contrast.value = "100";
+    if (imageEditorForm?.elements.grayscale) imageEditorForm.elements.grayscale.value = "0";
+    if (imageEditorForm?.elements.sepia) imageEditorForm.elements.sepia.value = "0";
+    updateImageEditorPreview();
+    imageEditorModal.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    initIcons();
+};
+
+const closeImageEditor = (clearInput = false) => {
+    if (clearInput && state.imageEditor.input) {
+        state.imageEditor.input.value = "";
+        editedFiles.delete(state.imageEditor.input);
+    }
+    if (state.imageEditor.objectUrl) URL.revokeObjectURL(state.imageEditor.objectUrl);
+    state.imageEditor = { input: null, file: null, objectUrl: "" };
+    imageEditorModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
+};
+
+const loadImage = (src) => new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+});
+
+const createEditedImageFile = async () => {
+    const values = getImageEditorValues();
+    const image = await loadImage(state.imageEditor.objectUrl);
+    const ratio = getAspectRatio(values.aspect) || (image.width / image.height);
+    const outputWidth = Math.min(1600, Math.max(900, image.width));
+    const outputHeight = Math.round(outputWidth / ratio);
+    const canvas = imageEditorCanvas;
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
+    const ctx = canvas.getContext("2d");
+    const sourceRatio = image.width / image.height;
+    let sourceWidth = image.width;
+    let sourceHeight = image.height;
+    if (sourceRatio > ratio) {
+        sourceWidth = image.height * ratio;
+    } else {
+        sourceHeight = image.width / ratio;
+    }
+    sourceWidth = Math.max(1, sourceWidth / values.zoom);
+    sourceHeight = Math.max(1, sourceHeight / values.zoom);
+    const sourceX = Math.max(0, (image.width - sourceWidth) / 2);
+    const sourceY = Math.max(0, (image.height - sourceHeight) / 2);
+    ctx.filter = `brightness(${values.brightness}%) contrast(${values.contrast}%) grayscale(${values.grayscale}%) sepia(${values.sepia}%)`;
+    ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+            const original = state.imageEditor.file;
+            const cleanName = original.name.replace(/\.[^.]+$/, "");
+            resolve(new File([blob], `${cleanName}-edited.jpg`, { type: "image/jpeg" }));
+        }, "image/jpeg", 0.9);
+    });
+};
+
 const saveEvent = async (event) => {
     event.preventDefault();
     showMessage("جاري حفظ الفعالية...", eventFormMessage);
     try {
-        const coverFiles = coverInput.files;
-        const galleryFiles = galleryInput.files;
+        const coverFiles = getInputFiles(coverInput);
+        const galleryFiles = getInputFiles(galleryInput);
+        const supportLogoFiles = getInputFiles(eventSupportLogosInput);
         if (coverFiles && coverFiles.length) {
             const uploadedCover = await uploadFiles(coverFiles);
             state.coverPath = uploadedCover[0]?.path || state.coverPath;
         }
         const uploadedGallery = await uploadFiles(galleryFiles);
+        const uploadedSupportLogos = await uploadFiles(supportLogoFiles, "event-logos");
         const payload = {
             title: eventForm.elements.title.value,
             category: eventForm.elements.category.value,
             location: eventForm.elements.location.value,
+            venueName: eventForm.elements.venueName?.value || "",
+            mapUrl: eventForm.elements.mapUrl?.value || "",
             eventDate: eventForm.elements.eventDate.value,
+            dateFrom: eventForm.elements.dateFrom?.value || "",
+            dateTo: eventForm.elements.dateTo?.value || "",
+            timeFrom: eventForm.elements.timeFrom?.value || "",
+            timeTo: eventForm.elements.timeTo?.value || "",
             description: eventForm.elements.description.value,
-            highlights: eventForm.elements.highlights.value.split("\n").map((item) => item.trim()).filter(Boolean),
+            highlights: splitLines(eventForm.elements.highlights.value),
+            participants: splitLines(eventForm.elements.participants?.value || ""),
+            achievements: splitLines(eventForm.elements.achievements?.value || ""),
+            supportLogos: [
+                ...state.pendingSupportLogos,
+                ...uploadedSupportLogos.map((file) => file.path),
+            ],
+            detailSections: parseEventSections(eventForm.elements.detailSections?.value || ""),
             sortOrder: Number(eventForm.elements.sortOrder.value || 0),
             published: eventForm.elements.published.checked,
             coverImage: state.coverPath,
@@ -890,8 +1203,9 @@ const readSiteImageCardPayload = async (imageId) => {
     if (!card || !existing) return null;
     let imagePath = existing.imagePath;
     const fileInput = card.querySelector("[data-site-image-file]");
-    if (fileInput?.files?.length) {
-        const uploaded = await uploadFiles(fileInput.files, "site");
+    const selectedFiles = getInputFiles(fileInput);
+    if (selectedFiles?.length) {
+        const uploaded = await uploadFiles(selectedFiles, "site");
         imagePath = uploaded[0]?.path || imagePath;
     }
     return {
@@ -923,7 +1237,7 @@ const saveNewSiteImage = async (event) => {
     showMessage("جاري إضافة الصورة...", siteImageFormMessage);
     try {
         const formData = new FormData(siteImageForm);
-        const uploaded = await uploadFiles(newSiteImageFile.files, "site");
+        const uploaded = await uploadFiles(getInputFiles(newSiteImageFile), "site");
         await window.MuheebData.saveSiteImage({
             imageKey: formData.get("imageKey"),
             label: formData.get("label"),
@@ -1028,6 +1342,18 @@ const resetUserForm = () => {
     renderPermissionsGrid({});
 };
 
+const openUserModal = (mode = "new") => {
+    if (mode === "new") resetUserForm();
+    userModal?.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    initIcons();
+};
+
+const closeUserModal = () => {
+    userModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
+};
+
 const renderPermissionsGrid = (permissions = {}) => {
     if (!permissionsGrid) return;
     permissionsGrid.innerHTML = permissionItems.map((permission) => `
@@ -1046,27 +1372,51 @@ const readUserPermissions = () => Object.fromEntries(permissionItems.map((permis
 const renderUsers = () => {
     renderPermissionsGrid(state.editingUser?.permissions || {});
     if (!usersList) return;
-    usersList.innerHTML = state.users.map((user) => `
-        <article class="user-card ${user.active ? "" : "is-disabled"}">
-            <div>
-                <strong>${escapeHtml(getDisplayName(user))}</strong>
-                <span>${escapeHtml(user.email || "-")}</span>
-                <span>${escapeHtml(user.phone || "لا يوجد رقم")}</span>
-                <span class="badge ${user.role === "owner" ? "" : "is-dim"}">${user.role === "owner" ? "مالك" : user.active ? "مستخدم مفعل" : "مستخدم موقوف"}</span>
-            </div>
-            <div class="event-actions">
-                <button class="ghost-btn" type="button" data-edit-user="${escapeHtml(user.userId)}">
-                    <i data-lucide="pencil"></i>
-                    <span>تعديل</span>
-                </button>
-                ${user.userId !== state.admin?.userId && user.role !== "owner" ? `
-                    <button class="danger-btn icon-only small-icon" type="button" data-delete-user="${escapeHtml(user.userId)}" title="إزالة الصلاحية">
-                        <i data-lucide="trash-2"></i>
-                    </button>
-                ` : ""}
-            </div>
-        </article>
-    `).join("") || `<div class="compact-item"><span>لا يوجد مستخدمون بعد.</span></div>`;
+    usersList.innerHTML = `
+        <div class="table-wrap">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>رقم الجوال</th>
+                        <th>الإيميل</th>
+                        <th>الصلاحيات</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${state.users.map((user) => {
+                        const activePermissions = permissionItems
+                            .filter((permission) => user.permissions?.[permission.key])
+                            .slice(0, 3)
+                            .map((permission) => permission.label);
+                        return `
+                        <tr class="${user.active ? "" : "is-disabled"}">
+                            <td><strong>${escapeHtml(getDisplayName(user))}</strong></td>
+                            <td><span class="phone-ltr">${escapeHtml(user.phone || "-")}</span></td>
+                            <td>${escapeHtml(user.email || "-")}</td>
+                            <td>${activePermissions.length ? escapeHtml(activePermissions.join("، ")) : "بدون صلاحيات محددة"}</td>
+                            <td><span class="badge ${user.active ? "" : "is-dim"}">${user.role === "owner" ? "مالك" : user.active ? "نشط" : "موقوف"}</span></td>
+                            <td>
+                                <div class="lead-actions">
+                                    <button class="ghost-btn icon-only small-icon" type="button" data-edit-user="${escapeHtml(user.userId)}" title="تعديل">
+                                        <i data-lucide="pencil"></i>
+                                    </button>
+                                    ${user.userId !== state.admin?.userId && user.role !== "owner" ? `
+                                        <button class="danger-btn icon-only small-icon" type="button" data-delete-user="${escapeHtml(user.userId)}" title="إزالة الصلاحية">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
+                                    ` : ""}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    }).join("") || `<tr><td colspan="6">لا يوجد مستخدمون بعد.</td></tr>`}
+                </tbody>
+            </table>
+        </div>
+    `;
     initIcons();
 };
 
@@ -1085,6 +1435,7 @@ const editUser = (userId) => {
     userFormTitle.textContent = "تعديل مستخدم";
     renderPermissionsGrid(user.permissions || {});
     setView("usersView");
+    openUserModal("edit");
 };
 
 const saveUser = async (event) => {
@@ -1102,6 +1453,7 @@ const saveUser = async (event) => {
             permissions: readUserPermissions(),
         }, userId || null);
         resetUserForm();
+        closeUserModal();
         await loadAll();
         showMessage("تم حفظ المستخدم بنجاح.", userFormMessage);
     } catch (error) {
@@ -1120,16 +1472,97 @@ const deleteUser = async (userId) => {
     }
 };
 
+const openProfileModal = () => {
+    if (!profileModal || !state.admin) return;
+    profileDetailGrid.innerHTML = `
+        <article>
+            <span>الاسم</span>
+            <strong>${escapeHtml(getDisplayName())}</strong>
+        </article>
+        <article>
+            <span>رقم الجوال</span>
+            <strong class="phone-ltr">${escapeHtml(state.admin.phone || "غير مضاف")}</strong>
+        </article>
+        <article>
+            <span>الإيميل</span>
+            <strong>${escapeHtml(state.admin.email || state.admin.authEmail || "-")}</strong>
+        </article>
+        <article>
+            <span>نوع الحساب</span>
+            <strong>${state.admin.role === "owner" ? "مالك" : "مستخدم"}</strong>
+        </article>
+    `;
+    if (profileRequestForm) {
+        profileRequestForm.elements.fullName.value = state.admin.fullName || "";
+        profileRequestForm.elements.phone.value = state.admin.phone || "";
+        profileRequestForm.elements.email.value = state.admin.email || state.admin.authEmail || "";
+    }
+    profileModal.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    initIcons();
+};
+
+const closeProfileModal = () => {
+    profileModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
+};
+
+const renderProfileRequests = () => {
+    if (!profileRequestsList) return;
+    const requests = state.profileRequests || [];
+    profileRequestsList.innerHTML = requests.map((request) => {
+        const user = getUserById(request.userId);
+        return `
+            <article class="profile-request-card ${request.status !== "pending" ? "is-muted" : ""}" data-profile-request="${request.id}">
+                <div>
+                    <strong>${escapeHtml(getDisplayName(user || {}))}</strong>
+                    <span>${formatDate(request.createdAt)}</span>
+                    <span class="badge ${request.status === "pending" ? "" : "is-dim"}">${request.status === "pending" ? "بانتظار الموافقة" : request.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span>
+                </div>
+                <div class="form-grid">
+                    <label>
+                        <span>الاسم المطلوب</span>
+                        <input type="text" data-profile-request-full-name value="${escapeHtml(request.requestedFullName)}" ${request.status !== "pending" ? "disabled" : ""}>
+                    </label>
+                    <label>
+                        <span>الجوال المطلوب</span>
+                        <input type="text" data-profile-request-phone value="${escapeHtml(request.requestedPhone)}" ${request.status !== "pending" ? "disabled" : ""}>
+                    </label>
+                    <label>
+                        <span>الإيميل المطلوب</span>
+                        <input type="email" data-profile-request-email value="${escapeHtml(request.requestedEmail)}" ${request.status !== "pending" ? "disabled" : ""}>
+                    </label>
+                </div>
+                ${request.status === "pending" ? `
+                    <div class="event-actions">
+                        <button class="primary-btn" type="button" data-approve-profile-request="${request.id}">
+                            <i data-lucide="check"></i>
+                            <span>قبول</span>
+                        </button>
+                        <button class="danger-btn" type="button" data-reject-profile-request="${request.id}">
+                            <i data-lucide="x"></i>
+                            <span>رفض</span>
+                        </button>
+                    </div>
+                ` : ""}
+            </article>
+        `;
+    }).join("") || `<div class="compact-item"><span>لا توجد طلبات تعديل بيانات حتى الآن.</span></div>`;
+    initIcons();
+};
+
 const renderNotifications = () => {
-    const count = state.notifications.length;
+    const isRead = (notification) => (notification.readBy || []).includes(state.admin?.userId);
+    const unreadCount = state.notifications.filter((notification) => !isRead(notification)).length;
+    const count = unreadCount;
     notificationBadge.textContent = String(count);
     notificationBadge.classList.toggle("is-hidden", !count);
-    notificationCount.textContent = String(count);
+    notificationCount.textContent = count ? `${count} غير مقروء` : "لا يوجد جديد";
     notificationList.innerHTML = state.notifications.map((notification) => `
-        <button class="notification-item" type="button" data-open-lead="${escapeHtml(notification.leadId || "")}">
+        <button class="notification-item ${isRead(notification) ? "is-read" : ""}" type="button" data-open-lead="${escapeHtml(notification.leadId || "")}" data-notification-id="${escapeHtml(notification.id)}">
             <strong>${escapeHtml(notification.title)}</strong>
             <span>${escapeHtml(notification.message)}</span>
-            <small>${formatDate(notification.createdAt)}</small>
+            <small>${isRead(notification) ? "مقروء" : "جديد"} - ${formatDate(notification.createdAt)}</small>
         </button>
     `).join("") || `<div class="compact-item"><span>لا توجد إشعارات حتى الآن.</span></div>`;
 };
@@ -1212,6 +1645,54 @@ interestOptionForm?.addEventListener("submit", saveInterestOption);
 document.getElementById("resetInterestOptionForm")?.addEventListener("click", resetInterestOptionForm);
 userForm?.addEventListener("submit", saveUser);
 document.getElementById("resetUserForm")?.addEventListener("click", resetUserForm);
+openUserModalButton?.addEventListener("click", () => openUserModal("new"));
+closeUserModalButton?.addEventListener("click", closeUserModal);
+userModal?.addEventListener("click", (event) => {
+    if (event.target === userModal) closeUserModal();
+});
+
+closeProfileModalButton?.addEventListener("click", closeProfileModal);
+profileModal?.addEventListener("click", (event) => {
+    if (event.target === profileModal) closeProfileModal();
+});
+
+profileRequestForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("جاري إرسال طلب التعديل...", profileRequestMessage);
+    try {
+        await window.MuheebData.createProfileChangeRequest({
+            fullName: profileRequestForm.elements.fullName.value,
+            phone: profileRequestForm.elements.phone.value,
+            email: profileRequestForm.elements.email.value,
+        });
+        await loadAll();
+        closeProfileModal();
+        showMessage("تم إرسال طلب تعديل البيانات للمشرف.", profileRequestMessage);
+    } catch (error) {
+        showError(error.message, profileRequestMessage);
+    }
+});
+
+profileRequestsList?.addEventListener("click", async (event) => {
+    const approveButton = event.target.closest("[data-approve-profile-request]");
+    const rejectButton = event.target.closest("[data-reject-profile-request]");
+    const button = approveButton || rejectButton;
+    if (!button) return;
+    const card = button.closest("[data-profile-request]");
+    const requestId = Number(button.dataset.approveProfileRequest || button.dataset.rejectProfileRequest || 0);
+    try {
+        await window.MuheebData.reviewProfileChangeRequest(requestId, {
+            status: approveButton ? "approved" : "rejected",
+            fullName: card.querySelector("[data-profile-request-full-name]")?.value,
+            phone: card.querySelector("[data-profile-request-phone]")?.value,
+            email: card.querySelector("[data-profile-request-email]")?.value,
+        });
+        await loadAll();
+        showMessage(approveButton ? "تم قبول طلب تعديل البيانات." : "تم رفض طلب تعديل البيانات.");
+    } catch (error) {
+        showError(error.message);
+    }
+});
 
 usersList?.addEventListener("click", async (event) => {
     const editButton = event.target.closest("[data-edit-user]");
@@ -1250,11 +1731,19 @@ latestLeads?.addEventListener("click", (event) => {
 });
 
 notificationList?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-open-lead]");
+    const button = event.target.closest("[data-notification-id]");
     const leadId = Number(button?.dataset.openLead || 0);
-    if (leadId) {
+    const notificationId = Number(button?.dataset.notificationId || 0);
+    if (notificationId) {
+        window.MuheebData.markNotificationRead(notificationId)
+            .then(async () => {
+                await loadAll();
+                if (leadId) openLeadModal(leadId);
+            })
+            .catch(() => {
+                if (leadId) openLeadModal(leadId);
+            });
         notificationsMenu.classList.add("is-hidden");
-        openLeadModal(leadId);
     }
 });
 
@@ -1262,7 +1751,7 @@ profileMenu?.addEventListener("click", (event) => {
     const profileOpen = event.target.closest("[data-profile-open]");
     if (profileOpen) {
         profileMenu.classList.add("is-hidden");
-        setView(can("security") ? "securityView" : getFirstAllowedView());
+        openProfileModal();
     }
 });
 
@@ -1298,6 +1787,17 @@ leadNotesList?.addEventListener("click", async (event) => {
             showError(error.message);
         }
     }
+    const inquiryButton = event.target.closest("[data-inquire-note]");
+    if (inquiryButton) {
+        const body = window.prompt("اكتب الاستفسار الذي تريد إرساله للمشرف:");
+        if (!body || !body.trim()) return;
+        try {
+            await addNoteInquiry(inquiryButton.dataset.inquireNote, body);
+            showMessage("تم إرسال الاستفسار للمشرف.");
+        } catch (error) {
+            showError(error.message);
+        }
+    }
 });
 
 siteImageList?.addEventListener("click", async (event) => {
@@ -1309,6 +1809,12 @@ siteImageList?.addEventListener("click", async (event) => {
     if (toggleButton) {
         await toggleSiteImage(Number(toggleButton.dataset.toggleSiteImage));
     }
+});
+
+siteImageList?.addEventListener("change", (event) => {
+    const input = event.target.closest("[data-site-image-file]");
+    const file = input?.files?.[0];
+    if (input && file) openImageEditor(input, file);
 });
 
 interestOptionList?.addEventListener("click", async (event) => {
@@ -1362,12 +1868,46 @@ coverInput.addEventListener("change", () => {
     coverName.textContent = file ? file.name : "لم يتم اختيار صورة جديدة";
     if (file) {
         coverPreview.src = URL.createObjectURL(file);
+        openImageEditor(coverInput, file);
     }
+});
+
+newSiteImageFile?.addEventListener("change", () => {
+    const file = newSiteImageFile.files?.[0];
+    if (file) openImageEditor(newSiteImageFile, file);
 });
 
 galleryInput.addEventListener("change", () => {
     const count = galleryInput.files?.length || 0;
     galleryName.textContent = count ? `${count} صور جاهزة للرفع عند الحفظ` : "يمكن اختيار أكثر من صورة";
+});
+
+eventSupportLogosInput?.addEventListener("change", () => {
+    const count = eventSupportLogosInput.files?.length || 0;
+    if (supportLogosName) supportLogosName.textContent = count ? `${count} شعار جاهز للرفع عند الحفظ` : "يمكن اختيار أكثر من شعار";
+});
+
+imageEditorForm?.addEventListener("input", updateImageEditorPreview);
+imageEditorForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!state.imageEditor.input) return;
+    try {
+        const editedFile = await createEditedImageFile();
+        editedFiles.set(state.imageEditor.input, [editedFile]);
+        setInputFileLabel(state.imageEditor.input, editedFile.name);
+        if (state.imageEditor.input === coverInput) {
+            coverPreview.src = URL.createObjectURL(editedFile);
+        }
+        closeImageEditor(false);
+        showMessage("تم اعتماد الصورة للتجهيز والرفع عند الحفظ.");
+    } catch (error) {
+        showError("تعذر تجهيز الصورة. حاول اختيار صورة أخرى.");
+    }
+});
+closeImageEditorButton?.addEventListener("click", () => closeImageEditor(true));
+cancelImageEditorButton?.addEventListener("click", () => closeImageEditor(true));
+imageEditorModal?.addEventListener("click", (event) => {
+    if (event.target === imageEditorModal) closeImageEditor(true);
 });
 
 eventForm.addEventListener("submit", saveEvent);

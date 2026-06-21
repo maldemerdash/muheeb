@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=workflow-20260621">
 </head>
 <body>
     <div class="preloader" id="preloader" aria-hidden="true">
@@ -300,7 +300,7 @@
                     <h2 data-content="interest_title">حدثنا عن فكرتك، ونحوّلها إلى تجربة قابلة للتنفيذ.</h2>
                     <p data-content="interest_text">املأ النموذج وسيتم التواصل معك لمناقشة نوع الفعالية أو الحملة، نطاق العمل، والاحتياجات البصرية والتشغيلية.</p>
                     <div class="contact-strip">
-                        <a data-phone-link href="tel:+966599575691"><i data-lucide="phone"></i> <span data-content="contact_phone">+966 59 957 5691</span></a>
+                        <a data-phone-link href="tel:+966599575691"><i data-lucide="phone"></i> <span class="phone-ltr" data-content="contact_phone">+966 59 957 5691</span></a>
                         <a data-whatsapp-link href="https://wa.me/966599575691" target="_blank" rel="noopener"><i data-lucide="message-circle"></i> <span data-content="contact_whatsapp_label">واتساب</span></a>
                     </div>
                 </div>
@@ -366,10 +366,15 @@
             <div>
                 <img data-image="footer_logo" src="assets/logo-meheib.png" alt="شعار مهيب">
                 <p data-content="footer_text">مهيب - حضور بصري وتجارب مؤثرة في التسويق وتنظيم الفعاليات.</p>
+                <div class="official-data">
+                    <span data-content="commercial_registration">رقم السجل التجاري: يضاف من لوحة التحكم</span>
+                    <span data-content="tax_number">الرقم الضريبي: يضاف من لوحة التحكم</span>
+                    <span data-content="bank_account">رقم الحساب البنكي: يضاف من لوحة التحكم</span>
+                </div>
             </div>
             <div>
                 <h3 data-content="footer_contact_title">تواصل معنا</h3>
-                <a data-phone-link href="tel:+966599575691" data-content="contact_phone">+966 59 957 5691</a>
+                <a class="phone-ltr" data-phone-link href="tel:+966599575691" data-content="contact_phone">+966 59 957 5691</a>
                 <a data-email-link href="mailto:info.muheeb0@gmail.com" data-content="contact_email">info.muheeb0@gmail.com</a>
                 <a data-whatsapp-link href="https://wa.me/966599575691" target="_blank" rel="noopener" data-content="contact_whatsapp_label">واتساب</a>
                 <span data-content="contact_location">المدينة المنورة، السعودية</span>
@@ -384,9 +389,16 @@
         <button class="float-btn to-top" id="toTop" type="button" aria-label="العودة للأعلى" title="الأعلى"><i data-lucide="arrow-up"></i></button>
     </div>
 
+    <div class="public-modal is-hidden" id="eventDetailModal" role="dialog" aria-modal="true" aria-labelledby="eventDetailTitle">
+        <section class="event-detail-panel">
+            <button class="detail-close" type="button" id="closeEventDetail" aria-label="إغلاق"><i data-lucide="x"></i></button>
+            <div id="eventDetailContent"></div>
+        </section>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js"></script>
-    <script src="app.js"></script>
+    <script src="supabase-client.js?v=workflow-20260621"></script>
+    <script src="app.js?v=workflow-20260621"></script>
 </body>
 </html>

@@ -28,6 +28,12 @@ supabase/cms_upgrade.sql
 supabase/team_permissions_upgrade.sql
 ```
 
+8. لتفعيل التحديثات الأخيرة مثل تفاصيل صلاحيات طلبات العملاء، قراءة الإشعارات، استفسارات الملاحظات، طلبات تعديل الملف الشخصي، وتفاصيل الفعاليات الموسعة، شغّل الملف:
+
+```text
+supabase/workflow_profile_events_upgrade.sql
+```
+
 ## 2. إنشاء مستخدم لوحة التحكم
 
 1. من Supabase افتح `Authentication > Users`.

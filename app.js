@@ -88,6 +88,10 @@ document.querySelectorAll("main section[id]").forEach((section) => navObserver.o
 const filterButtons = document.querySelectorAll(".filter-btn");
 const projectGrid = document.querySelector(".project-grid");
 let projectCards = document.querySelectorAll(".project-card");
+let publishedEvents = [];
+const eventDetailModal = document.getElementById("eventDetailModal");
+const eventDetailContent = document.getElementById("eventDetailContent");
+const closeEventDetail = document.getElementById("closeEventDetail");
 
 const categoryMeta = {
     event: { label: "فعاليات", statusClass: "available", icon: "sparkles" },
@@ -95,6 +99,66 @@ const categoryMeta = {
     identity: { label: "هوية", statusClass: "available", icon: "palette" },
     operation: { label: "تشغيل", statusClass: "sold", icon: "clipboard-check" },
 };
+
+const staticEvents = [
+    {
+        id: "static-event",
+        title: "المؤتمرات والمعارض",
+        category: "event",
+        categoryLabel: "فعاليات",
+        location: "المدينة المنورة",
+        venueName: "مساحة الفعالية",
+        eventDate: "تخطيط وتشغيل",
+        description: "إدارة تجربة الحضور، المسارات، نقاط التسجيل، وتطبيق الهوية داخل مساحة الحدث.",
+        highlights: ["تجربة حضور", "تنسيق ميداني", "هوية المكان"],
+        achievements: ["مسارات حضور منظمة", "تطبيق هوية موحد", "توثيق مخرجات الفعالية"],
+        participants: ["فريق التشغيل", "جهات التنظيم", "مقدمو الخدمات"],
+        coverImage: "assets/identity-wall-clean.png",
+        gallery: [
+            { imagePath: "assets/identity-wall-clean.png", altText: "تنظيم فعاليات مهيب" },
+            { imagePath: "assets/identity-stamp-clean.png", altText: "توثيق واعتماد" },
+        ],
+    },
+    {
+        id: "static-marketing",
+        title: "الحملات التسويقية",
+        category: "marketing",
+        categoryLabel: "تسويق",
+        location: "السعودية",
+        eventDate: "فكرة ورسالة",
+        description: "بناء فكرة الحملة ورسائلها، وتنسيق الظهور البصري عبر القنوات والمواد.",
+        highlights: ["خطة ظهور", "مسار بصري", "محتوى تسويقي"],
+        achievements: ["رسائل واضحة", "مواد متسقة", "قنوات ظهور محددة"],
+        coverImage: "assets/brand-palette.jpg",
+        gallery: [{ imagePath: "assets/brand-palette.jpg", altText: "حملات تسويقية مهيب" }],
+    },
+    {
+        id: "static-identity",
+        title: "التطبيقات البصرية",
+        category: "identity",
+        categoryLabel: "هوية",
+        location: "حسب نطاق المشروع",
+        eventDate: "تصميم واعتماد",
+        description: "مطبوعات، بطاقات، لوحات، وأدوات تعريف تحفظ اتساق العلامة في كل نقطة تواصل.",
+        highlights: ["شعار واضح", "نظام ألوان", "ملفات جاهزة"],
+        achievements: ["تطبيقات عملية", "اتساق بصري", "ملفات منظمة"],
+        coverImage: "assets/identity-cards-clean.png",
+        gallery: [{ imagePath: "assets/identity-cards-clean.png", altText: "تطبيقات هوية مهيب" }],
+    },
+    {
+        id: "static-operation",
+        title: "التنفيذ والتوثيق",
+        category: "operation",
+        categoryLabel: "تشغيل",
+        location: "موقع الفعالية",
+        eventDate: "متابعة واعتماد",
+        description: "إدارة التفاصيل التشغيلية، اعتماد المواد، وتوثيق المخرجات لتظهر الفعالية بصورة محترفة.",
+        highlights: ["متابعة دقيقة", "اعتماد مخرجات", "تنسيق شركاء"],
+        achievements: ["تشغيل منظم", "توثيق نهائي", "اعتماد المواد"],
+        coverImage: "assets/identity-stamp-clean.png",
+        gallery: [{ imagePath: "assets/identity-stamp-clean.png", altText: "تشغيل وتوثيق مهيب" }],
+    },
+];
 
 const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -121,6 +185,7 @@ const applyContactLinks = (content) => {
 
     document.querySelectorAll("[data-phone-link]").forEach((link) => {
         if (phoneDigits) link.href = `tel:+${phoneDigits}`;
+        link.classList.add("phone-ltr");
     });
     document.querySelectorAll("[data-whatsapp-link]").forEach((link) => {
         if (whatsappDigits) link.href = `https://wa.me/${whatsappDigits}`;
@@ -207,6 +272,7 @@ const loadSiteCms = async () => {
 
 const renderProjectCards = (events) => {
     if (!projectGrid || !events.length) return;
+    publishedEvents = events;
     projectGrid.innerHTML = events.map((event) => {
         const meta = categoryMeta[event.category] || categoryMeta.event;
         const highlights = Array.isArray(event.highlights) && event.highlights.length
@@ -224,12 +290,102 @@ const renderProjectCards = (events) => {
                             <li><i data-lucide="${index === 0 ? "map-pin" : index === 1 ? "calendar-check" : meta.icon}"></i> ${escapeHtml(highlight)}</li>
                         `).join("")}
                     </ul>
-                    <a class="project-link" href="#interest">طلب تفاصيل</a>
+                    <button class="project-link" type="button" data-event-detail="${escapeHtml(event.id)}">عرض التفاصيل</button>
                 </div>
             </article>
         `;
     }).join("");
     projectCards = document.querySelectorAll(".project-card");
+};
+
+const eventDateRange = (event) => {
+    if (event.dateFrom && event.dateTo && event.dateFrom !== event.dateTo) {
+        return `${event.dateFrom} إلى ${event.dateTo}`;
+    }
+    return event.dateFrom || event.eventDate || "حسب موعد الفعالية";
+};
+
+const eventTimeRange = (event) => {
+    if (event.timeFrom && event.timeTo) return `${event.timeFrom} - ${event.timeTo}`;
+    return event.timeFrom || event.timeTo || "";
+};
+
+const openEventDetail = (eventId) => {
+    const event = publishedEvents.find((item) => String(item.id) === String(eventId));
+    if (!event || !eventDetailModal || !eventDetailContent) return;
+    const meta = categoryMeta[event.category] || categoryMeta.event;
+    const gallery = event.gallery || [];
+    const achievements = event.achievements?.length ? event.achievements : event.highlights || [];
+    eventDetailContent.innerHTML = `
+        <div class="event-detail-hero">
+            <img src="${escapeHtml(event.coverImage || "assets/logo-meheib.png")}" alt="${escapeHtml(event.title)}">
+            <div>
+                <span class="status ${meta.statusClass}">${escapeHtml(event.categoryLabel || meta.label)}</span>
+                <h2 id="eventDetailTitle">${escapeHtml(event.title)}</h2>
+                <p>${escapeHtml(event.description || "")}</p>
+                <div class="event-detail-meta">
+                    <span><i data-lucide="map-pin"></i>${escapeHtml(event.venueName || event.location || "موقع الفعالية")}</span>
+                    <span><i data-lucide="calendar-days"></i>${escapeHtml(eventDateRange(event))}</span>
+                    ${eventTimeRange(event) ? `<span><i data-lucide="clock"></i>${escapeHtml(eventTimeRange(event))}</span>` : ""}
+                    ${event.mapUrl ? `<a href="${escapeHtml(event.mapUrl)}" target="_blank" rel="noopener"><i data-lucide="map"></i>فتح الموقع</a>` : ""}
+                </div>
+            </div>
+        </div>
+        ${achievements.length ? `
+            <section class="event-detail-section">
+                <h3>الإنجازات المحققة</h3>
+                <div class="detail-chip-grid">
+                    ${achievements.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+                </div>
+            </section>
+        ` : ""}
+        ${event.participants?.length ? `
+            <section class="event-detail-section">
+                <h3>المشاركون والجهات</h3>
+                <div class="detail-chip-grid">
+                    ${event.participants.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+                </div>
+            </section>
+        ` : ""}
+        ${event.supportLogos?.length ? `
+            <section class="event-detail-section">
+                <h3>شعارات الجهات</h3>
+                <div class="logo-strip">
+                    ${event.supportLogos.map((logo) => `<img src="${escapeHtml(logo)}" alt="شعار جهة مشاركة">`).join("")}
+                </div>
+            </section>
+        ` : ""}
+        ${event.detailSections?.length ? `
+            <section class="event-detail-section detail-sections">
+                ${event.detailSections.map((section) => `
+                    <article>
+                        ${section.image ? `<img src="${escapeHtml(section.image)}" alt="${escapeHtml(section.title || event.title)}">` : ""}
+                        <div>
+                            <h3>${escapeHtml(section.title || "تفاصيل الفعالية")}</h3>
+                            <p>${escapeHtml(section.text || "")}</p>
+                        </div>
+                    </article>
+                `).join("")}
+            </section>
+        ` : ""}
+        ${gallery.length ? `
+            <section class="event-detail-section">
+                <h3>معرض الصور</h3>
+                <div class="event-gallery-grid">
+                    ${gallery.map((image) => `<img src="${escapeHtml(image.imagePath)}" alt="${escapeHtml(image.altText || event.title)}">`).join("")}
+                </div>
+            </section>
+        ` : ""}
+        <a class="primary-action detail-cta" href="#interest">${escapeHtml(getContentValue(null, "form_submit_button", "إرسال طلب"))}<i data-lucide="send"></i></a>
+    `;
+    eventDetailModal.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    initIcons();
+};
+
+const closeEventDetailModal = () => {
+    eventDetailModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
 };
 
 const applyProjectFilter = (filter) => {
@@ -245,6 +401,17 @@ filterButtons.forEach((button) => {
         button.classList.add("active");
         applyProjectFilter(button.dataset.filter);
     });
+});
+
+projectGrid?.addEventListener("click", (event) => {
+    const detailButton = event.target.closest("[data-event-detail]");
+    if (!detailButton) return;
+    openEventDetail(detailButton.dataset.eventDetail);
+});
+
+closeEventDetail?.addEventListener("click", closeEventDetailModal);
+eventDetailModal?.addEventListener("click", (event) => {
+    if (event.target === eventDetailModal) closeEventDetailModal();
 });
 
 const loadPublishedEvents = async () => {
@@ -327,7 +494,7 @@ leadForm?.addEventListener("submit", async (event) => {
         leadForm.reset();
         updatePhonePlaceholder();
         if (formNote) {
-            formNote.textContent = "تم إرسال طلبك بنجاح. سيظهر مباشرة في لوحة التحكم.";
+            formNote.textContent = "تم إرسال طلبك بنجاح وسيتم التواصل معكم";
         }
     } catch (error) {
         if (formNote) {
@@ -349,5 +516,6 @@ toTop?.addEventListener("click", () => {
 });
 
 initIcons();
+renderProjectCards(staticEvents);
 loadSiteCms();
 loadPublishedEvents();

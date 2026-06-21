@@ -113,6 +113,28 @@
         updatedAt: note.updated_at || note.updatedAt,
     });
 
+    const toCamelLeadNoteInquiry = (inquiry) => ({
+        id: inquiry.id,
+        leadId: inquiry.lead_id || inquiry.leadId,
+        noteId: inquiry.note_id || inquiry.noteId || "",
+        body: inquiry.body || "",
+        createdBy: inquiry.created_by || inquiry.createdBy || "",
+        createdAt: inquiry.created_at || inquiry.createdAt,
+    });
+
+    const toCamelProfileRequest = (request) => ({
+        id: request.id,
+        userId: request.user_id || request.userId || "",
+        requestedFullName: request.requested_full_name || request.requestedFullName || "",
+        requestedPhone: request.requested_phone || request.requestedPhone || "",
+        requestedEmail: request.requested_email || request.requestedEmail || "",
+        status: request.status || "pending",
+        reviewerId: request.reviewer_id || request.reviewerId || "",
+        reviewerNote: request.reviewer_note || request.reviewerNote || "",
+        createdAt: request.created_at || request.createdAt,
+        reviewedAt: request.reviewed_at || request.reviewedAt || "",
+    });
+
     const categoryLabels = {
         event: "فعاليات",
         marketing: "تسويق",
@@ -138,9 +160,19 @@
         category: event.category,
         categoryLabel: categoryLabels[event.category] || event.category,
         location: event.location || "",
+        venueName: event.venue_name || event.venueName || "",
+        mapUrl: event.map_url || event.mapUrl || "",
         eventDate: event.event_date || event.eventDate || "",
+        dateFrom: event.date_from || event.dateFrom || "",
+        dateTo: event.date_to || event.dateTo || "",
+        timeFrom: event.time_from || event.timeFrom || "",
+        timeTo: event.time_to || event.timeTo || "",
         description: event.description || "",
         highlights: Array.isArray(event.highlights) ? event.highlights : [],
+        participants: Array.isArray(event.participants) ? event.participants : [],
+        achievements: Array.isArray(event.achievements) ? event.achievements : [],
+        supportLogos: Array.isArray(event.support_logos || event.supportLogos) ? (event.support_logos || event.supportLogos) : [],
+        detailSections: Array.isArray(event.detail_sections || event.detailSections) ? (event.detail_sections || event.detailSections) : [],
         coverImage: event.cover_image || event.coverImage || "",
         published: Boolean(event.published),
         sortOrder: event.sort_order || event.sortOrder || 0,
@@ -520,6 +552,17 @@
             return (data || []).map(toCamelLeadNote);
         },
 
+        async listLeadNoteInquiries() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("lead_note_inquiries")
+                .select("*")
+                .order("created_at", { ascending: true });
+            if (error) throw error;
+            return (data || []).map(toCamelLeadNoteInquiry);
+        },
+
         async createLeadNote(payload) {
             const client = await requireSupabase();
             const user = await requireAdmin();
@@ -552,6 +595,23 @@
                 .single();
             if (error) throw error;
             return toCamelLeadNote(data);
+        },
+
+        async createLeadNoteInquiry(payload) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data, error } = await client
+                .from("lead_note_inquiries")
+                .insert({
+                    lead_id: payload.leadId,
+                    note_id: payload.noteId,
+                    body: payload.body,
+                    created_by: user.id,
+                })
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelLeadNoteInquiry(data);
         },
 
         async updateLead(leadId, values) {
@@ -601,6 +661,26 @@
             return (data || []).map(toCamelNotification);
         },
 
+        async markNotificationRead(notificationId) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data: current, error: readError } = await client
+                .from("admin_notifications")
+                .select("read_by")
+                .eq("id", notificationId)
+                .single();
+            if (readError) throw readError;
+            const readBy = Array.from(new Set([...(current?.read_by || []), user.id]));
+            const { data, error } = await client
+                .from("admin_notifications")
+                .update({ read_by: readBy })
+                .eq("id", notificationId)
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelNotification(data);
+        },
+
         async createNotification(payload) {
             const client = await requireSupabase();
             const user = await requireAdmin();
@@ -620,6 +700,72 @@
                 .single();
             if (error) throw error;
             return toCamelNotification(data);
+        },
+
+        async listProfileChangeRequests() {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const { data, error } = await client
+                .from("profile_change_requests")
+                .select("*")
+                .order("created_at", { ascending: false })
+                .limit(100);
+            if (error) throw error;
+            return (data || []).map(toCamelProfileRequest);
+        },
+
+        async createProfileChangeRequest(payload) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data, error } = await client
+                .from("profile_change_requests")
+                .insert({
+                    user_id: user.id,
+                    requested_full_name: String(payload.fullName || "").trim(),
+                    requested_phone: String(payload.phone || "").trim(),
+                    requested_email: String(payload.email || "").trim().toLowerCase(),
+                })
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelProfileRequest(data);
+        },
+
+        async reviewProfileChangeRequest(requestId, payload) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const status = payload.status || "approved";
+            const { data: requestRow, error: requestError } = await client
+                .from("profile_change_requests")
+                .select("*")
+                .eq("id", requestId)
+                .single();
+            if (requestError) throw requestError;
+            if (status === "approved") {
+                const { error: userError } = await client
+                    .from("admin_users")
+                    .update({
+                        full_name: String(payload.fullName || requestRow.requested_full_name || "").trim(),
+                        phone: String(payload.phone || requestRow.requested_phone || "").trim(),
+                        email: String(payload.email || requestRow.requested_email || "").trim().toLowerCase(),
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("user_id", requestRow.user_id);
+                if (userError) throw userError;
+            }
+            const { data, error } = await client
+                .from("profile_change_requests")
+                .update({
+                    status,
+                    reviewer_id: user.id,
+                    reviewer_note: payload.note || "",
+                    reviewed_at: new Date().toISOString(),
+                })
+                .eq("id", requestId)
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelProfileRequest(data);
         },
 
         async listAdminEvents() {
@@ -667,9 +813,19 @@
                 title: payload.title,
                 category: payload.category,
                 location: payload.location || "",
+                venue_name: payload.venueName || "",
+                map_url: payload.mapUrl || "",
                 event_date: payload.eventDate || "",
+                date_from: payload.dateFrom || null,
+                date_to: payload.dateTo || null,
+                time_from: payload.timeFrom || "",
+                time_to: payload.timeTo || "",
                 description: payload.description,
                 highlights: payload.highlights || [],
+                participants: payload.participants || [],
+                achievements: payload.achievements || [],
+                support_logos: payload.supportLogos || [],
+                detail_sections: payload.detailSections || [],
                 cover_image: payload.coverImage || "",
                 published: Boolean(payload.published),
                 sort_order: Number(payload.sortOrder || 0),

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin.css?v=workflow-20260621">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -182,12 +182,8 @@
                                     <th>العميل</th>
                                     <th>الجوال</th>
                                     <th>الاهتمام</th>
-                                    <th>المصدر</th>
-                                    <th>الرسالة</th>
-                                    <th>الحالة</th>
-                                    <th>آخر متابعة</th>
                                     <th>التاريخ</th>
-                                    <th>إجراء</th>
+                                    <th>الإجراءات</th>
                                 </tr>
                             </thead>
                             <tbody id="leadsTable"></tbody>
@@ -364,8 +360,32 @@
                                 <input type="text" name="location" placeholder="مثال: المدينة المنورة">
                             </label>
                             <label>
+                                <span>مكان إقامة الفعالية</span>
+                                <input type="text" name="venueName" placeholder="مثال: مركز المؤتمرات">
+                            </label>
+                            <label>
+                                <span>رابط موقع الفعالية من الخرائط</span>
+                                <input type="url" name="mapUrl" placeholder="https://maps.google.com/...">
+                            </label>
+                            <label>
                                 <span>التاريخ أو المرحلة</span>
                                 <input type="text" name="eventDate" placeholder="مثال: 2026 / تخطيط وتشغيل">
+                            </label>
+                            <label>
+                                <span>تاريخ البداية</span>
+                                <input type="date" name="dateFrom">
+                            </label>
+                            <label>
+                                <span>تاريخ النهاية</span>
+                                <input type="date" name="dateTo">
+                            </label>
+                            <label>
+                                <span>وقت البداية</span>
+                                <input type="time" name="timeFrom">
+                            </label>
+                            <label>
+                                <span>وقت النهاية</span>
+                                <input type="time" name="timeTo">
                             </label>
                         </div>
                         <label>
@@ -375,6 +395,18 @@
                         <label>
                             <span>نقاط مختصرة للعرض</span>
                             <textarea name="highlights" rows="3" placeholder="اكتب كل نقطة في سطر مستقل"></textarea>
+                        </label>
+                        <label>
+                            <span>الإنجازات المحققة</span>
+                            <textarea name="achievements" rows="3" placeholder="اكتب كل إنجاز في سطر مستقل"></textarea>
+                        </label>
+                        <label>
+                            <span>المشاركون أو الجهات</span>
+                            <textarea name="participants" rows="3" placeholder="اكتب كل مشارك أو جهة في سطر مستقل"></textarea>
+                        </label>
+                        <label>
+                            <span>أقسام داخل صفحة الفعالية</span>
+                            <textarea name="detailSections" rows="4" placeholder="كل سطر: عنوان القسم | النص | رابط الصورة اختياري"></textarea>
                         </label>
                         <div class="form-grid">
                             <label>
@@ -396,6 +428,11 @@
                                 <span>صور إضافية للمعرض</span>
                                 <input type="file" id="galleryInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
                                 <small id="galleryName">يمكن اختيار أكثر من صورة</small>
+                            </label>
+                            <label class="upload-box">
+                                <span>شعارات الجهات الداعمة أو المنفذة</span>
+                                <input type="file" id="supportLogosInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+                                <small id="supportLogosName">يمكن اختيار أكثر من شعار</small>
                             </label>
                         </div>
                         <div class="preview-grid">
@@ -428,58 +465,18 @@
             </section>
 
             <section class="admin-view" id="usersView">
-                <div class="users-layout">
-                    <form class="panel-card user-form" id="userForm">
-                        <div class="panel-header">
-                            <div>
-                                <p class="eyebrow">الفريق والصلاحيات</p>
-                                <h2 id="userFormTitle">إضافة مستخدم</h2>
-                            </div>
-                            <button class="ghost-btn" type="button" id="resetUserForm">
-                                <i data-lucide="plus"></i>
-                                <span>جديد</span>
-                            </button>
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">الفريق والصلاحيات</p>
+                            <h2>قائمة المستخدمين</h2>
                         </div>
-                        <input type="hidden" name="userId">
-                        <div class="form-grid">
-                            <label>
-                                <span>اسم المستخدم</span>
-                                <input type="text" name="fullName" required>
-                            </label>
-                            <label>
-                                <span>رقم الجوال</span>
-                                <input type="tel" name="phone" placeholder="05xxxxxxxx">
-                            </label>
-                            <label>
-                                <span>الإيميل</span>
-                                <input type="email" name="email" autocomplete="off" required>
-                            </label>
-                            <label>
-                                <span>كلمة السر</span>
-                                <input type="password" name="password" autocomplete="new-password" minlength="8">
-                            </label>
-                        </div>
-                        <div class="permission-grid" id="permissionsGrid"></div>
-                        <label class="toggle-field">
-                            <input type="checkbox" name="active" checked>
-                            <span>المستخدم مفعل</span>
-                        </label>
-                        <button class="primary-btn" type="submit">
-                            <i data-lucide="save"></i>
-                            <span>حفظ المستخدم</span>
+                        <button class="primary-btn compact-action" type="button" id="openUserModalButton">
+                            <i data-lucide="user-plus"></i>
+                            <span>إضافة مستخدم</span>
                         </button>
-                        <p class="form-message" id="userFormMessage" role="status"></p>
-                    </form>
-
-                    <div class="panel-card">
-                        <div class="panel-header">
-                            <div>
-                                <p class="eyebrow">المستخدمون الحاليون</p>
-                                <h2>قائمة الفريق</h2>
-                            </div>
-                        </div>
-                        <div class="users-list" id="usersList"></div>
                     </div>
+                    <div class="users-list" id="usersList"></div>
                 </div>
             </section>
 
@@ -507,6 +504,15 @@
                     </button>
                     <p class="form-message" id="passwordMessage" role="status"></p>
                 </form>
+                <div class="panel-card profile-requests-panel" data-permission="profile_requests">
+                    <div class="panel-header">
+                        <div>
+                            <p class="eyebrow">الملف الشخصي</p>
+                            <h2>طلبات تعديل بيانات المستخدمين</h2>
+                        </div>
+                    </div>
+                    <div class="profile-requests-list" id="profileRequestsList"></div>
+                </div>
             </section>
         </main>
     </div>
@@ -544,9 +550,158 @@
         </section>
     </div>
 
+    <div class="modal-backdrop is-hidden" id="userModal" role="dialog" aria-modal="true" aria-labelledby="userFormTitle">
+        <form class="lead-modal user-modal-form" id="userForm">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">الفريق والصلاحيات</p>
+                    <h2 id="userFormTitle">إضافة مستخدم</h2>
+                </div>
+                <button class="ghost-btn icon-only" type="button" id="closeUserModal" aria-label="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <input type="hidden" name="userId">
+            <div class="form-grid">
+                <label>
+                    <span>اسم المستخدم</span>
+                    <input type="text" name="fullName" required>
+                </label>
+                <label>
+                    <span>رقم الجوال</span>
+                    <input type="tel" name="phone" placeholder="05xxxxxxxx">
+                </label>
+                <label>
+                    <span>الإيميل</span>
+                    <input type="email" name="email" autocomplete="off" required>
+                </label>
+                <label>
+                    <span>كلمة السر</span>
+                    <input type="password" name="password" autocomplete="new-password" minlength="8">
+                </label>
+            </div>
+            <div class="permission-grid" id="permissionsGrid"></div>
+            <label class="toggle-field">
+                <input type="checkbox" name="active" checked>
+                <span>المستخدم مفعل</span>
+            </label>
+            <div class="event-actions modal-actions">
+                <button class="ghost-btn" type="button" id="resetUserForm">
+                    <i data-lucide="plus"></i>
+                    <span>تفريغ</span>
+                </button>
+                <button class="primary-btn" type="submit">
+                    <i data-lucide="save"></i>
+                    <span>حفظ المستخدم</span>
+                </button>
+            </div>
+            <p class="form-message" id="userFormMessage" role="status"></p>
+        </form>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+        <section class="lead-modal profile-modal">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">الملف الشخصي</p>
+                    <h2 id="profileModalTitle">بيانات الحساب</h2>
+                </div>
+                <button class="ghost-btn icon-only" type="button" id="closeProfileModal" aria-label="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="lead-detail-grid" id="profileDetailGrid"></div>
+            <form class="note-compose profile-request-form" id="profileRequestForm">
+                <h3>طلب تعديل البيانات</h3>
+                <div class="form-grid">
+                    <label>
+                        <span>الاسم الجديد</span>
+                        <input type="text" name="fullName" required>
+                    </label>
+                    <label>
+                        <span>رقم الجوال الجديد</span>
+                        <input type="tel" name="phone">
+                    </label>
+                    <label>
+                        <span>الإيميل الجديد</span>
+                        <input type="email" name="email" required>
+                    </label>
+                </div>
+                <button class="primary-btn" type="submit">
+                    <i data-lucide="send"></i>
+                    <span>إرسال طلب التعديل</span>
+                </button>
+                <p class="form-message" id="profileRequestMessage" role="status"></p>
+            </form>
+        </section>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="imageEditorModal" role="dialog" aria-modal="true" aria-labelledby="imageEditorTitle">
+        <form class="lead-modal image-editor-modal" id="imageEditorForm">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">تجهيز الصورة</p>
+                    <h2 id="imageEditorTitle">اختيار الجزء الظاهر والفلاتر</h2>
+                    <span class="meta-text" id="imageEditorFileName">صورة</span>
+                </div>
+                <button class="ghost-btn icon-only" type="button" id="closeImageEditor" aria-label="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="image-editor-grid">
+                <div class="image-editor-preview">
+                    <img id="imageEditorPreview" alt="">
+                </div>
+                <div class="image-editor-controls">
+                    <label>
+                        <span>نسبة القص</span>
+                        <select name="aspect">
+                            <option value="16:9">عريض 16:9</option>
+                            <option value="4:3">متوسط 4:3</option>
+                            <option value="1:1">مربع 1:1</option>
+                            <option value="free">حسب الصورة</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>تكبير</span>
+                        <input type="range" name="zoom" min="1" max="2.4" step="0.1" value="1">
+                    </label>
+                    <label>
+                        <span>سطوع</span>
+                        <input type="range" name="brightness" min="70" max="130" step="1" value="100">
+                    </label>
+                    <label>
+                        <span>تباين</span>
+                        <input type="range" name="contrast" min="70" max="140" step="1" value="100">
+                    </label>
+                    <label>
+                        <span>أبيض وأسود</span>
+                        <input type="range" name="grayscale" min="0" max="100" step="1" value="0">
+                    </label>
+                    <label>
+                        <span>فلتر دافئ</span>
+                        <input type="range" name="sepia" min="0" max="70" step="1" value="0">
+                    </label>
+                    <span class="meta-text" id="imageEditorOutput"></span>
+                    <canvas id="imageEditorCanvas" class="is-hidden"></canvas>
+                    <div class="event-actions modal-actions">
+                        <button class="ghost-btn" type="button" id="cancelImageEditor">
+                            <i data-lucide="x"></i>
+                            <span>إلغاء</span>
+                        </button>
+                        <button class="primary-btn" type="submit">
+                            <i data-lucide="check"></i>
+                            <span>اعتماد الصورة</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js"></script>
-    <script src="admin.js"></script>
+    <script src="supabase-client.js?v=workflow-20260621"></script>
+    <script src="admin.js?v=workflow-20260621"></script>
 </body>
 </html>
