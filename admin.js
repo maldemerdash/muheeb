@@ -474,7 +474,7 @@ const getLeadNotes = (lead) => [
 const getVisibleNotes = (lead) => getLeadNotes(lead).filter(canViewNote);
 
 const getNoteInquiries = (noteId) => state.noteInquiries
-    .filter((inquiry) => inquiry.noteId === noteId)
+    .filter((inquiry) => String(inquiry.noteId) === String(noteId))
     .map((inquiry) => ({
         ...inquiry,
         createdByName: getDisplayName(getUserById(inquiry.createdBy) || {}),
@@ -486,12 +486,33 @@ const getVisibleNotifications = (notifications) => (notifications || []).filter(
     notification.targetUserId === state.admin?.userId
 ));
 
+const notificationFailureMessage = "تم حفظ الإجراء، لكن تعذر إرسال الإشعار للطرف المعني. تأكد من تشغيل ملف تحديث Supabase الخاص بالإشعارات.";
+
 const createTargetedNotifications = async (targetIds, payload) => {
     const ids = Array.from(new Set((targetIds || []).filter((id) => id && id !== state.admin?.userId)));
-    await Promise.all(ids.map((targetUserId) => window.MuheebData.createNotification({
+    if (!ids.length) return [];
+    const results = await Promise.allSettled(ids.map((targetUserId) => window.MuheebData.createNotification({
         ...payload,
         targetUserId,
-    }).catch(() => null)));
+    })));
+    const rejected = results.filter((result) => result.status === "rejected");
+    if (rejected.length) {
+        console.error("Muheeb notification delivery failed:", rejected.map((result) => result.reason));
+        throw new Error(notificationFailureMessage);
+    }
+    return results.map((result) => result.value);
+};
+
+const markNotificationReadLocally = (notificationId) => {
+    if (!notificationId || !state.admin?.userId) return;
+    state.notifications = state.notifications.map((notification) => {
+        if (Number(notification.id) !== Number(notificationId)) return notification;
+        return {
+            ...notification,
+            readBy: Array.from(new Set([...(notification.readBy || []), state.admin.userId])),
+        };
+    });
+    renderNotifications();
 };
 
 const getInquiryNotificationTargets = (note) => {
@@ -1018,11 +1039,13 @@ const addLeadNote = async (text, assignedTo = "") => {
     if (!lead || !text.trim()) return;
     const assignee = getUserById(assignedTo) || state.admin;
     const shouldNotifyAssignee = assignee?.userId && assignee.userId !== state.admin?.userId;
-    const assigneeWhatsappWindow = shouldNotifyAssignee && assignee.phone
+    const assigneePhone = getUserPhone(assignee);
+    const assigneeWhatsappWindow = shouldNotifyAssignee && assigneePhone
         ? window.open("about:blank", "_blank")
         : null;
     if (assigneeWhatsappWindow) assigneeWhatsappWindow.opener = null;
     let note = null;
+    let notificationError = null;
     try {
         note = await window.MuheebData.createLeadNote({
             leadId: lead.id,
@@ -1034,38 +1057,45 @@ const addLeadNote = async (text, assignedTo = "") => {
         throw error;
     }
     if (note?.assignedTo && note.assignedTo !== state.admin?.userId) {
-        await window.MuheebData.createNotification({
-            targetUserId: note.assignedTo,
-            leadId: lead.id,
-            noteId: note.id,
-            kind: "note_assigned",
-            title: "مهمة مسندة إليك",
-            message: `${getDisplayName()} أسند إليك ملاحظة على طلب ${lead.name}.`,
-        }).catch(() => null);
-        openWhatsappMessage(
-            getUserPhone(assignee),
-            `تم إسناد مهمة جديدة إليك على طلب ${lead.name}. يرجى الدخول إلى حسابك لمعاينتها.`,
-            assigneeWhatsappWindow
-        );
+        try {
+            await createTargetedNotifications([note.assignedTo], {
+                leadId: lead.id,
+                noteId: note.id,
+                kind: "note_assigned",
+                title: "مهمة مسندة إليك",
+                message: `${getDisplayName()} أسند إليك ملاحظة على طلب ${lead.name}.`,
+            });
+            openWhatsappMessage(
+                assigneePhone,
+                `تم إسناد مهمة جديدة إليك على طلب ${lead.name}. يرجى الدخول إلى حسابك لمعاينتها.`,
+                assigneeWhatsappWindow
+            );
+        } catch (error) {
+            notificationError = error;
+            assigneeWhatsappWindow?.close?.();
+        }
     } else {
         assigneeWhatsappWindow?.close?.();
     }
     await loadAll();
     state.activeLeadId = lead.id;
     renderLeadModal();
+    if (notificationError) throw notificationError;
 };
 
 const completeLeadNote = async (noteId) => {
     const lead = getActiveLead();
     if (!lead) return;
     const sourceNote = state.leadNotes.find((item) => String(item.id) === String(noteId));
-    const manager = getUserById(sourceNote?.createdBy);
-    const shouldNotifyManager = sourceNote?.createdBy && sourceNote.createdBy !== state.admin?.userId;
+    const notifyUserId = sourceNote?.createdBy || "";
+    const manager = getUserById(notifyUserId);
+    const shouldNotifyManager = notifyUserId && notifyUserId !== state.admin?.userId;
     const managerWhatsappWindow = shouldNotifyManager && manager && getUserPhone(manager)
         ? window.open("about:blank", "_blank")
         : null;
     if (managerWhatsappWindow) managerWhatsappWindow.opener = null;
     let completedNote = null;
+    let notificationError = null;
     try {
         completedNote = await window.MuheebData.completeLeadNote(noteId);
     } catch (error) {
@@ -1074,25 +1104,30 @@ const completeLeadNote = async (noteId) => {
     }
     if (completedNote) {
         if (shouldNotifyManager) {
-            await window.MuheebData.createNotification({
-                targetUserId: sourceNote.createdBy,
-                leadId: lead.id,
-                noteId,
-                kind: "note_done",
-                title: "تم إنجاز ملاحظة متابعة",
-                message: `${getDisplayName()} أنجز ملاحظة على طلب ${lead.name}.`,
-            }).catch(() => null);
-            openWhatsappForUser(
-                manager,
-                `تم إنجاز المهمة المسندة على طلب ${lead.name} بواسطة ${getDisplayName()}.`,
-                managerWhatsappWindow
-            );
+            try {
+                await createTargetedNotifications([notifyUserId], {
+                    leadId: lead.id,
+                    noteId,
+                    kind: "note_done",
+                    title: "تم إنجاز ملاحظة متابعة",
+                    message: `${getDisplayName()} أنجز ملاحظة على طلب ${lead.name}.`,
+                });
+                openWhatsappForUser(
+                    manager,
+                    `تم إنجاز المهمة المسندة على طلب ${lead.name} بواسطة ${getDisplayName()}.`,
+                    managerWhatsappWindow
+                );
+            } catch (error) {
+                notificationError = error;
+                managerWhatsappWindow?.close?.();
+            }
         } else {
             managerWhatsappWindow?.close?.();
         }
         await loadAll();
         state.activeLeadId = lead.id;
         renderLeadModal();
+        if (notificationError) throw notificationError;
     }
 };
 
@@ -1104,12 +1139,18 @@ const addNoteInquiry = async (noteId, body) => {
     const targetUser = getFirstUserWithPhone(targetIds);
     const inquiryWhatsappWindow = targetUser ? window.open("about:blank", "_blank") : null;
     if (inquiryWhatsappWindow) inquiryWhatsappWindow.opener = null;
+    let notificationError = null;
     try {
         await window.MuheebData.createLeadNoteInquiry({
             leadId: lead.id,
             noteId,
             body: body.trim(),
         });
+    } catch (error) {
+        inquiryWhatsappWindow?.close?.();
+        throw error;
+    }
+    try {
         await createTargetedNotifications(targetIds, {
             leadId: lead.id,
             noteId,
@@ -1127,12 +1168,13 @@ const addNoteInquiry = async (noteId, body) => {
             inquiryWhatsappWindow?.close?.();
         }
     } catch (error) {
+        notificationError = error;
         inquiryWhatsappWindow?.close?.();
-        throw error;
     }
     await loadAll();
     state.activeLeadId = lead.id;
     renderLeadModal();
+    if (notificationError) throw notificationError;
 };
 
 const replyNoteInquiry = async (inquiryId, body) => {
@@ -1144,8 +1186,14 @@ const replyNoteInquiry = async (inquiryId, body) => {
         ? window.open("about:blank", "_blank")
         : null;
     if (replyWhatsappWindow) replyWhatsappWindow.opener = null;
+    let notificationError = null;
     try {
         await window.MuheebData.replyLeadNoteInquiry(inquiryId, body.trim());
+    } catch (error) {
+        replyWhatsappWindow?.close?.();
+        throw error;
+    }
+    try {
         await createTargetedNotifications([inquiry.createdBy], {
             leadId: lead.id,
             noteId: inquiry.noteId,
@@ -1161,12 +1209,13 @@ const replyNoteInquiry = async (inquiryId, body) => {
             );
         }
     } catch (error) {
+        notificationError = error;
         replyWhatsappWindow?.close?.();
-        throw error;
     }
     await loadAll();
     state.activeLeadId = lead.id;
     renderLeadModal();
+    if (notificationError) throw notificationError;
 };
 
 const splitLines = (value) => String(value || "")
@@ -3003,20 +3052,22 @@ latestLeads?.addEventListener("click", (event) => {
     if (button) openLeadModal(Number(button.dataset.openLead));
 });
 
-notificationList?.addEventListener("click", (event) => {
+notificationList?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-notification-id]");
+    if (!button) return;
     const leadId = Number(button?.dataset.openLead || 0);
     const notificationId = Number(button?.dataset.notificationId || 0);
     if (notificationId) {
-        window.MuheebData.markNotificationRead(notificationId)
-            .then(async () => {
-                await loadAll();
-                if (leadId) openLeadModal(leadId);
-            })
-            .catch(() => {
-                if (leadId) openLeadModal(leadId);
-            });
+        markNotificationReadLocally(notificationId);
         notificationsMenu.classList.add("is-hidden");
+        try {
+            await window.MuheebData.markNotificationRead(notificationId);
+            await loadAll();
+        } catch (error) {
+            console.error("Muheeb notification read failed:", error);
+            showError("تعذر تحديث الإشعار كمقروء. تأكد من تشغيل ملف تحديث Supabase.");
+        }
+        if (leadId) openLeadModal(leadId);
     }
 });
 
