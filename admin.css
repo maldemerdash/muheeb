@@ -1629,6 +1629,7 @@ td {
     position: relative;
     display: grid;
     grid-template-columns: 132px minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
     gap: 12px;
     align-items: stretch;
     padding: 10px;
@@ -1671,15 +1672,35 @@ td {
     overflow: hidden;
 }
 
-.event-section-thumb button {
-    position: absolute;
-    inset: 8px 8px auto auto;
+.event-section-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding-top: 4px;
+    border-top: 1px solid var(--line);
+}
+
+.event-section-actions button {
+    display: inline-grid;
+    place-items: center;
     width: 30px;
     height: 30px;
-    border: 0;
+    border: 1px solid var(--line);
     border-radius: 8px;
+    color: var(--burgundy);
+    background: var(--white);
+}
+
+.event-section-actions button:hover:not(:disabled) {
     color: var(--white);
-    background: rgba(163, 52, 58, 0.92);
+    background: var(--burgundy);
+    border-color: var(--burgundy);
+}
+
+.event-section-actions button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
 }
 
 .gallery-thumb {

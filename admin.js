@@ -25,6 +25,7 @@ const state = {
     coverPath: "",
     pendingSupportLogos: [],
     pendingEventSections: [],
+    activeEventSectionIndex: null,
 };
 
 const labels = {
@@ -253,9 +254,12 @@ const addSupportLogoButton = document.getElementById("addSupportLogoButton");
 const eventSectionsPreview = document.getElementById("eventSectionsPreview");
 const eventSectionModal = document.getElementById("eventSectionModal");
 const eventSectionForm = document.getElementById("eventSectionForm");
+const eventSectionModalEyebrow = document.getElementById("eventSectionModalEyebrow");
+const eventSectionModalTitle = document.getElementById("eventSectionModalTitle");
 const openEventSectionModalButton = document.getElementById("openEventSectionModal");
 const closeEventSectionModalButton = document.getElementById("closeEventSectionModal");
 const cancelEventSectionModalButton = document.getElementById("cancelEventSectionModal");
+const eventSectionSubmitText = document.getElementById("eventSectionSubmitText");
 const eventSectionImageInput = document.getElementById("eventSectionImageInput");
 const eventSectionImageName = document.getElementById("eventSectionImageName");
 
@@ -2058,6 +2062,7 @@ const resetEventForm = () => {
     }
     state.pendingSupportLogos = [];
     state.pendingEventSections = [];
+    state.activeEventSectionIndex = null;
     coverPreview.removeAttribute("src");
     galleryPreview.innerHTML = "";
     renderSupportLogos([]);
@@ -2148,14 +2153,28 @@ const renderSupportLogos = (logos = [], participants = []) => {
 
 const renderEventSections = (sections = []) => {
     if (!eventSectionsPreview) return;
-    eventSectionsPreview.innerHTML = normalizeEventSections(sections).map((section, index) => `
+    const normalizedSections = normalizeEventSections(sections);
+    eventSectionsPreview.innerHTML = normalizedSections.map((section, index) => `
         <article class="event-section-thumb">
             ${section.image ? `<img src="${escapeHtml(section.image)}" alt="${escapeHtml(section.title)}">` : `<div class="event-section-placeholder"><i data-lucide="image"></i></div>`}
             <div>
                 <strong>${escapeHtml(section.title || `قسم ${index + 1}`)}</strong>
                 <p>${escapeHtml(section.text || "بدون وصف")}</p>
             </div>
-            <button type="button" title="حذف القسم" data-remove-event-section="${index}">×</button>
+            <div class="event-section-actions">
+                <button type="button" title="رفع القسم للأعلى" aria-label="رفع القسم للأعلى" data-move-event-section="${index}" data-direction="-1" ${index === 0 ? "disabled" : ""}>
+                    <i data-lucide="arrow-up"></i>
+                </button>
+                <button type="button" title="إنزال القسم للأسفل" aria-label="إنزال القسم للأسفل" data-move-event-section="${index}" data-direction="1" ${index === normalizedSections.length - 1 ? "disabled" : ""}>
+                    <i data-lucide="arrow-down"></i>
+                </button>
+                <button type="button" title="تعديل القسم" aria-label="تعديل القسم" data-edit-event-section="${index}">
+                    <i data-lucide="pencil"></i>
+                </button>
+                <button type="button" title="حذف القسم" aria-label="حذف القسم" data-remove-event-section="${index}">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </div>
         </article>
     `).join("") || `<span class="meta-text">لا توجد أقسام إضافية. اضغط إضافة قسم لإضافة عنوان ووصف وصورة.</span>`;
     initIcons();
@@ -2198,13 +2217,28 @@ const closeSupportLogoModal = () => {
     if (supportLogosName) supportLogosName.textContent = "المقاس المقترح: 600 × 360 بكسل";
 };
 
-const openEventSectionModal = () => {
+const openEventSectionModal = (index = null) => {
+    const editIndex = Number.isInteger(index) ? index : null;
+    const section = editIndex !== null ? normalizeEventSections(state.pendingEventSections)[editIndex] : null;
+    state.activeEventSectionIndex = section ? editIndex : null;
     eventSectionForm?.reset();
+    if (eventSectionForm && section) {
+        eventSectionForm.elements.sectionTitle.value = section.title || "";
+        eventSectionForm.elements.sectionText.value = section.text || "";
+    }
     if (eventSectionImageInput) {
         eventSectionImageInput.value = "";
+        eventSectionImageInput.required = !section?.image;
         editedFiles.delete(eventSectionImageInput);
     }
-    if (eventSectionImageName) eventSectionImageName.textContent = "المقاس المقترح: 1200 × 760 بكسل";
+    if (eventSectionModalEyebrow) eventSectionModalEyebrow.textContent = section ? "تعديل قسم" : "إضافة قسم";
+    if (eventSectionModalTitle) eventSectionModalTitle.textContent = section ? "تعديل قسم في صفحة الفعالية" : "قسم في صفحة الفعالية";
+    if (eventSectionSubmitText) eventSectionSubmitText.textContent = section ? "حفظ التعديل" : "إضافة القسم";
+    if (eventSectionImageName) {
+        eventSectionImageName.textContent = section?.image
+            ? "الصورة الحالية محفوظة. اختر صورة جديدة فقط إذا أردت استبدالها."
+            : "المقاس المقترح: 1200 × 760 بكسل";
+    }
     eventSectionModal?.classList.remove("is-hidden");
     document.body.classList.add("modal-open");
     window.setTimeout(() => eventSectionForm?.elements.sectionTitle?.focus(), 80);
@@ -2217,8 +2251,13 @@ const closeEventSectionModal = () => {
     eventSectionForm?.reset();
     if (eventSectionImageInput) {
         eventSectionImageInput.value = "";
+        eventSectionImageInput.required = true;
         editedFiles.delete(eventSectionImageInput);
     }
+    state.activeEventSectionIndex = null;
+    if (eventSectionModalEyebrow) eventSectionModalEyebrow.textContent = "إضافة قسم";
+    if (eventSectionModalTitle) eventSectionModalTitle.textContent = "قسم في صفحة الفعالية";
+    if (eventSectionSubmitText) eventSectionSubmitText.textContent = "إضافة القسم";
     if (eventSectionImageName) eventSectionImageName.textContent = "المقاس المقترح: 1200 × 760 بكسل";
 };
 
@@ -2261,10 +2300,13 @@ const addSupportLogoToEvent = async () => {
     }
 };
 
-const addSectionToEvent = async () => {
+const saveSectionToEvent = async () => {
     const files = getInputFiles(eventSectionImageInput);
     const title = eventSectionForm?.elements.sectionTitle?.value?.trim() || "";
     const text = eventSectionForm?.elements.sectionText?.value?.trim() || "";
+    const editIndex = state.activeEventSectionIndex;
+    const isEditing = Number.isInteger(editIndex);
+    const currentSection = isEditing ? normalizeEventSections(state.pendingEventSections)[editIndex] : null;
     if (!title) {
         showError("اكتب عنوان القسم أولاً.", eventFormMessage);
         return;
@@ -2273,21 +2315,26 @@ const addSectionToEvent = async () => {
         showError("اكتب وصف القسم أولاً.", eventFormMessage);
         return;
     }
-    if (!files?.length) {
+    if (!files?.length && !currentSection?.image) {
         showError("اختر صورة القسم أولاً.", eventFormMessage);
         return;
     }
-    showMessage("جاري إضافة القسم...", eventFormMessage);
+    showMessage(isEditing ? "جاري حفظ تعديل القسم..." : "جاري إضافة القسم...", eventFormMessage);
     try {
-        const uploaded = await uploadFiles(files, "event-sections");
-        state.pendingEventSections.push({
+        const uploaded = files?.length ? await uploadFiles(files, "event-sections") : [];
+        const nextSection = {
             title,
             text,
-            image: uploaded[0]?.path || "",
-        });
+            image: uploaded[0]?.path || currentSection?.image || "",
+        };
+        if (isEditing) {
+            state.pendingEventSections.splice(editIndex, 1, nextSection);
+        } else {
+            state.pendingEventSections.push(nextSection);
+        }
         renderEventSections(state.pendingEventSections);
         closeEventSectionModal();
-        showMessage("تمت إضافة القسم. احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
+        showMessage(isEditing ? "تم تعديل القسم. احفظ الفعالية لتثبيت التغيير." : "تمت إضافة القسم. احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
     } catch (error) {
         showError(error.message, eventFormMessage);
     }
@@ -3212,16 +3259,34 @@ supportLogoForm?.addEventListener("submit", async (event) => {
 });
 
 eventSectionsPreview?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-remove-event-section]");
-    if (!button) return;
-    const index = Number(button.dataset.removeEventSection);
+    const editButton = event.target.closest("[data-edit-event-section]");
+    if (editButton) {
+        const index = Number(editButton.dataset.editEventSection);
+        if (!Number.isNaN(index)) openEventSectionModal(index);
+        return;
+    }
+    const moveButton = event.target.closest("[data-move-event-section]");
+    if (moveButton) {
+        const index = Number(moveButton.dataset.moveEventSection);
+        const direction = Number(moveButton.dataset.direction);
+        const nextIndex = index + direction;
+        if (Number.isNaN(index) || Number.isNaN(direction) || nextIndex < 0 || nextIndex >= state.pendingEventSections.length) return;
+        const [section] = state.pendingEventSections.splice(index, 1);
+        state.pendingEventSections.splice(nextIndex, 0, section);
+        renderEventSections(state.pendingEventSections);
+        showMessage("تم تغيير ترتيب القسم، احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
+        return;
+    }
+    const removeButton = event.target.closest("[data-remove-event-section]");
+    if (!removeButton) return;
+    const index = Number(removeButton.dataset.removeEventSection);
     if (Number.isNaN(index)) return;
     state.pendingEventSections.splice(index, 1);
     renderEventSections(state.pendingEventSections);
     showMessage("تم حذف القسم من الفعالية، احفظ التغيير لتثبيته.", eventFormMessage);
 });
 
-openEventSectionModalButton?.addEventListener("click", openEventSectionModal);
+openEventSectionModalButton?.addEventListener("click", () => openEventSectionModal());
 closeEventSectionModalButton?.addEventListener("click", closeEventSectionModal);
 cancelEventSectionModalButton?.addEventListener("click", closeEventSectionModal);
 eventSectionModal?.addEventListener("click", (event) => {
@@ -3229,7 +3294,7 @@ eventSectionModal?.addEventListener("click", (event) => {
 });
 eventSectionForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await addSectionToEvent();
+    await saveSectionToEvent();
 });
 
 coverInput.addEventListener("change", () => {

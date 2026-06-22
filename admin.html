@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=precision-admin-20260622">
+    <link rel="stylesheet" href="admin.css?v=event-sections-order-20260622">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -631,7 +631,7 @@
         <form class="lead-modal event-section-modal image-form" id="eventSectionForm">
             <header class="modal-header">
                 <div>
-                    <p class="eyebrow">إضافة قسم</p>
+                    <p class="eyebrow" id="eventSectionModalEyebrow">إضافة قسم</p>
                     <h2 id="eventSectionModalTitle">قسم في صفحة الفعالية</h2>
                 </div>
                 <button class="ghost-btn icon-only" type="button" id="closeEventSectionModal" aria-label="إغلاق">
@@ -660,7 +660,7 @@
                 </button>
                 <button class="primary-btn" type="submit">
                     <i data-lucide="plus"></i>
-                    <span>إضافة القسم</span>
+                    <span id="eventSectionSubmitText">إضافة القسم</span>
                 </button>
             </div>
         </form>
@@ -832,6 +832,6 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
     <script src="supabase-client.js?v=precision-admin-20260622"></script>
-    <script src="admin.js?v=precision-admin-20260622"></script>
+    <script src="admin.js?v=event-sections-order-20260622"></script>
 </body>
 </html>
