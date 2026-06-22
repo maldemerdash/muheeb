@@ -2710,7 +2710,7 @@ const editUser = (userId) => {
     userForm.elements.userId.value = user.userId;
     userForm.elements.fullName.value = user.fullName || "";
     userForm.elements.phone.value = user.phone || "";
-    userForm.elements.email.value = user.email || "";
+    userForm.elements.email.value = user.email || (user.userId === state.admin?.userId ? state.admin?.authEmail || "" : "");
     userForm.elements.email.disabled = true;
     userForm.elements.password.value = "";
     userForm.elements.password.required = false;
@@ -2733,7 +2733,10 @@ const saveUser = async (event) => {
     showMessage("جاري حفظ المستخدم...", userFormMessage);
     try {
         const formData = new FormData(userForm);
-        const userId = formData.get("userId") || "";
+        const userId = formData.get("userId") || state.editingUser?.userId || "";
+        const editingEmail = state.editingUser?.email || (
+            state.editingUser?.userId === state.admin?.userId ? state.admin?.authEmail || "" : ""
+        );
         let avatarUrl = formData.get("avatarUrl") || state.editingUser?.avatarUrl || state.editingUser?.permissions?.avatarUrl || "";
         const avatarFiles = getInputFiles(userAvatarInput);
         if (avatarFiles && avatarFiles.length) {
@@ -2747,7 +2750,7 @@ const saveUser = async (event) => {
         await window.MuheebData.saveAdminUser({
             fullName: formData.get("fullName"),
             phone: formData.get("phone"),
-            email: formData.get("email") || state.editingUser?.email,
+            email: formData.get("email") || editingEmail,
             password: formData.get("password"),
             active: userForm.elements.active.checked,
             permissions,

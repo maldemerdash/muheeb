@@ -495,34 +495,52 @@
 
         async saveAdminUser(payload, userId) {
             const client = await requireSupabase();
-            await requireAdmin();
+            const currentUser = await requireAdmin();
             const permissions = payload.permissions || {};
+            const email = String(payload.email || "").trim().toLowerCase();
             const row = {
                 full_name: String(payload.fullName || "").trim(),
                 phone: String(payload.phone || "").trim(),
-                email: String(payload.email || "").trim().toLowerCase(),
                 role: payload.role || "user",
                 permissions,
                 active: payload.active !== false,
                 updated_at: new Date().toISOString(),
             };
             if (!row.full_name) throw new Error("اسم المستخدم مطلوب.");
-            if (!row.email) throw new Error("إيميل المستخدم مطلوب.");
             if (userId) {
+                const { data: existingUser, error: existingError } = await client
+                    .from("admin_users")
+                    .select("*")
+                    .eq("user_id", userId)
+                    .maybeSingle();
+                if (existingError) throw existingError;
+                const updateRow = {
+                    ...row,
+                    role: payload.role || existingUser?.role || "user",
+                };
+                if (email) {
+                    updateRow.email = email;
+                } else if (!existingUser?.email && userId === currentUser.id && currentUser.email) {
+                    updateRow.email = currentUser.email;
+                }
                 const { data, error } = await client
                     .from("admin_users")
-                    .update(row)
+                    .update(updateRow)
                     .eq("user_id", userId)
                     .select("*")
                     .single();
+                if (error?.code === "23503" && /admin_users_user_id_fkey/i.test(error.message || "")) {
+                    throw new Error("لا يمكن حفظ هذا المستخدم لأن حساب الدخول غير موجود في Supabase Auth. افتح المستخدم الصحيح من قائمة الفريق أو أنشئه من زر إضافة مستخدم.");
+                }
                 if (error) throw error;
                 return toCamelAdminUser(data);
             }
+            if (!email) throw new Error("إيميل المستخدم مطلوب عند إضافة مستخدم جديد.");
             if (!payload.password || String(payload.password).length < 8) {
                 throw new Error("كلمة السر مطلوبة ولا تقل عن 8 أحرف للمستخدم الجديد.");
             }
             const authUser = await createAuthUser({
-                email: row.email,
+                email,
                 password: payload.password,
                 fullName: row.full_name,
                 phone: row.phone,
@@ -532,9 +550,13 @@
                 .insert({
                     user_id: authUser.id,
                     ...row,
+                    email,
                 })
                 .select("*")
                 .single();
+            if (error?.code === "23503" && /admin_users_user_id_fkey/i.test(error.message || "")) {
+                throw new Error("تم رفض حفظ المستخدم لأن حساب الدخول لم يكتمل إنشاؤه في Supabase Auth. جرّب إضافة المستخدم مرة أخرى بإيميل مختلف أو تأكد من وجوده في Authentication.");
+            }
             if (error) throw error;
             return toCamelAdminUser(data);
         },
