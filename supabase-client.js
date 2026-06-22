@@ -162,11 +162,20 @@
         operation: "تشغيل",
     };
 
+    const getGallerySortRank = (image = {}) => {
+        const value = Number(image.sort_order ?? image.sortOrder ?? 0);
+        return Number.isFinite(value) && value > 0 ? value : Number.MAX_SAFE_INTEGER;
+    };
+
     const normalizeGallery = (event) => {
         const gallery = event.event_images || event.gallery || [];
         return gallery
             .slice()
-            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            .sort((a, b) => {
+                const sortDiff = getGallerySortRank(a) - getGallerySortRank(b);
+                if (sortDiff) return sortDiff;
+                return Number(a.id || 0) - Number(b.id || 0);
+            })
             .map((image) => ({
                 id: image.id,
                 imagePath: image.image_path || image.imagePath || "",

@@ -1378,6 +1378,19 @@ const normalizeEventSections = (sections = []) => (Array.isArray(sections) ? sec
     .map(normalizeEventSection)
     .filter((section) => section.title || section.text || section.image);
 
+const getGallerySortRank = (image = {}) => {
+    const value = Number(image.sortOrder ?? image.sort_order ?? 0);
+    return Number.isFinite(value) && value > 0 ? value : Number.MAX_SAFE_INTEGER;
+};
+
+const getOrderedGallery = (gallery = []) => (Array.isArray(gallery) ? gallery : [])
+    .slice()
+    .sort((a, b) => {
+        const sortDiff = getGallerySortRank(a) - getGallerySortRank(b);
+        if (sortDiff) return sortDiff;
+        return Number(a.id || 0) - Number(b.id || 0);
+    });
+
 const renderEvents = () => {
     eventsList.innerHTML = state.events.map((event) => `
         <article class="event-item">
@@ -2152,7 +2165,7 @@ const editEvent = (eventId) => {
 };
 
 const renderGallery = (gallery) => {
-    const safeGallery = Array.isArray(gallery) ? gallery : [];
+    const safeGallery = getOrderedGallery(gallery);
     galleryPreview.innerHTML = safeGallery.map((image, index) => {
         const caption = parseGalleryCaption(image.altText || "");
         return `
@@ -2420,24 +2433,20 @@ const saveGalleryImageSettings = async (imageId) => {
 };
 
 const moveGalleryImage = async (imageId, direction) => {
-    const gallery = state.editingEvent?.gallery || [];
+    const gallery = getOrderedGallery(state.editingEvent?.gallery || []);
     const index = gallery.findIndex((image) => Number(image.id) === Number(imageId));
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= gallery.length) return;
-    const current = gallery[index];
-    const target = gallery[nextIndex];
-    const currentPayload = getGalleryCardPayload(current.id);
-    const targetPayload = getGalleryCardPayload(target.id);
-    await Promise.all([
-        window.MuheebData.updateEventImage(current.id, {
-            altText: currentPayload.altText ?? current.altText ?? "",
-            sortOrder: Number(target.sortOrder || nextIndex + 1),
-        }),
-        window.MuheebData.updateEventImage(target.id, {
-            altText: targetPayload.altText ?? target.altText ?? "",
-            sortOrder: Number(current.sortOrder || index + 1),
-        }),
-    ]);
+    const reorderedGallery = gallery.slice();
+    const [movedImage] = reorderedGallery.splice(index, 1);
+    reorderedGallery.splice(nextIndex, 0, movedImage);
+    await Promise.all(reorderedGallery.map((image, imageIndex) => {
+        const payload = getGalleryCardPayload(image.id);
+        return window.MuheebData.updateEventImage(image.id, {
+            altText: payload.altText ?? image.altText ?? "",
+            sortOrder: imageIndex + 1,
+        });
+    }));
     await refreshCurrentEventEditor();
     showMessage("تم تغيير ترتيب الصورة في المعرض.", eventFormMessage);
 };
