@@ -198,6 +198,25 @@ const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
 
 const getEventPageUrl = (event) => `event.html?id=${encodeURIComponent(event.id)}`;
 
+const appLooksLikeImagePath = (value) => /^(https?:|data:|assets\/|uploads\/|event-images\/|storage\/)/i.test(String(value || ""));
+
+const normalizePartnerLogo = (entry, index = 0) => {
+    if (typeof entry === "object" && entry !== null) {
+        return {
+            logo: entry.logo || entry.image || entry.path || entry.imagePath || "",
+            name: entry.name || entry.label || `جهة ${index + 1}`,
+        };
+    }
+    const raw = String(entry || "").trim();
+    if (raw.includes("|")) {
+        const [first = "", second = ""] = raw.split("|").map((part) => part.trim());
+        return appLooksLikeImagePath(first)
+            ? { logo: first, name: second || `جهة ${index + 1}` }
+            : { logo: second, name: first || `جهة ${index + 1}` };
+    }
+    return { logo: raw, name: `جهة ${index + 1}` };
+};
+
 const applyContactLinks = (content) => {
     const phone = getContentValue(content, "contact_phone", "+966 59 957 5691");
     const phoneDigits = normalizePhoneDigits(phone);
@@ -248,6 +267,7 @@ const applyTextContent = (content) => {
 };
 
 const applySiteImages = (images) => {
+    const allKeyedImages = new Map((images || []).map((image) => [image.imageKey, image]));
     const keyedImages = new Map(
         (images || [])
             .filter((image) => image.published !== false)
@@ -255,7 +275,16 @@ const applySiteImages = (images) => {
     );
 
     document.querySelectorAll("[data-image]").forEach((imageElement) => {
-        const image = keyedImages.get(imageElement.dataset.image);
+        const imageKey = imageElement.dataset.image;
+        const storedImage = allKeyedImages.get(imageKey);
+        const hiddenByCms = storedImage && storedImage.published === false;
+        const hideTarget = imageElement.closest("[data-image-block]") || imageElement;
+        hideTarget.classList.toggle("is-hidden-by-cms", Boolean(hiddenByCms));
+        if (hiddenByCms) {
+            imageElement.removeAttribute("src");
+            return;
+        }
+        const image = keyedImages.get(imageKey);
         if (!image?.imagePath) return;
         imageElement.src = image.imagePath;
         if (image.altText) {
@@ -263,12 +292,17 @@ const applySiteImages = (images) => {
         }
     });
 
+    const interestBackgroundRow = allKeyedImages.get("interest_background");
     const interestBackground = keyedImages.get("interest_background");
     const interestSection = document.querySelector(".interest");
+    if (interestSection && interestBackgroundRow?.published === false) {
+        interestSection.style.backgroundImage = "linear-gradient(90deg, rgba(69, 18, 22, 0.93), rgba(69, 18, 22, 0.78))";
+    }
     if (interestSection && interestBackground?.imagePath) {
         interestSection.style.backgroundImage = `linear-gradient(90deg, rgba(69, 18, 22, 0.93), rgba(69, 18, 22, 0.78)), url("${interestBackground.imagePath}")`;
     }
 
+    const allGalleryRows = (images || []).filter((image) => image.groupName === "identity_gallery");
     const gallery = (images || [])
         .filter((image) => image.published !== false && image.groupName === "identity_gallery" && image.imagePath)
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
@@ -281,6 +315,8 @@ const applySiteImages = (images) => {
                 <span>${escapeHtml(image.label || image.altText || "صورة من مهيب")}</span>
             </article>
         `).join("");
+    } else if (identityGallery && allGalleryRows.length) {
+        identityGallery.innerHTML = "";
     }
 };
 
@@ -386,7 +422,10 @@ const openEventDetail = (eventId) => {
             <section class="event-detail-section">
                 <h3>شعارات الجهات</h3>
                 <div class="logo-strip">
-                    ${event.supportLogos.map((logo) => `<img src="${escapeHtml(logo)}" alt="شعار جهة مشاركة">`).join("")}
+                    ${event.supportLogos.map((entry, index) => {
+                        const partner = normalizePartnerLogo(entry, index);
+                        return partner.logo ? `<img src="${escapeHtml(partner.logo)}" alt="${escapeHtml(partner.name)}" title="${escapeHtml(partner.name)}">` : "";
+                    }).join("")}
                 </div>
             </section>
         ` : ""}

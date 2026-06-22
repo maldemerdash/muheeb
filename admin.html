@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=notifications-media-20260622">
+    <link rel="stylesheet" href="admin.css?v=precision-admin-20260622">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -403,15 +403,21 @@
                                     <h3>أسماء الجهات وشعاراتها</h3>
                                 </div>
                             </div>
-                            <label>
-                                <span>أسماء المشاركين أو الجهات</span>
-                                <textarea name="participants" rows="3" placeholder="اكتب كل جهة في سطر مستقل، وسيظهر الاسم تحت الشعار الموافق له"></textarea>
-                            </label>
-                            <label class="upload-box">
-                                <span>شعارات الجهات الداعمة أو المنفذة</span>
-                                <input type="file" id="supportLogosInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
-                                <small id="supportLogosName">يمكن اختيار أكثر من شعار</small>
-                            </label>
+                            <div class="support-logo-composer">
+                                <label>
+                                    <span>اسم الجهة</span>
+                                    <input type="text" id="supportLogoLabel" placeholder="مثال: جهة داعمة أو منفذة">
+                                </label>
+                                <label class="upload-box compact-upload">
+                                    <span>شعار الجهة</span>
+                                    <input type="file" id="supportLogosInput" accept="image/png,image/jpeg,image/webp,image/gif">
+                                    <small id="supportLogosName">اختر شعارًا ثم اعتمده من محرر الصورة</small>
+                                </label>
+                                <button class="primary-btn" type="button" id="addSupportLogoButton">
+                                    <i data-lucide="plus"></i>
+                                    <span>إضافة الشعار</span>
+                                </button>
+                            </div>
                             <div class="gallery-preview support-preview" id="supportLogosPreview"></div>
                         </section>
 
@@ -821,7 +827,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=notifications-media-20260622"></script>
-    <script src="admin.js?v=notifications-media-20260622"></script>
+    <script src="supabase-client.js?v=precision-admin-20260622"></script>
+    <script src="admin.js?v=precision-admin-20260622"></script>
 </body>
 </html>

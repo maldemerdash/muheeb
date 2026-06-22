@@ -73,7 +73,6 @@ insert into public.site_images
     (image_key, label, group_name, image_path, alt_text, published, sort_order)
 values
     ('footer_logo', 'شعار الفوتر', 'footer', 'assets/logo-meheib.png', 'شعار مهيب', true, 70),
-    ('footer_main_image', 'صورة الفوتر في الصفحة الرئيسية', 'footer', 'assets/identity-wall-clean.png', 'صورة بصرية للفوتر', true, 71),
     ('admin_login_background', 'خلفية شاشة دخول المشرف', 'admin_login', 'assets/brand-palette.jpg', 'خلفية لوحة التحكم', true, 80)
 on conflict (image_key) do update
 set label = excluded.label,

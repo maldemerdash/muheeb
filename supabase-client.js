@@ -7,6 +7,7 @@
     const storageBucket = config.storageBucket || "event-images";
     const supabaseScriptUrl = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
     let supabaseClient = null;
+    let supabaseClientPromise = null;
     let supabaseLoadPromise = null;
 
     const loadSupabaseLibrary = () => {
@@ -40,9 +41,13 @@
         if (supabaseClient) {
             return supabaseClient;
         }
-        const supabaseGlobal = await loadSupabaseLibrary();
-        supabaseClient = supabaseGlobal.createClient(config.url, config.anonKey);
-        return supabaseClient;
+        if (!supabaseClientPromise) {
+            supabaseClientPromise = loadSupabaseLibrary().then((supabaseGlobal) => {
+                supabaseClient = supabaseGlobal.createClient(config.url, config.anonKey);
+                return supabaseClient;
+            });
+        }
+        return supabaseClientPromise;
     };
 
     const localJson = async (path, options = {}) => {
@@ -312,7 +317,6 @@
         { image_key: "execution_image", label: "صورة رحلة التنفيذ", group_name: "site_core", image_path: "assets/identity-stamp-clean.png", alt_text: "توثيق واعتماد مخرجات مهيب", published: true, sort_order: 50 },
         { image_key: "interest_background", label: "خلفية نموذج الطلب", group_name: "site_core", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 60 },
         { image_key: "footer_logo", label: "شعار الفوتر", group_name: "footer", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 70 },
-        { image_key: "footer_main_image", label: "صورة الفوتر في الصفحة الرئيسية", group_name: "footer", image_path: "assets/identity-wall-clean.png", alt_text: "صورة بصرية للفوتر", published: true, sort_order: 71 },
         { image_key: "admin_login_background", label: "خلفية شاشة دخول المشرف", group_name: "admin_login", image_path: "assets/brand-palette.jpg", alt_text: "خلفية لوحة التحكم", published: true, sort_order: 80 },
     ];
 
@@ -334,7 +338,7 @@
             }
             const [contentResult, imagesResult, optionsResult] = await Promise.all([
                 client.from("site_content").select("*").order("sort_order", { ascending: true }),
-                client.from("site_images").select("*").eq("published", true).order("sort_order", { ascending: true }),
+                client.from("site_images").select("*").order("sort_order", { ascending: true }),
                 client.from("interest_options").select("*").eq("published", true).order("sort_order", { ascending: true }),
             ]);
             if (contentResult.error) throw contentResult.error;

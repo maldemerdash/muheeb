@@ -79,7 +79,6 @@ const siteImagePageOrder = {
     execution_image: 50,
     interest_background: 60,
     footer_logo: 70,
-    footer_main_image: 71,
     admin_login_background: 80,
 };
 
@@ -260,6 +259,8 @@ const closeImageEditorButton = document.getElementById("closeImageEditor");
 const cancelImageEditorButton = document.getElementById("cancelImageEditor");
 const eventSupportLogosInput = document.getElementById("supportLogosInput");
 const supportLogosName = document.getElementById("supportLogosName");
+const supportLogoLabelInput = document.getElementById("supportLogoLabel");
+const addSupportLogoButton = document.getElementById("addSupportLogoButton");
 
 const editedFiles = new WeakMap();
 
@@ -412,6 +413,8 @@ const buildWhatsappUrl = (phone, message = "") => {
     return `https://wa.me/${digits}${text}`;
 };
 
+const getUserPhone = (user) => user?.phone || user?.permissions?.phone || "";
+
 const getLeadWhatsappUrl = (lead) => buildWhatsappUrl(
     `${lead?.countryCode || ""}${lead?.phone || ""}`,
     "تم الاطلاع على طلبك وسيتم التواصل معك وتسعدني خدمتك"
@@ -429,6 +432,16 @@ const openWhatsappMessage = (phone, message, popup = null) => {
     }
     window.open(url, "_blank", "noopener");
 };
+
+const openWhatsappForUser = (user, message, popup = null) => {
+    openWhatsappMessage(getUserPhone(user), message, popup);
+};
+
+const getFirstUserWithPhone = (targetIds = []) => (
+    targetIds
+        .map((id) => getUserById(id))
+        .find((user) => user?.userId && user.userId !== state.admin?.userId && getUserPhone(user))
+);
 
 const renderPhoneValue = (lead) => {
     if (!canViewLeadPhone()) return `<span class="muted-text">مخفي حسب الصلاحية</span>`;
@@ -1030,8 +1043,8 @@ const addLeadNote = async (text, assignedTo = "") => {
             message: `${getDisplayName()} أسند إليك ملاحظة على طلب ${lead.name}.`,
         }).catch(() => null);
         openWhatsappMessage(
-            assignee.phone,
-            "تم إسناد مهمة جديدة يرجى الاطلاع عليها في صفحتك الشخصية",
+            getUserPhone(assignee),
+            `تم إسناد مهمة جديدة إليك على طلب ${lead.name}. يرجى الدخول إلى حسابك لمعاينتها.`,
             assigneeWhatsappWindow
         );
     } else {
@@ -1045,17 +1058,37 @@ const addLeadNote = async (text, assignedTo = "") => {
 const completeLeadNote = async (noteId) => {
     const lead = getActiveLead();
     if (!lead) return;
-    const completedNote = await window.MuheebData.completeLeadNote(noteId);
+    const sourceNote = state.leadNotes.find((item) => String(item.id) === String(noteId));
+    const manager = getUserById(sourceNote?.createdBy);
+    const shouldNotifyManager = sourceNote?.createdBy && sourceNote.createdBy !== state.admin?.userId;
+    const managerWhatsappWindow = shouldNotifyManager && manager && getUserPhone(manager)
+        ? window.open("about:blank", "_blank")
+        : null;
+    if (managerWhatsappWindow) managerWhatsappWindow.opener = null;
+    let completedNote = null;
+    try {
+        completedNote = await window.MuheebData.completeLeadNote(noteId);
+    } catch (error) {
+        managerWhatsappWindow?.close?.();
+        throw error;
+    }
     if (completedNote) {
-        if (completedNote.createdBy && completedNote.createdBy !== state.admin?.userId) {
+        if (shouldNotifyManager) {
             await window.MuheebData.createNotification({
-                targetUserId: completedNote.createdBy,
+                targetUserId: sourceNote.createdBy,
                 leadId: lead.id,
                 noteId,
                 kind: "note_done",
                 title: "تم إنجاز ملاحظة متابعة",
                 message: `${getDisplayName()} أنجز ملاحظة على طلب ${lead.name}.`,
             }).catch(() => null);
+            openWhatsappForUser(
+                manager,
+                `تم إنجاز المهمة المسندة على طلب ${lead.name} بواسطة ${getDisplayName()}.`,
+                managerWhatsappWindow
+            );
+        } else {
+            managerWhatsappWindow?.close?.();
         }
         await loadAll();
         state.activeLeadId = lead.id;
@@ -1065,20 +1098,38 @@ const completeLeadNote = async (noteId) => {
 
 const addNoteInquiry = async (noteId, body) => {
     const lead = getActiveLead();
-    const note = state.leadNotes.find((item) => item.id === noteId);
+    const note = state.leadNotes.find((item) => String(item.id) === String(noteId));
     if (!lead || !note || !body.trim()) return;
-    await window.MuheebData.createLeadNoteInquiry({
-        leadId: lead.id,
-        noteId,
-        body: body.trim(),
-    });
-    await createTargetedNotifications(getInquiryNotificationTargets(note), {
-        leadId: lead.id,
-        noteId,
-        kind: "note_inquiry",
-        title: "استفسار على ملاحظة متابعة",
-        message: `${getDisplayName()} أضاف استفسارًا على طلب ${lead.name}.`,
-    });
+    const targetIds = getInquiryNotificationTargets(note);
+    const targetUser = getFirstUserWithPhone(targetIds);
+    const inquiryWhatsappWindow = targetUser ? window.open("about:blank", "_blank") : null;
+    if (inquiryWhatsappWindow) inquiryWhatsappWindow.opener = null;
+    try {
+        await window.MuheebData.createLeadNoteInquiry({
+            leadId: lead.id,
+            noteId,
+            body: body.trim(),
+        });
+        await createTargetedNotifications(targetIds, {
+            leadId: lead.id,
+            noteId,
+            kind: "note_inquiry",
+            title: "استفسار على ملاحظة متابعة",
+            message: `${getDisplayName()} أضاف استفسارًا على طلب ${lead.name}.`,
+        });
+        if (targetUser) {
+            openWhatsappForUser(
+                targetUser,
+                `تم إرسال استفسار على مهمة مرتبطة بطلب ${lead.name}. يرجى الدخول إلى لوحة التحكم للرد.`,
+                inquiryWhatsappWindow
+            );
+        } else {
+            inquiryWhatsappWindow?.close?.();
+        }
+    } catch (error) {
+        inquiryWhatsappWindow?.close?.();
+        throw error;
+    }
     await loadAll();
     state.activeLeadId = lead.id;
     renderLeadModal();
@@ -1086,16 +1137,33 @@ const addNoteInquiry = async (noteId, body) => {
 
 const replyNoteInquiry = async (inquiryId, body) => {
     const lead = getActiveLead();
-    const inquiry = state.noteInquiries.find((item) => item.id === inquiryId);
+    const inquiry = state.noteInquiries.find((item) => String(item.id) === String(inquiryId));
     if (!lead || !inquiry || !body.trim()) return;
-    await window.MuheebData.replyLeadNoteInquiry(inquiryId, body.trim());
-    await createTargetedNotifications([inquiry.createdBy], {
-        leadId: lead.id,
-        noteId: inquiry.noteId,
-        kind: "note_inquiry_reply",
-        title: "رد على استفسارك",
-        message: `${getDisplayName()} رد على استفسارك في طلب ${lead.name}.`,
-    });
+    const requester = getUserById(inquiry.createdBy);
+    const replyWhatsappWindow = requester && requester.userId !== state.admin?.userId && getUserPhone(requester)
+        ? window.open("about:blank", "_blank")
+        : null;
+    if (replyWhatsappWindow) replyWhatsappWindow.opener = null;
+    try {
+        await window.MuheebData.replyLeadNoteInquiry(inquiryId, body.trim());
+        await createTargetedNotifications([inquiry.createdBy], {
+            leadId: lead.id,
+            noteId: inquiry.noteId,
+            kind: "note_inquiry_reply",
+            title: "رد على استفسارك",
+            message: `${getDisplayName()} رد على استفسارك في طلب ${lead.name}.`,
+        });
+        if (replyWhatsappWindow) {
+            openWhatsappForUser(
+                requester,
+                `تم الرد على استفسارك بخصوص طلب ${lead.name}. يرجى الدخول إلى حسابك لمراجعة الرد.`,
+                replyWhatsappWindow
+            );
+        }
+    } catch (error) {
+        replyWhatsappWindow?.close?.();
+        throw error;
+    }
     await loadAll();
     state.activeLeadId = lead.id;
     renderLeadModal();
@@ -1105,6 +1173,34 @@ const splitLines = (value) => String(value || "")
     .split("\n")
     .map((item) => item.trim())
     .filter(Boolean);
+
+const looksLikeImagePath = (value) => /^(https?:|data:|assets\/|uploads\/|event-images\/|storage\/)/i.test(String(value || ""));
+
+const parseSupportLogoEntry = (entry, index = 0) => {
+    if (typeof entry === "object" && entry !== null) {
+        return {
+            logo: entry.logo || entry.image || entry.path || entry.imagePath || "",
+            name: entry.name || entry.label || `جهة ${index + 1}`,
+        };
+    }
+    const raw = String(entry || "").trim();
+    if (raw.includes("|")) {
+        const [first = "", second = ""] = raw.split("|").map((part) => part.trim());
+        return looksLikeImagePath(first)
+            ? { logo: first, name: second || `جهة ${index + 1}` }
+            : { logo: second, name: first || `جهة ${index + 1}` };
+    }
+    return {
+        logo: raw,
+        name: `جهة ${index + 1}`,
+    };
+};
+
+const stringifySupportLogoEntry = ({ name = "", logo = "" } = {}) => {
+    const safeLogo = String(logo || "").trim();
+    const safeName = String(name || "").trim() || "جهة مشاركة";
+    return safeLogo ? `${safeName} | ${safeLogo}` : "";
+};
 
 const parseEventSections = (value) => splitLines(value).map((line) => {
     const [title = "", text = "", image = ""] = line.split("|").map((part) => part.trim());
@@ -1561,7 +1657,7 @@ const siteImageGroupMeta = {
     site_core: { title: "صور الواجهة والأقسام الأساسية", description: "الصور التي تظهر في الهيرو، رحلة التنفيذ، نموذج الطلب، والتذييل.", icon: "layout-template" },
     identity_gallery: { title: "معرض الهوية المتحرك", description: "صور الشريط المتحرك لتطبيقات الهوية في الصفحة الرئيسية.", icon: "gallery-horizontal-end" },
     services: { title: "صور الخدمات", description: "صور بطاقات الخدمات الثلاثة في الموقع.", icon: "sparkles" },
-    footer: { title: "صور الفوتر", description: "الصورة والشعار الخاصان بتذييل صفحات الموقع.", icon: "panel-bottom" },
+    footer: { title: "صور الفوتر", description: "الشعار الخاص بتذييل صفحات الموقع.", icon: "panel-bottom" },
     admin_login: { title: "شاشة دخول المشرف", description: "خلفية شاشة تسجيل الدخول الخاصة بلوحة التحكم.", icon: "log-in" },
     custom: { title: "صور إضافية", description: "صور مخصصة يمكن إضافتها لاستخدامات لاحقة أو أقسام جديدة.", icon: "image-plus" },
 };
@@ -1585,21 +1681,13 @@ const renderSiteImages = () => {
     ));
     const groupId = (groupName) => `site-image-group-${String(groupName || "custom").replace(/[^a-z0-9_-]/gi, "-")}`;
     const renderImageCard = (image) => `
-        <article class="site-image-card" data-site-image-card="${image.id}">
+        <article class="site-image-card" data-site-image-card="${image.id}" data-site-image-key="${escapeHtml(image.imageKey)}" data-site-image-group="${escapeHtml(image.groupName)}">
             <img src="${escapeHtml(image.imagePath || "assets/logo-meheib.png")}" alt="">
             <div class="site-image-fields">
                 <div class="form-grid">
                     <label>
-                        <span>مفتاح الصورة</span>
-                        <input type="text" data-site-image-key value="${escapeHtml(image.imageKey)}">
-                    </label>
-                    <label>
                         <span>اسم الصورة</span>
                         <input type="text" data-site-image-label value="${escapeHtml(image.label)}">
-                    </label>
-                    <label>
-                        <span>المجموعة</span>
-                        <input type="text" data-site-image-group value="${escapeHtml(image.groupName)}">
                     </label>
                     <label>
                         <span>الترتيب</span>
@@ -1610,9 +1698,10 @@ const renderSiteImages = () => {
                 <span>وصف الصورة</span>
                     <input type="text" data-site-image-alt value="${escapeHtml(image.altText)}">
                 </label>
-                <label class="upload-box">
+                <label class="upload-box compact-upload site-image-upload-box">
                     <span>استبدال الصورة</span>
                     <input type="file" data-site-image-file accept="image/png,image/jpeg,image/webp,image/gif">
+                    <small>اختر صورة ثم اعتمد القص من المحرر</small>
                 </label>
                 <label class="toggle-field compact-toggle">
                     <input type="checkbox" data-site-image-published ${image.published ? "checked" : ""}>
@@ -1675,6 +1764,14 @@ const resetInterestOptionForm = () => {
     interestOptionFormTitle.textContent = "إضافة عنصر للقوائم";
 };
 
+const startNewInterestOption = (type = "interest") => {
+    resetInterestOptionForm();
+    if (interestOptionForm.elements.optionType) interestOptionForm.elements.optionType.value = type;
+    interestOptionFormTitle.textContent = `إضافة عنصر إلى ${dropdownTypeLabels[type] || "القوائم"}`;
+    interestOptionForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => interestOptionForm.elements.label?.focus(), 180);
+};
+
 const getDropdownOptions = (type, includeHidden = true) => {
     const savedEventCategories = state.interestOptions.filter((option) => option.optionType === "event_category");
     const source = type === "event_category"
@@ -1714,33 +1811,58 @@ const renderInterestOptions = () => {
         const options = state.interestOptions.filter((option) => (option.optionType || "interest") === type);
         return `
             <section class="dropdown-option-group">
-                <div class="visual-section-heading compact-heading">
-                    <span class="visual-section-number">${type === "interest" ? "01" : "02"}</span>
-                    <div>
-                        <p class="eyebrow">${escapeHtml(dropdownTypeLabels[type])}</p>
-                        <h3>${type === "interest" ? "تظهر في نموذج إرسال الطلب" : "تظهر في إضافة أو تعديل الفعالية"}</h3>
-                    </div>
-                </div>
-                ${options.map((option) => `
-                    <article class="interest-option-item">
+                <div class="dropdown-group-head">
+                    <div class="visual-section-heading compact-heading">
+                        <span class="visual-section-number">${type === "interest" ? "01" : "02"}</span>
                         <div>
-                            <strong>${escapeHtml(option.label)}</strong>
-                            <span>${escapeHtml(option.value)} - ترتيب ${escapeHtml(option.sortOrder)}</span>
-                            <span class="badge ${option.published ? "" : "is-dim"}">${option.published ? "ظاهر" : "مخفي"}</span>
+                            <p class="eyebrow">${escapeHtml(dropdownTypeLabels[type])}</p>
+                            <h3>${type === "interest" ? "تظهر في نموذج إرسال الطلب" : "تظهر في إضافة أو تعديل الفعالية"}</h3>
                         </div>
-                        <div class="event-actions">
-                            <button class="ghost-btn icon-only small-icon" type="button" data-edit-interest-option="${option.id}" title="تعديل" aria-label="تعديل">
-                                <i data-lucide="pencil"></i>
-                            </button>
-                            <button class="ghost-btn icon-only small-icon" type="button" data-toggle-interest-option="${option.id}" title="${option.published ? "إخفاء" : "إظهار"}" aria-label="${option.published ? "إخفاء" : "إظهار"}">
-                                <i data-lucide="${option.published ? "eye-off" : "eye"}"></i>
-                            </button>
-                            <button class="danger-btn icon-only small-icon" type="button" data-delete-interest-option="${option.id}" title="حذف" aria-label="حذف">
-                                <i data-lucide="trash-2"></i>
-                            </button>
-                        </div>
-                    </article>
-                `).join("") || `<div class="compact-item"><span>لا توجد عناصر في هذه القائمة.</span></div>`}
+                    </div>
+                    <button class="primary-btn icon-only small-icon" type="button" data-new-interest-option="${escapeHtml(type)}" title="إضافة عنصر" aria-label="إضافة عنصر">
+                        <i data-lucide="plus"></i>
+                    </button>
+                </div>
+                <div class="table-wrap dropdown-table-wrap">
+                    <table class="dropdown-options-table">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>القيمة</th>
+                                <th>الترتيب</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${options.map((option) => `
+                                <tr>
+                                    <td><strong>${escapeHtml(option.label)}</strong></td>
+                                    <td><span>${escapeHtml(option.value)}</span></td>
+                                    <td>${escapeHtml(option.sortOrder)}</td>
+                                    <td><span class="badge ${option.published ? "" : "is-dim"}">${option.published ? "ظاهر" : "مخفي"}</span></td>
+                                    <td>
+                                        <div class="event-actions table-actions">
+                                            <button class="ghost-btn icon-only small-icon" type="button" data-edit-interest-option="${option.id}" title="تعديل" aria-label="تعديل">
+                                                <i data-lucide="pencil"></i>
+                                            </button>
+                                            <button class="ghost-btn icon-only small-icon" type="button" data-toggle-interest-option="${option.id}" title="${option.published ? "إخفاء" : "إظهار"}" aria-label="${option.published ? "إخفاء" : "إظهار"}">
+                                                <i data-lucide="${option.published ? "eye-off" : "eye"}"></i>
+                                            </button>
+                                            <button class="danger-btn icon-only small-icon" type="button" data-delete-interest-option="${option.id}" title="حذف" aria-label="حذف">
+                                                <i data-lucide="trash-2"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join("") || `
+                                <tr>
+                                    <td colspan="5"><span class="meta-text">لا توجد عناصر في هذه القائمة.</span></td>
+                                </tr>
+                            `}
+                        </tbody>
+                    </table>
+                </div>
             </section>
         `;
     };
@@ -1757,7 +1879,12 @@ const resetEventForm = () => {
     eventFormTitle.textContent = "إضافة فعالية";
     coverName.textContent = "لم يتم اختيار صورة جديدة";
     galleryName.textContent = "يمكن اختيار أكثر من صورة";
-    if (supportLogosName) supportLogosName.textContent = "يمكن اختيار أكثر من شعار";
+    if (supportLogosName) supportLogosName.textContent = "اختر شعارًا ثم اعتمده من محرر الصورة";
+    if (supportLogoLabelInput) supportLogoLabelInput.value = "";
+    if (eventSupportLogosInput) {
+        eventSupportLogosInput.value = "";
+        editedFiles.delete(eventSupportLogosInput);
+    }
     state.pendingSupportLogos = [];
     coverPreview.removeAttribute("src");
     galleryPreview.innerHTML = "";
@@ -1787,13 +1914,17 @@ const editEvent = (eventId) => {
     if (eventForm.elements.timeTo) eventForm.elements.timeTo.value = event.timeTo || "";
     eventForm.elements.description.value = event.description || "";
     eventForm.elements.highlights.value = (event.highlights || []).join("\n");
-    if (eventForm.elements.participants) eventForm.elements.participants.value = (event.participants || []).join("\n");
     if (eventForm.elements.achievements) eventForm.elements.achievements.value = (event.achievements || []).join("\n");
     if (eventForm.elements.detailSections) eventForm.elements.detailSections.value = stringifyEventSections(event.detailSections || []);
     eventForm.elements.sortOrder.value = event.sortOrder || 0;
     eventForm.elements.published.checked = Boolean(event.published);
     state.pendingSupportLogos = event.supportLogos || [];
-    if (supportLogosName) supportLogosName.textContent = state.pendingSupportLogos.length ? `${state.pendingSupportLogos.length} شعار محفوظ` : "يمكن اختيار أكثر من شعار";
+    if (supportLogoLabelInput) supportLogoLabelInput.value = "";
+    if (eventSupportLogosInput) {
+        eventSupportLogosInput.value = "";
+        editedFiles.delete(eventSupportLogosInput);
+    }
+    if (supportLogosName) supportLogosName.textContent = state.pendingSupportLogos.length ? `${state.pendingSupportLogos.length} شعار محفوظ` : "اختر شعارًا ثم اعتمده من محرر الصورة";
     coverName.textContent = event.coverImage ? "صورة محفوظة حاليًا" : "لم يتم اختيار صورة جديدة";
     if (event.coverImage) {
         coverPreview.src = event.coverImage;
@@ -1801,7 +1932,7 @@ const editEvent = (eventId) => {
         coverPreview.removeAttribute("src");
     }
     renderGallery(event.gallery || []);
-    renderSupportLogos(state.pendingSupportLogos, event.participants || []);
+    renderSupportLogos(state.pendingSupportLogos);
     setView("eventsView");
 };
 
@@ -1817,12 +1948,17 @@ const renderGallery = (gallery) => {
 const renderSupportLogos = (logos = [], participants = []) => {
     if (!supportLogosPreview) return;
     const safeParticipants = Array.isArray(participants) ? participants : [];
-    supportLogosPreview.innerHTML = (logos || []).map((logo, index) => `
+    supportLogosPreview.innerHTML = (logos || []).map((entry, index) => {
+        const logo = parseSupportLogoEntry(entry, index);
+        const logoName = logo.name || safeParticipants[index] || `جهة ${index + 1}`;
+        return `
         <div class="gallery-thumb support-thumb">
-            <img src="${escapeHtml(logo)}" alt="${escapeHtml(safeParticipants[index] || "شعار جهة مشاركة")}">
-            <span>${escapeHtml(safeParticipants[index] || `جهة ${index + 1}`)}</span>
+            ${logo.logo ? `<img src="${escapeHtml(logo.logo)}" alt="${escapeHtml(logoName)}">` : `<span class="meta-text">بدون شعار</span>`}
+            <span>${escapeHtml(logoName)}</span>
+            <button type="button" title="حذف الشعار" data-remove-support-logo="${index}">×</button>
         </div>
-    `).join("") || `<span class="meta-text">لا توجد شعارات محفوظة للجهات.</span>`;
+    `;
+    }).join("") || `<span class="meta-text">لا توجد شعارات محفوظة للجهات.</span>`;
 };
 
 const renderTemporaryFilePreview = (container, files = [], names = [], className = "") => {
@@ -1843,6 +1979,34 @@ const uploadFiles = async (files, folder = "events") => {
 };
 
 const getInputFiles = (input) => editedFiles.get(input) || input?.files || [];
+
+const addSupportLogoToEvent = async () => {
+    const files = getInputFiles(eventSupportLogosInput);
+    if (!files?.length) {
+        showError("اختر شعار الجهة أولاً.");
+        return;
+    }
+    const name = supportLogoLabelInput?.value?.trim() || "";
+    showMessage("جاري إضافة شعار الجهة...", eventFormMessage);
+    try {
+        const uploaded = await uploadFiles(files, "event-logos");
+        uploaded.forEach((file, index) => {
+            const logoName = name || file.name?.replace(/\.[^.]+$/, "") || `جهة ${state.pendingSupportLogos.length + index + 1}`;
+            const entry = stringifySupportLogoEntry({ name: logoName, logo: file.path });
+            if (entry) state.pendingSupportLogos.push(entry);
+        });
+        if (supportLogoLabelInput) supportLogoLabelInput.value = "";
+        if (eventSupportLogosInput) {
+            eventSupportLogosInput.value = "";
+            editedFiles.delete(eventSupportLogosInput);
+        }
+        if (supportLogosName) supportLogosName.textContent = "تمت إضافة الشعار، لا تنس حفظ الفعالية.";
+        renderSupportLogos(state.pendingSupportLogos);
+        showMessage("تمت إضافة شعار الجهة. احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
+    } catch (error) {
+        showError(error.message, eventFormMessage);
+    }
+};
 
 const getFriendlyFileLabel = (label, fallback = "تم تجهيز الصورة") => {
     const value = String(label || "").trim();
@@ -1909,13 +2073,40 @@ const fitCropToAspect = () => {
     };
 };
 
+const getRenderedImageMetrics = () => {
+    const preview = imageEditorPreview?.closest(".image-editor-preview");
+    if (!preview || !imageEditorPreview?.naturalWidth || !imageEditorPreview?.naturalHeight) {
+        const box = preview?.getBoundingClientRect();
+        return box ? { offsetX: 0, offsetY: 0, width: box.width, height: box.height } : null;
+    }
+    const box = preview.getBoundingClientRect();
+    const imageRatio = imageEditorPreview.naturalWidth / imageEditorPreview.naturalHeight;
+    const boxRatio = box.width / box.height;
+    let width = box.width;
+    let height = box.height;
+    let offsetX = 0;
+    let offsetY = 0;
+    if (boxRatio > imageRatio) {
+        height = box.height;
+        width = height * imageRatio;
+        offsetX = (box.width - width) / 2;
+    } else {
+        width = box.width;
+        height = width / imageRatio;
+        offsetY = (box.height - height) / 2;
+    }
+    return { offsetX, offsetY, width, height };
+};
+
 const updateCropFrame = () => {
     if (!imageCropFrame) return;
     const crop = state.imageEditor.crop || { x: 10, y: 10, width: 80, height: 80 };
-    imageCropFrame.style.left = `${crop.x}%`;
-    imageCropFrame.style.top = `${crop.y}%`;
-    imageCropFrame.style.width = `${crop.width}%`;
-    imageCropFrame.style.height = `${crop.height}%`;
+    const metrics = getRenderedImageMetrics();
+    if (!metrics) return;
+    imageCropFrame.style.left = `${metrics.offsetX + (crop.x / 100) * metrics.width}px`;
+    imageCropFrame.style.top = `${metrics.offsetY + (crop.y / 100) * metrics.height}px`;
+    imageCropFrame.style.width = `${(crop.width / 100) * metrics.width}px`;
+    imageCropFrame.style.height = `${(crop.height / 100) * metrics.height}px`;
 };
 
 const updateImageEditorPreview = () => {
@@ -1926,6 +2117,7 @@ const updateImageEditorPreview = () => {
         fitCropToAspect();
     }
     imageEditorPreview.src = state.imageEditor.objectUrl;
+    imageEditorPreview.onload = updateCropFrame;
     imageEditorPreview.style.transform = `scale(${values.zoom})`;
     imageEditorPreview.style.filter = `brightness(${values.brightness}%) contrast(${values.contrast}%) grayscale(${values.grayscale}%) sepia(${values.sepia}%)`;
     updateCropFrame();
@@ -2007,23 +2199,23 @@ let cropInteraction = null;
 const startCropInteraction = (event) => {
     if (!imageCropFrame || !event.target.closest("#imageCropFrame")) return;
     event.preventDefault();
-    const previewBox = imageCropFrame.parentElement?.getBoundingClientRect();
-    if (!previewBox) return;
+    const imageMetrics = getRenderedImageMetrics();
+    if (!imageMetrics) return;
     cropInteraction = {
         mode: event.target.dataset.cropHandle || "move",
         startX: event.clientX,
         startY: event.clientY,
         startCrop: { ...state.imageEditor.crop },
-        previewBox,
+        imageMetrics,
     };
     imageCropFrame.setPointerCapture?.(event.pointerId);
 };
 
 const updateCropInteraction = (event) => {
     if (!cropInteraction) return;
-    const { mode, startX, startY, startCrop, previewBox } = cropInteraction;
-    const deltaX = ((event.clientX - startX) / previewBox.width) * 100;
-    const deltaY = ((event.clientY - startY) / previewBox.height) * 100;
+    const { mode, startX, startY, startCrop, imageMetrics } = cropInteraction;
+    const deltaX = ((event.clientX - startX) / imageMetrics.width) * 100;
+    const deltaY = ((event.clientY - startY) / imageMetrics.height) * 100;
     const minSize = 12;
     const ratio = getAspectRatio(getImageEditorValues().aspect);
     let next = { ...startCrop };
@@ -2122,13 +2314,11 @@ const saveEvent = async (event) => {
     try {
         const coverFiles = getInputFiles(coverInput);
         const galleryFiles = getInputFiles(galleryInput);
-        const supportLogoFiles = getInputFiles(eventSupportLogosInput);
         if (coverFiles && coverFiles.length) {
             const uploadedCover = await uploadFiles(coverFiles);
             state.coverPath = uploadedCover[0]?.path || state.coverPath;
         }
         const uploadedGallery = await uploadFiles(galleryFiles);
-        const uploadedSupportLogos = await uploadFiles(supportLogoFiles, "event-logos");
         const payload = {
             title: eventForm.elements.title.value,
             category: eventForm.elements.category.value,
@@ -2142,12 +2332,9 @@ const saveEvent = async (event) => {
             timeTo: eventForm.elements.timeTo?.value || "",
             description: eventForm.elements.description.value,
             highlights: splitLines(eventForm.elements.highlights.value),
-            participants: splitLines(eventForm.elements.participants?.value || ""),
+            participants: [],
             achievements: splitLines(eventForm.elements.achievements?.value || ""),
-            supportLogos: [
-                ...state.pendingSupportLogos,
-                ...uploadedSupportLogos.map((file) => file.path),
-            ],
+            supportLogos: [...state.pendingSupportLogos],
             detailSections: parseEventSections(eventForm.elements.detailSections?.value || ""),
             sortOrder: Number(eventForm.elements.sortOrder.value || 0),
             published: eventForm.elements.published.checked,
@@ -2223,9 +2410,9 @@ const readSiteImageCardPayload = async (imageId) => {
         imagePath = uploaded[0]?.path || imagePath;
     }
     return {
-        imageKey: card.querySelector("[data-site-image-key]")?.value,
+        imageKey: existing.imageKey,
         label: card.querySelector("[data-site-image-label]")?.value,
-        groupName: card.querySelector("[data-site-image-group]")?.value,
+        groupName: existing.groupName,
         imagePath,
         altText: card.querySelector("[data-site-image-alt]")?.value,
         sortOrder: Number(card.querySelector("[data-site-image-sort]")?.value || 0),
@@ -2925,9 +3112,14 @@ siteImageList?.addEventListener("change", (event) => {
 });
 
 interestOptionList?.addEventListener("click", async (event) => {
+    const newButton = event.target.closest("[data-new-interest-option]");
     const editButton = event.target.closest("[data-edit-interest-option]");
     const toggleButton = event.target.closest("[data-toggle-interest-option]");
     const deleteButton = event.target.closest("[data-delete-interest-option]");
+    if (newButton) {
+        startNewInterestOption(newButton.dataset.newInterestOption || "interest");
+        return;
+    }
     if (editButton) {
         editInterestOption(Number(editButton.dataset.editInterestOption));
     }
@@ -2974,6 +3166,18 @@ galleryPreview.addEventListener("click", async (event) => {
     }
 });
 
+supportLogosPreview?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-support-logo]");
+    if (!button) return;
+    const index = Number(button.dataset.removeSupportLogo);
+    if (Number.isNaN(index)) return;
+    state.pendingSupportLogos.splice(index, 1);
+    renderSupportLogos(state.pendingSupportLogos);
+    if (supportLogosName) supportLogosName.textContent = "تم حذف الشعار من الفعالية، احفظ التغيير.";
+});
+
+addSupportLogoButton?.addEventListener("click", addSupportLogoToEvent);
+
 coverInput.addEventListener("change", () => {
     const file = coverInput.files?.[0];
     coverName.textContent = file ? file.name : "لم يتم اختيار صورة جديدة";
@@ -2996,8 +3200,8 @@ galleryInput.addEventListener("change", () => {
 
 eventSupportLogosInput?.addEventListener("change", () => {
     const count = eventSupportLogosInput.files?.length || 0;
-    if (supportLogosName) supportLogosName.textContent = count ? `${count} شعار جاهز للرفع عند الحفظ` : "يمكن اختيار أكثر من شعار";
-    if (count) openImageEditor(eventSupportLogosInput, eventSupportLogosInput.files[0], eventSupportLogosInput.files);
+    if (supportLogosName) supportLogosName.textContent = count ? "شعار جاهز للقص والاعتماد" : "اختر شعارًا ثم اعتمده من محرر الصورة";
+    if (count) openImageEditor(eventSupportLogosInput, eventSupportLogosInput.files[0]);
 });
 
 userAvatarInput?.addEventListener("change", () => {
@@ -3032,8 +3236,7 @@ imageEditorForm?.addEventListener("submit", async (event) => {
             renderTemporaryFilePreview(galleryPreview, processed);
         }
         if (input === eventSupportLogosInput && supportLogosName) {
-            supportLogosName.textContent = `${processed.length} شعار تم تجهيزه للرفع عند الحفظ`;
-            renderTemporaryFilePreview(supportLogosPreview, processed, splitLines(eventForm.elements.participants?.value || ""), "support-thumb");
+            supportLogosName.textContent = "تم تجهيز الشعار، اكتب اسم الجهة ثم اضغط إضافة الشعار";
         }
         if (input === userAvatarInput) {
             const previewUrl = URL.createObjectURL(editedFile);

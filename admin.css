@@ -1497,6 +1497,13 @@ td {
     gap: 12px;
 }
 
+.site-image-upload-box {
+    min-height: 78px;
+    display: grid;
+    gap: 6px;
+    align-content: center;
+}
+
 .image-form,
 .option-form {
     display: grid;
@@ -1509,30 +1516,6 @@ td {
 
 .compact-toggle {
     padding-top: 0;
-}
-
-.interest-option-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 14px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: #fbfaf7;
-}
-
-.interest-option-item > div:first-child {
-    display: grid;
-    gap: 5px;
-}
-
-.interest-option-item strong {
-    color: var(--burgundy);
-}
-
-.interest-option-item span {
-    color: var(--muted);
 }
 
 .form-grid,
@@ -1634,6 +1617,18 @@ td {
     text-align: center;
 }
 
+.support-logo-composer {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.1fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.support-logo-composer .primary-btn {
+    min-height: 54px;
+    align-self: end;
+}
+
 .gallery-thumb button {
     position: absolute;
     inset: 6px 6px auto auto;
@@ -1652,6 +1647,36 @@ td {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--white);
+}
+
+.dropdown-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.dropdown-options-table {
+    min-width: 780px;
+}
+
+.dropdown-options-table th,
+.dropdown-options-table td {
+    text-align: right;
+    vertical-align: middle;
+}
+
+.dropdown-options-table td strong {
+    color: var(--burgundy);
+}
+
+.dropdown-options-table td span {
+    color: var(--muted);
+}
+
+.table-actions {
+    justify-content: flex-start;
+    margin-top: 0;
 }
 
 .compact-heading {
@@ -1786,26 +1811,26 @@ td {
 
 .crop-handle-nw {
     top: -9px;
-    right: -9px;
-    cursor: nesw-resize;
+    left: -9px;
+    cursor: nwse-resize;
 }
 
 .crop-handle-ne {
     top: -9px;
-    left: -9px;
-    cursor: nwse-resize;
+    right: -9px;
+    cursor: nesw-resize;
 }
 
 .crop-handle-sw {
     bottom: -9px;
-    right: -9px;
-    cursor: nwse-resize;
+    left: -9px;
+    cursor: nesw-resize;
 }
 
 .crop-handle-se {
     bottom: -9px;
-    left: -9px;
-    cursor: nesw-resize;
+    right: -9px;
+    cursor: nwse-resize;
 }
 
 .modal-header,
@@ -2056,6 +2081,10 @@ td {
     }
 
     .event-item {
+        grid-template-columns: 1fr;
+    }
+
+    .support-logo-composer {
         grid-template-columns: 1fr;
     }
 
