@@ -420,6 +420,22 @@
             return (data || []).map(toCamelEvent);
         },
 
+        async getPublishedEvent(eventId) {
+            const client = await getSupabaseClient();
+            if (!client) {
+                const payload = await localJson("/api/events", { headers: { Accept: "application/json" } });
+                return (payload.events || []).find((event) => String(event.id) === String(eventId)) || null;
+            }
+            const { data, error } = await client
+                .from("events")
+                .select("*, event_images(id, image_path, alt_text, sort_order)")
+                .eq("id", eventId)
+                .eq("published", true)
+                .maybeSingle();
+            if (error) throw error;
+            return data ? toCamelEvent(data) : null;
+        },
+
         async createLead(lead) {
             const client = await getSupabaseClient();
             if (!client) {

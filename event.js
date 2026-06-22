@@ -94,7 +94,7 @@ const repeatForMarquee = (items) => {
 
 const looksLikeImagePath = (value) => /^(https?:|data:|assets\/|uploads\/|event-images\/|storage\/)/i.test(String(value || ""));
 
-const stringifySectionValue = (value) => {
+const stringifyEventPageSectionValue = (value) => {
     if (value === null || value === undefined) return "";
     if (typeof value === "string" || typeof value === "number") return String(value).trim();
     if (typeof value === "object") {
@@ -103,15 +103,15 @@ const stringifySectionValue = (value) => {
     return String(value).trim();
 };
 
-const normalizeEventSections = (sections = []) => (Array.isArray(sections) ? sections : [])
+const normalizeEventPageSections = (sections = []) => (Array.isArray(sections) ? sections : [])
     .map((section, index) => {
         if (typeof section === "string") {
             const [title = "", text = "", image = ""] = section.split("|").map((part) => part.trim());
             return { title, text, image };
         }
-        const title = stringifySectionValue(section.title || section.heading || section.name);
-        const text = stringifySectionValue(section.text || section.description || section.body || section.content);
-        const image = stringifySectionValue(section.image || section.imagePath || section.path || section.logo);
+        const title = stringifyEventPageSectionValue(section.title || section.heading || section.name);
+        const text = stringifyEventPageSectionValue(section.text || section.description || section.body || section.content);
+        const image = stringifyEventPageSectionValue(section.image || section.imagePath || section.path || section.logo);
         return {
             title: title || (text || image ? `قسم ${index + 1}` : ""),
             text,
@@ -156,7 +156,7 @@ const renderEvent = (event) => {
     const highlights = Array.isArray(event.highlights) ? event.highlights : [];
     const achievements = Array.isArray(event.achievements) ? event.achievements : [];
     const partners = buildPartners(event);
-    const eventDetailSections = normalizeEventSections(event.detailSections || []);
+    const eventDetailSections = normalizeEventPageSections(event.detailSections || []);
     const detailSections = eventDetailSections.length ? eventDetailSections : [
         {
             title: getEventContentValue("event_default_section_title", "تفاصيل التجربة"),
@@ -255,7 +255,14 @@ const loadEventPage = async () => {
     } catch (error) {
         events = staticEventFallback;
     }
-    const event = events.find((item) => String(item.id) === String(eventId));
+    let event = events.find((item) => String(item.id) === String(eventId));
+    if (!event && window.MuheebData?.getPublishedEvent) {
+        try {
+            event = await window.MuheebData.getPublishedEvent(eventId);
+        } catch (error) {
+            event = null;
+        }
+    }
     if (event) {
         renderEvent(event);
     } else {
