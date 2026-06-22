@@ -174,9 +174,21 @@
             }));
     };
 
+    const uniqueTextItems = (items = []) => {
+        const seen = new Set();
+        return (Array.isArray(items) ? items : [])
+            .map((item) => String(item || "").trim())
+            .filter((item) => {
+                if (!item || seen.has(item)) return false;
+                seen.add(item);
+                return true;
+            });
+    };
+
     const toCamelEvent = (event) => ({
         id: event.id,
         title: event.title,
+        titleSize: event.title_size || event.titleSize || "normal",
         category: event.category,
         categoryLabel: categoryLabels[event.category] || event.category,
         location: event.location || "",
@@ -191,7 +203,7 @@
         highlights: Array.isArray(event.highlights) ? event.highlights : [],
         participants: Array.isArray(event.participants) ? event.participants : [],
         achievements: Array.isArray(event.achievements) ? event.achievements : [],
-        supportLogos: Array.isArray(event.support_logos || event.supportLogos) ? (event.support_logos || event.supportLogos) : [],
+        supportLogos: uniqueTextItems(event.support_logos || event.supportLogos || []),
         detailSections: Array.isArray(event.detail_sections || event.detailSections) ? (event.detail_sections || event.detailSections) : [],
         coverImage: event.cover_image || event.coverImage || "",
         published: Boolean(event.published),
@@ -886,6 +898,7 @@
             await requireAdmin();
             const row = {
                 title: payload.title,
+                title_size: payload.titleSize || "normal",
                 category: payload.category,
                 location: payload.location || "",
                 venue_name: payload.venueName || "",
@@ -899,32 +912,37 @@
                 highlights: payload.highlights || [],
                 participants: payload.participants || [],
                 achievements: payload.achievements || [],
-                support_logos: payload.supportLogos || [],
+                support_logos: uniqueTextItems(payload.supportLogos || []),
                 detail_sections: payload.detailSections || [],
                 cover_image: payload.coverImage || "",
                 published: Boolean(payload.published),
                 sort_order: Number(payload.sortOrder || 0),
                 updated_at: new Date().toISOString(),
             };
-            let savedEvent;
-            if (eventId) {
-                const { data, error } = await client
+            const persistEvent = async (eventRow) => {
+                if (eventId) {
+                    return client
+                        .from("events")
+                        .update(eventRow)
+                        .eq("id", eventId)
+                        .select("*")
+                        .single();
+                }
+                return client
                     .from("events")
-                    .update(row)
-                    .eq("id", eventId)
+                    .insert(eventRow)
                     .select("*")
                     .single();
-                if (error) throw error;
-                savedEvent = data;
-            } else {
-                const { data, error } = await client
-                    .from("events")
-                    .insert(row)
-                    .select("*")
-                    .single();
-                if (error) throw error;
-                savedEvent = data;
+            };
+            let { data: savedEvent, error: saveError } = await persistEvent(row);
+            if (saveError?.code === "42703" && /title_size/i.test(saveError.message || "")) {
+                const rowWithoutTitleSize = { ...row };
+                delete rowWithoutTitleSize.title_size;
+                const retry = await persistEvent(rowWithoutTitleSize);
+                savedEvent = retry.data;
+                saveError = retry.error;
             }
+            if (saveError) throw saveError;
             if (payload.galleryImages?.length) {
                 const galleryRows = payload.galleryImages.map((path, index) => ({
                     event_id: savedEvent.id,
@@ -934,6 +952,31 @@
                 }));
                 const { error } = await client.from("event_images").insert(galleryRows);
                 if (error) throw error;
+            }
+            const { data: savedImages, error: imageReadError } = await client
+                .from("event_images")
+                .select("id, image_path, sort_order")
+                .eq("event_id", savedEvent.id)
+                .order("sort_order", { ascending: true })
+                .order("id", { ascending: true });
+            if (imageReadError) throw imageReadError;
+            const seenImagePaths = new Set();
+            const duplicateImageIds = [];
+            (savedImages || []).forEach((image) => {
+                const path = String(image.image_path || "").trim();
+                if (!path) return;
+                if (seenImagePaths.has(path)) {
+                    duplicateImageIds.push(image.id);
+                    return;
+                }
+                seenImagePaths.add(path);
+            });
+            if (duplicateImageIds.length) {
+                const { error: imageDeleteError } = await client
+                    .from("event_images")
+                    .delete()
+                    .in("id", duplicateImageIds);
+                if (imageDeleteError) throw imageDeleteError;
             }
             return toCamelEvent(savedEvent);
         },

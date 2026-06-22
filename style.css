@@ -31,6 +31,19 @@ body {
     letter-spacing: 0;
 }
 
+main p:not(.eyebrow),
+.project-card p,
+.service-card p,
+.event-info-card p,
+.event-page-copy > p:not(.eyebrow),
+.intro-text p:last-child,
+.after-sale-content > p,
+.interest-copy > p {
+    text-align: justify;
+    text-align-last: right;
+    text-justify: inter-word;
+}
+
 body.menu-open {
     overflow: hidden;
 }
@@ -1545,10 +1558,10 @@ body.modal-open {
 }
 
 .event-page-hero {
-    min-height: 720px;
+    min-height: 680px;
     display: grid;
-    grid-template-columns: minmax(420px, 1fr) minmax(380px, 0.85fr);
-    gap: 46px;
+    grid-template-columns: minmax(380px, 0.9fr) minmax(460px, 1.1fr);
+    gap: 38px;
     align-items: center;
     padding: 132px min(6vw, 72px) 74px;
     background:
@@ -1559,25 +1572,28 @@ body.modal-open {
 
 .event-page-cover {
     position: relative;
-    min-height: 500px;
+    min-height: 0;
+    order: 2;
 }
 
 .event-page-cover::before {
     content: "";
     position: absolute;
-    inset: 34px 34px auto auto;
-    width: 82%;
-    height: 82%;
+    inset: auto 28px -22px auto;
+    width: 74%;
+    height: 42%;
     border: 1px solid var(--gold);
     border-radius: 8px;
-    transform: translate(22px, -22px);
+    transform: none;
+    opacity: 0.55;
 }
 
 .event-page-cover img {
     position: relative;
     z-index: 1;
     width: 100%;
-    height: 520px;
+    aspect-ratio: 16 / 10;
+    height: auto;
     object-fit: cover;
     border-radius: 8px;
     background: var(--white);
@@ -1588,6 +1604,7 @@ body.modal-open {
     display: grid;
     gap: 18px;
     align-content: center;
+    order: 1;
 }
 
 .event-page-copy h1 {
@@ -1595,6 +1612,15 @@ body.modal-open {
     color: var(--burgundy);
     font-size: clamp(3rem, 6vw, 5.6rem);
     line-height: 1.12;
+}
+
+.event-page-copy h1[data-title-size="compact"] {
+    font-size: clamp(2.35rem, 4.1vw, 4.15rem);
+    line-height: 1.22;
+}
+
+.event-page-copy h1[data-title-size="large"] {
+    font-size: clamp(3.4rem, 6.7vw, 6.2rem);
 }
 
 .event-page-copy > p:not(.eyebrow) {

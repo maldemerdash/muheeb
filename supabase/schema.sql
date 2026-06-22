@@ -39,6 +39,7 @@ create table if not exists public.leads (
 create table if not exists public.events (
     id bigint generated always as identity primary key,
     title text not null,
+    title_size text not null default 'normal',
     category text not null,
     location text,
     venue_name text,

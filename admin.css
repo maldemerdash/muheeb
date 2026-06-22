@@ -788,6 +788,17 @@ td {
     background: #fbfaf7;
 }
 
+.event-cover-editor {
+    grid-template-columns: minmax(260px, 0.42fr) minmax(420px, 0.58fr);
+    align-items: stretch;
+}
+
+.event-cover-copy {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+}
+
 .event-editor-section-head {
     display: flex;
     align-items: center;
@@ -807,7 +818,9 @@ td {
 }
 
 .event-cover-preview {
-    height: 320px;
+    min-height: 220px;
+    max-height: 340px;
+    aspect-ratio: 16 / 10;
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -823,15 +836,15 @@ td {
 }
 
 .event-main-fields {
-    grid-template-columns: minmax(0, 1.25fr) minmax(190px, 0.65fr) minmax(220px, 0.75fr);
+    grid-template-columns: minmax(260px, 1.4fr) minmax(140px, 0.55fr) minmax(120px, 0.42fr) minmax(150px, 0.52fr);
 }
 
 .event-venue-fields {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(220px, 0.5fr) minmax(320px, 1fr);
 }
 
 .event-time-fields {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
 }
 
 .event-help-box {
@@ -847,6 +860,29 @@ td {
 
 .event-help-box strong {
     color: var(--burgundy);
+}
+
+.event-form-actions {
+    display: grid;
+    grid-template-columns: minmax(140px, 0.35fr) minmax(220px, 0.55fr) minmax(180px, 0.4fr);
+    gap: 12px;
+    align-items: end;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+}
+
+.event-form-actions .primary-btn {
+    min-height: 54px;
+    white-space: nowrap;
+}
+
+.dimension-hint {
+    margin: 0;
+    color: var(--gold);
+    font-size: 0.92rem;
+    font-weight: 900;
 }
 
 .events-page-layout .event-list {
@@ -1617,18 +1653,6 @@ td {
     text-align: center;
 }
 
-.support-logo-composer {
-    display: grid;
-    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.1fr) auto;
-    gap: 12px;
-    align-items: end;
-}
-
-.support-logo-composer .primary-btn {
-    min-height: 54px;
-    align-self: end;
-}
-
 .gallery-thumb button {
     position: absolute;
     inset: 6px 6px auto auto;
@@ -1638,6 +1662,10 @@ td {
     border-radius: 8px;
     color: var(--white);
     background: rgba(163, 52, 58, 0.92);
+}
+
+.support-logo-modal {
+    width: min(760px, calc(100% - 28px));
 }
 
 .dropdown-option-group {
@@ -1880,9 +1908,20 @@ td {
 }
 
 .lead-detail-grid strong,
-.lead-detail-grid a {
+.lead-detail-grid a,
+.text-link-button {
     color: var(--burgundy);
     font-weight: 900;
+}
+
+.text-link-button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    text-align: inherit;
 }
 
 .lead-detail-grid p {
@@ -1990,10 +2029,24 @@ td {
     .media-library-page,
     .events-page-layout,
     .events-page-layout .event-list,
-    .site-image-group-grid,
-    .event-main-fields,
-    .event-time-fields {
+    .site-image-group-grid {
         grid-template-columns: 1fr;
+    }
+
+    .event-cover-editor {
+        grid-template-columns: minmax(230px, 0.42fr) minmax(360px, 0.58fr);
+    }
+
+    .event-main-fields {
+        grid-template-columns: minmax(240px, 1.2fr) minmax(130px, 0.55fr) minmax(120px, 0.45fr) minmax(140px, 0.55fr);
+    }
+
+    .event-time-fields {
+        grid-template-columns: repeat(4, minmax(110px, 1fr));
+    }
+
+    .event-form-actions {
+        grid-template-columns: minmax(120px, 0.35fr) minmax(200px, 0.55fr) minmax(160px, 0.4fr);
     }
 }
 
@@ -2039,6 +2092,8 @@ td {
     .visual-metrics-grid,
     .visual-button-row,
     .visual-chip-grid,
+    .event-cover-editor,
+    .event-form-actions,
     .event-main-fields,
     .event-venue-fields,
     .event-time-fields {

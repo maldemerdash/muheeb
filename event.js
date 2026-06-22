@@ -15,6 +15,12 @@ const eventCategoryMeta = {
 };
 
 let eventPageCategoryOptions = [];
+let eventPageContent = {};
+
+const getEventContentValue = (key, fallback = "") => {
+    const value = eventPageContent?.[key];
+    return value === undefined || value === null || value === "" ? fallback : value;
+};
 
 const getEventCategoryMeta = (category) => {
     const fallback = eventCategoryMeta[category] || { label: category || "فعالية", icon: "sparkles" };
@@ -126,7 +132,7 @@ const renderEvent = (event) => {
     const partners = buildPartners(event);
     const detailSections = event.detailSections?.length ? event.detailSections : [
         {
-            title: "تفاصيل التجربة",
+            title: getEventContentValue("event_default_section_title", "تفاصيل التجربة"),
             text: event.description || "يمكن إضافة أقسام تفصيلية لهذه الفعالية من لوحة التحكم.",
             image: event.coverImage || "",
         },
@@ -137,6 +143,7 @@ const renderEvent = (event) => {
     document.getElementById("eventCoverImage").alt = event.title;
     document.getElementById("eventCategory").textContent = event.categoryLabel || meta.label;
     document.getElementById("eventTitle").textContent = event.title;
+    document.getElementById("eventTitle").dataset.titleSize = event.titleSize || "normal";
     document.getElementById("eventDescription").textContent = event.description || "";
     document.getElementById("eventMeta").innerHTML = renderEventMeta(event);
     document.getElementById("eventAboutTitle").textContent = event.title;
@@ -214,6 +221,7 @@ const loadEventPage = async () => {
             window.MuheebData.getSiteContent().catch(() => ({})),
         ]);
         eventPageCategoryOptions = siteData.eventCategoryOptions || [];
+        eventPageContent = siteData.content || {};
         if (Array.isArray(publishedEvents) && publishedEvents.length) {
             events = [...publishedEvents, ...staticEventFallback];
         }

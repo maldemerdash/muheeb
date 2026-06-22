@@ -24,15 +24,6 @@ const state = {
     activeInquiry: { mode: "create", noteId: "", inquiryId: "" },
     coverPath: "",
     pendingSupportLogos: [],
-    imageEditor: {
-        input: null,
-        file: null,
-        objectUrl: "",
-        crop: { x: 10, y: 10, width: 80, height: 80 },
-        queue: [],
-        queueIndex: 0,
-        processed: [],
-    },
 };
 
 const labels = {
@@ -132,6 +123,7 @@ const defaultSiteContentRows = [
     { contentKey: "event_partners_title", label: "عنوان الجهات المشاركة", value: "الجهات المشاركة أو الداعمة", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 178 },
     { contentKey: "event_sections_eyebrow", label: "عنوان صغير لأقسام الفعالية", value: "تفاصيل إضافية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 179 },
     { contentKey: "event_sections_title", label: "عنوان أقسام الفعالية", value: "كل ما يتعلق بالفعالية", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 180 },
+    { contentKey: "event_default_section_title", label: "عنوان القسم الافتراضي في أسفل الفعالية", value: "تفاصيل التجربة", inputType: "text", groupName: "صفحة الفعالية", sortOrder: 181 },
 ];
 
 const ensureSiteContentRows = (rows = []) => {
@@ -248,15 +240,11 @@ const profileDetailGrid = document.getElementById("profileDetailGrid");
 const profileRequestForm = document.getElementById("profileRequestForm");
 const profileRequestMessage = document.getElementById("profileRequestMessage");
 const profileRequestsList = document.getElementById("profileRequestsList");
-const imageEditorModal = document.getElementById("imageEditorModal");
-const imageEditorPreview = document.getElementById("imageEditorPreview");
-const imageCropFrame = document.getElementById("imageCropFrame");
-const imageEditorCanvas = document.getElementById("imageEditorCanvas");
-const imageEditorForm = document.getElementById("imageEditorForm");
-const imageEditorFileName = document.getElementById("imageEditorFileName");
-const imageEditorOutput = document.getElementById("imageEditorOutput");
-const closeImageEditorButton = document.getElementById("closeImageEditor");
-const cancelImageEditorButton = document.getElementById("cancelImageEditor");
+const supportLogoModal = document.getElementById("supportLogoModal");
+const supportLogoForm = document.getElementById("supportLogoForm");
+const openSupportLogoModalButton = document.getElementById("openSupportLogoModal");
+const closeSupportLogoModalButton = document.getElementById("closeSupportLogoModal");
+const cancelSupportLogoModalButton = document.getElementById("cancelSupportLogoModal");
 const eventSupportLogosInput = document.getElementById("supportLogosInput");
 const supportLogosName = document.getElementById("supportLogosName");
 const supportLogoLabelInput = document.getElementById("supportLogoLabel");
@@ -420,21 +408,78 @@ const getLeadWhatsappUrl = (lead) => buildWhatsappUrl(
     "تم الاطلاع على طلبك وسيتم التواصل معك وتسعدني خدمتك"
 );
 
-const openWhatsappMessage = (phone, message, popup = null) => {
+const openPendingExternalWindow = (label = "واتساب") => {
+    const popup = window.open("", "_blank");
+    if (!popup) return null;
+    try {
+        popup.document.write(`
+            <!doctype html>
+            <html lang="ar" dir="rtl">
+            <head><meta charset="utf-8"><title>${label}</title></head>
+            <body style="font-family: Cairo, Arial, sans-serif; display:grid; min-height:100vh; place-items:center; margin:0; background:#f4f1ed; color:#451216;">
+                <strong>جاري تجهيز رسالة ${label}...</strong>
+            </body>
+            </html>
+        `);
+        popup.document.close();
+    } catch (error) {
+        // Some browsers block writing to the newly opened window; navigation still works.
+    }
+    return popup;
+};
+
+const openWhatsappMessage = (phone, message, popup = null, missingMessage = "لا يوجد رقم واتساب للطرف المعني.") => {
     const url = buildWhatsappUrl(phone, message);
     if (!url) {
         popup?.close?.();
+        if (missingMessage) showError(missingMessage);
         return null;
     }
-    if (popup) {
-        popup.location.href = url;
-        return popup;
+    if (popup && !popup.closed) {
+        try {
+            popup.location.replace(url);
+            popup.focus?.();
+            return popup;
+        } catch (error) {
+            console.warn("Unable to reuse pending WhatsApp window:", error);
+        }
     }
-    return window.open(url, "_blank", "noopener");
+    const fallbackWindow = window.open(url, "_blank", "noopener");
+    if (fallbackWindow) {
+        fallbackWindow.focus?.();
+        return fallbackWindow;
+    }
+    try {
+        window.location.href = url;
+    } catch (error) {
+        showError("تم تجهيز رسالة واتساب، لكن المتصفح منع فتح النافذة. اسمح بالنوافذ المنبثقة ثم أعد المحاولة.");
+        return null;
+    }
+    return null;
 };
 
 const openWhatsappForUser = (user, message, popup = null) => {
-    return openWhatsappMessage(getUserPhone(user), message, popup);
+    return openWhatsappMessage(
+        getUserPhone(user),
+        message,
+        popup,
+        `لا يوجد رقم جوال محفوظ للمستخدم ${getDisplayName(user)}.`
+    );
+};
+
+const openWhatsappForLead = (lead, popup = null) => {
+    return openWhatsappMessage(
+        `${lead?.countryCode || ""}${lead?.phone || ""}`,
+        "تم الاطلاع على طلبك وسيتم التواصل معك وتسعدني خدمتك",
+        popup,
+        "لا يوجد رقم جوال محفوظ لهذا الطلب."
+    );
+};
+
+const handleLeadWhatsappAction = (leadId) => {
+    const lead = state.leads.find((item) => Number(item.id) === Number(leadId));
+    if (!lead) return;
+    openWhatsappForLead(lead);
 };
 
 const getFirstUserWithPhone = (targetIds = []) => (
@@ -442,6 +487,25 @@ const getFirstUserWithPhone = (targetIds = []) => (
         .map((id) => getUserById(id))
         .find((user) => user?.userId && user.userId !== state.admin?.userId && getUserPhone(user))
 );
+
+const getUsersByPermission = (permission) => state.users.filter((user) => (
+    user.active &&
+    user.userId !== state.admin?.userId &&
+    userHasPermission(user, permission)
+));
+
+const getFollowUpManager = (preferredUserId = "") => {
+    const preferred = getUserById(preferredUserId);
+    if (preferred?.userId && preferred.userId !== state.admin?.userId && getUserPhone(preferred)) {
+        return preferred;
+    }
+    return [
+        ...state.users.filter((user) => user.active && user.role === "owner"),
+        ...getUsersByPermission("manage_note_inquiries"),
+        ...getUsersByPermission("assign_notes"),
+        ...getUsersByPermission("leads_view_all"),
+    ].find((user) => user.userId !== state.admin?.userId && getUserPhone(user));
+};
 
 const renderPhoneValue = (lead) => {
     if (!canViewLeadPhone()) return `<span class="muted-text">مخفي حسب الصلاحية</span>`;
@@ -817,9 +881,9 @@ const renderLeads = () => {
             <td>
                 <div class="lead-actions">
                     ${canViewLeadPhone() ? `
-                    <a class="ghost-btn icon-only small-icon" href="${escapeHtml(getLeadWhatsappUrl(lead))}" target="_blank" rel="noopener" title="واتساب" aria-label="واتساب">
+                    <button class="ghost-btn icon-only small-icon" type="button" data-whatsapp-lead="${lead.id}" title="واتساب" aria-label="واتساب">
                         <i data-lucide="message-circle"></i>
-                    </a>
+                    </button>
                     ` : ""}
                     ${can("delete_leads") ? `
                         <button class="danger-btn icon-only small-icon" type="button" data-delete-lead="${lead.id}" title="حذف الطلب">
@@ -859,7 +923,7 @@ const renderLeadModal = () => {
         <article>
             <span>واتساب</span>
             ${canViewLeadPhone()
-                ? `<a href="${escapeHtml(getLeadWhatsappUrl(lead))}" target="_blank" rel="noopener">فتح واتساب</a>`
+                ? `<button class="text-link-button" type="button" data-whatsapp-lead="${lead.id}">فتح واتساب</button>`
                 : `<strong class="muted-text">غير متاح</strong>`}
         </article>
         <article>
@@ -1045,8 +1109,8 @@ const addLeadNote = async (text, assignedTo = "") => {
     const shouldNotifyAssignee = assignee?.userId && assignee.userId !== state.admin?.userId;
     const assigneePhone = getUserPhone(assignee);
     const assigneeWhatsappMessage = `تم إسناد مهمة جديدة إليك على طلب ${lead.name}. يرجى الدخول إلى حسابك لمعاينتها.`;
-    const assigneeWhatsappWindow = shouldNotifyAssignee && assigneePhone
-        ? openWhatsappMessage(assigneePhone, assigneeWhatsappMessage)
+    const assigneeWhatsappWindow = shouldNotifyAssignee
+        ? openPendingExternalWindow("واتساب")
         : null;
     let note = null;
     let notificationError = null;
@@ -1069,14 +1133,15 @@ const addLeadNote = async (text, assignedTo = "") => {
                 title: "مهمة مسندة إليك",
                 message: `${getDisplayName()} أسند إليك ملاحظة على طلب ${lead.name}.`,
             });
-            openWhatsappMessage(
-                assigneePhone,
-                assigneeWhatsappMessage,
-                assigneeWhatsappWindow
-            );
         } catch (error) {
             notificationError = error;
         }
+        openWhatsappMessage(
+            assigneePhone,
+            assigneeWhatsappMessage,
+            assigneeWhatsappWindow,
+            `تم حفظ الملاحظة، لكن لا يوجد رقم جوال محفوظ للمستخدم ${getDisplayName(assignee)}.`
+        );
     } else {
         // No external follow-up is needed when the note is assigned to the current user.
     }
@@ -1090,12 +1155,12 @@ const completeLeadNote = async (noteId) => {
     const lead = getActiveLead();
     if (!lead) return;
     const sourceNote = state.leadNotes.find((item) => String(item.id) === String(noteId));
-    const notifyUserId = sourceNote?.createdBy || "";
-    const manager = getUserById(notifyUserId);
-    const shouldNotifyManager = notifyUserId && notifyUserId !== state.admin?.userId;
+    const manager = getFollowUpManager(sourceNote?.createdBy || "");
+    const notifyUserId = manager?.userId || "";
+    const shouldNotifyManager = Boolean(notifyUserId && notifyUserId !== state.admin?.userId);
     const managerWhatsappMessage = `تم إنجاز المهمة المسندة على طلب ${lead.name} بواسطة ${getDisplayName()}.`;
-    const managerWhatsappWindow = shouldNotifyManager && manager && getUserPhone(manager)
-        ? openWhatsappForUser(manager, managerWhatsappMessage)
+    const managerWhatsappWindow = shouldNotifyManager
+        ? openPendingExternalWindow("واتساب")
         : null;
     let completedNote = null;
     let notificationError = null;
@@ -1115,14 +1180,14 @@ const completeLeadNote = async (noteId) => {
                     title: "تم إنجاز ملاحظة متابعة",
                     message: `${getDisplayName()} أنجز ملاحظة على طلب ${lead.name}.`,
                 });
-                openWhatsappForUser(
-                    manager,
-                    managerWhatsappMessage,
-                    managerWhatsappWindow
-                );
             } catch (error) {
                 notificationError = error;
             }
+            openWhatsappForUser(
+                manager,
+                managerWhatsappMessage,
+                managerWhatsappWindow
+            );
         } else {
             // The completing user should not receive their own completion follow-up.
         }
@@ -1140,7 +1205,7 @@ const addNoteInquiry = async (noteId, body) => {
     const targetIds = getInquiryNotificationTargets(note);
     const targetUser = getFirstUserWithPhone(targetIds);
     const inquiryWhatsappMessage = `تم إرسال استفسار على مهمة مرتبطة بطلب ${lead.name}. يرجى الدخول إلى لوحة التحكم للرد.`;
-    const inquiryWhatsappWindow = targetUser ? openWhatsappForUser(targetUser, inquiryWhatsappMessage) : null;
+    const inquiryWhatsappWindow = targetUser ? openPendingExternalWindow("واتساب") : null;
     let notificationError = null;
     try {
         await window.MuheebData.createLeadNoteInquiry({
@@ -1160,17 +1225,17 @@ const addNoteInquiry = async (noteId, body) => {
             title: "استفسار على ملاحظة متابعة",
             message: `${getDisplayName()} أضاف استفسارًا على طلب ${lead.name}.`,
         });
-        if (targetUser) {
-            openWhatsappForUser(
-                targetUser,
-                inquiryWhatsappMessage,
-                inquiryWhatsappWindow
-            );
-        } else {
-            // No WhatsApp number is available for the inquiry recipient.
-        }
     } catch (error) {
         notificationError = error;
+    }
+    if (targetUser) {
+        openWhatsappForUser(
+            targetUser,
+            inquiryWhatsappMessage,
+            inquiryWhatsappWindow
+        );
+    } else {
+        // No WhatsApp number is available for the inquiry recipient.
     }
     await loadAll();
     state.activeLeadId = lead.id;
@@ -1185,7 +1250,7 @@ const replyNoteInquiry = async (inquiryId, body) => {
     const requester = getUserById(inquiry.createdBy);
     const replyWhatsappMessage = `تم الرد على استفسارك بخصوص طلب ${lead.name}. يرجى الدخول إلى حسابك لمراجعة الرد.`;
     const replyWhatsappWindow = requester && requester.userId !== state.admin?.userId && getUserPhone(requester)
-        ? openWhatsappForUser(requester, replyWhatsappMessage)
+        ? openPendingExternalWindow("واتساب")
         : null;
     let notificationError = null;
     try {
@@ -1202,15 +1267,15 @@ const replyNoteInquiry = async (inquiryId, body) => {
             title: "رد على استفسارك",
             message: `${getDisplayName()} رد على استفسارك في طلب ${lead.name}.`,
         });
-        if (replyWhatsappWindow) {
-            openWhatsappForUser(
-                requester,
-                replyWhatsappMessage,
-                replyWhatsappWindow
-            );
-        }
     } catch (error) {
         notificationError = error;
+    }
+    if (replyWhatsappWindow) {
+        openWhatsappForUser(
+            requester,
+            replyWhatsappMessage,
+            replyWhatsappWindow
+        );
     }
     await loadAll();
     state.activeLeadId = lead.id;
@@ -1717,6 +1782,29 @@ const getSiteImageGroupMeta = (groupName) => siteImageGroupMeta[groupName] || {
     icon: "images",
 };
 
+const imageDimensionHints = {
+    hero_main: "المقاس المقترح: 1360 × 1020 بكسل",
+    hero_logo: "المقاس المقترح: 1000 × 420 بكسل بخلفية شفافة",
+    identity_gallery: "المقاس المقترح: 1320 × 1080 بكسل",
+    services: "المقاس المقترح: 1200 × 900 بكسل",
+    service_1_image: "المقاس المقترح: 1200 × 900 بكسل",
+    service_2_image: "المقاس المقترح: 1200 × 900 بكسل",
+    service_3_image: "المقاس المقترح: 1200 × 900 بكسل",
+    execution_image: "المقاس المقترح: 1200 × 900 بكسل",
+    interest_background: "المقاس المقترح: 1600 × 900 بكسل",
+    footer_logo: "المقاس المقترح: 900 × 360 بكسل بخلفية شفافة",
+    admin_login_background: "المقاس المقترح: 1600 × 1000 بكسل",
+    footer: "المقاس المقترح: 900 × 360 بكسل",
+    site_core: "المقاس المقترح حسب مكان الصورة في الواجهة",
+    custom: "حدد المقاس حسب مكان استخدامها في الموقع",
+};
+
+const getImageDimensionHint = (image = {}) => (
+    imageDimensionHints[image.imageKey] ||
+    imageDimensionHints[image.groupName] ||
+    "ارفع الصورة بالمقاس النهائي الذي تريد ظهوره في الموقع"
+);
+
 const renderSiteImages = () => {
     if (!siteImageList) return;
     const groups = state.siteImages.reduce((items, image) => {
@@ -1750,7 +1838,7 @@ const renderSiteImages = () => {
                 <label class="upload-box compact-upload site-image-upload-box">
                     <span>استبدال الصورة</span>
                     <input type="file" data-site-image-file accept="image/png,image/jpeg,image/webp,image/gif">
-                    <small>اختر صورة ثم اعتمد القص من المحرر</small>
+                    <small>${escapeHtml(getImageDimensionHint(image))}</small>
                 </label>
                 <label class="toggle-field compact-toggle">
                     <input type="checkbox" data-site-image-published ${image.published ? "checked" : ""}>
@@ -1927,8 +2015,16 @@ const resetEventForm = () => {
     eventIdInput.value = "";
     eventFormTitle.textContent = "إضافة فعالية";
     coverName.textContent = "لم يتم اختيار صورة جديدة";
-    galleryName.textContent = "يمكن اختيار أكثر من صورة";
-    if (supportLogosName) supportLogosName.textContent = "اختر شعارًا ثم اعتمده من محرر الصورة";
+    galleryName.textContent = "المقاس المقترح: 1320 × 1080 بكسل لكل صورة";
+    if (supportLogosName) supportLogosName.textContent = "المقاس المقترح: 600 × 360 بكسل";
+    if (coverInput) {
+        coverInput.value = "";
+        editedFiles.delete(coverInput);
+    }
+    if (galleryInput) {
+        galleryInput.value = "";
+        editedFiles.delete(galleryInput);
+    }
     if (supportLogoLabelInput) supportLogoLabelInput.value = "";
     if (eventSupportLogosInput) {
         eventSupportLogosInput.value = "";
@@ -1939,6 +2035,7 @@ const resetEventForm = () => {
     galleryPreview.innerHTML = "";
     renderSupportLogos([]);
     renderEventCategorySelect();
+    if (eventForm.elements.titleSize) eventForm.elements.titleSize.value = "normal";
     eventForm.elements.published.checked = true;
     eventForm.elements.sortOrder.value = "0";
 };
@@ -1951,6 +2048,7 @@ const editEvent = (eventId) => {
     eventIdInput.value = event.id;
     eventFormTitle.textContent = "تعديل فعالية";
     eventForm.elements.title.value = event.title || "";
+    if (eventForm.elements.titleSize) eventForm.elements.titleSize.value = event.titleSize || "normal";
     renderEventCategorySelect();
     eventForm.elements.category.value = event.category || "event";
     eventForm.elements.location.value = event.location || "";
@@ -1967,13 +2065,22 @@ const editEvent = (eventId) => {
     if (eventForm.elements.detailSections) eventForm.elements.detailSections.value = stringifyEventSections(event.detailSections || []);
     eventForm.elements.sortOrder.value = event.sortOrder || 0;
     eventForm.elements.published.checked = Boolean(event.published);
-    state.pendingSupportLogos = event.supportLogos || [];
+    state.pendingSupportLogos = [...(event.supportLogos || [])];
+    if (coverInput) {
+        coverInput.value = "";
+        editedFiles.delete(coverInput);
+    }
+    if (galleryInput) {
+        galleryInput.value = "";
+        editedFiles.delete(galleryInput);
+        galleryName.textContent = "المقاس المقترح: 1320 × 1080 بكسل لكل صورة";
+    }
     if (supportLogoLabelInput) supportLogoLabelInput.value = "";
     if (eventSupportLogosInput) {
         eventSupportLogosInput.value = "";
         editedFiles.delete(eventSupportLogosInput);
     }
-    if (supportLogosName) supportLogosName.textContent = state.pendingSupportLogos.length ? `${state.pendingSupportLogos.length} شعار محفوظ` : "اختر شعارًا ثم اعتمده من محرر الصورة";
+    if (supportLogosName) supportLogosName.textContent = state.pendingSupportLogos.length ? `${state.pendingSupportLogos.length} شعار محفوظ` : "المقاس المقترح: 600 × 360 بكسل";
     coverName.textContent = event.coverImage ? "صورة محفوظة حاليًا" : "لم يتم اختيار صورة جديدة";
     if (event.coverImage) {
         coverPreview.src = event.coverImage;
@@ -2023,6 +2130,30 @@ const renderTemporaryFilePreview = (container, files = [], names = [], className
         : `<span class="meta-text">لا توجد صور جاهزة للرفع.</span>`;
 };
 
+const openSupportLogoModal = () => {
+    supportLogoForm?.reset();
+    if (eventSupportLogosInput) {
+        eventSupportLogosInput.value = "";
+        editedFiles.delete(eventSupportLogosInput);
+    }
+    if (supportLogosName) supportLogosName.textContent = "المقاس المقترح: 600 × 360 بكسل";
+    supportLogoModal?.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    window.setTimeout(() => supportLogoLabelInput?.focus(), 80);
+    initIcons();
+};
+
+const closeSupportLogoModal = () => {
+    supportLogoModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
+    supportLogoForm?.reset();
+    if (eventSupportLogosInput) {
+        eventSupportLogosInput.value = "";
+        editedFiles.delete(eventSupportLogosInput);
+    }
+    if (supportLogosName) supportLogosName.textContent = "المقاس المقترح: 600 × 360 بكسل";
+};
+
 const uploadFiles = async (files, folder = "events") => {
     return window.MuheebData.uploadFiles(files, folder);
 };
@@ -2032,10 +2163,14 @@ const getInputFiles = (input) => editedFiles.get(input) || input?.files || [];
 const addSupportLogoToEvent = async () => {
     const files = getInputFiles(eventSupportLogosInput);
     if (!files?.length) {
-        showError("اختر شعار الجهة أولاً.");
+        showError("اختر شعار الجهة أولاً.", eventFormMessage);
         return;
     }
     const name = supportLogoLabelInput?.value?.trim() || "";
+    if (!name) {
+        showError("اكتب اسم الجهة أولاً.", eventFormMessage);
+        return;
+    }
     showMessage("جاري إضافة شعار الجهة...", eventFormMessage);
     try {
         const uploaded = await uploadFiles(files, "event-logos");
@@ -2051,6 +2186,7 @@ const addSupportLogoToEvent = async () => {
         }
         if (supportLogosName) supportLogosName.textContent = "تمت إضافة الشعار، لا تنس حفظ الفعالية.";
         renderSupportLogos(state.pendingSupportLogos);
+        closeSupportLogoModal();
         showMessage("تمت إضافة شعار الجهة. احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
     } catch (error) {
         showError(error.message, eventFormMessage);
@@ -2080,283 +2216,6 @@ const setInputFileLabel = (input, label) => {
     if (input === coverInput && coverName) coverName.textContent = friendlyLabel;
 };
 
-const getImageEditorValues = () => {
-    const elements = imageEditorForm?.elements || {};
-    return {
-        aspect: elements.aspect?.value || "16:9",
-        zoom: Number(elements.zoom?.value || 1),
-        brightness: Number(elements.brightness?.value || 100),
-        contrast: Number(elements.contrast?.value || 100),
-        grayscale: Number(elements.grayscale?.value || 0),
-        sepia: Number(elements.sepia?.value || 0),
-    };
-};
-
-const getAspectRatio = (aspect) => {
-    if (aspect === "1:1") return 1;
-    if (aspect === "4:3") return 4 / 3;
-    if (aspect === "free") return null;
-    return 16 / 9;
-};
-
-const clampValue = (value, min, max) => Math.min(max, Math.max(min, value));
-
-const fitCropToAspect = () => {
-    const values = getImageEditorValues();
-    const ratio = getAspectRatio(values.aspect);
-    if (!ratio) {
-        state.imageEditor.crop = { x: 10, y: 10, width: 80, height: 80 };
-        return;
-    }
-    let width = 80;
-    let height = width / ratio;
-    if (height > 80) {
-        height = 80;
-        width = height * ratio;
-    }
-    state.imageEditor.crop = {
-        x: (100 - width) / 2,
-        y: (100 - height) / 2,
-        width,
-        height,
-    };
-};
-
-const getRenderedImageMetrics = () => {
-    const preview = imageEditorPreview?.closest(".image-editor-preview");
-    if (!preview || !imageEditorPreview?.naturalWidth || !imageEditorPreview?.naturalHeight) {
-        const box = preview?.getBoundingClientRect();
-        return box ? { offsetX: 0, offsetY: 0, width: box.width, height: box.height } : null;
-    }
-    const box = preview.getBoundingClientRect();
-    const imageRatio = imageEditorPreview.naturalWidth / imageEditorPreview.naturalHeight;
-    const boxRatio = box.width / box.height;
-    let width = box.width;
-    let height = box.height;
-    let offsetX = 0;
-    let offsetY = 0;
-    if (boxRatio > imageRatio) {
-        height = box.height;
-        width = height * imageRatio;
-        offsetX = (box.width - width) / 2;
-    } else {
-        width = box.width;
-        height = width / imageRatio;
-        offsetY = (box.height - height) / 2;
-    }
-    return { offsetX, offsetY, width, height };
-};
-
-const updateCropFrame = () => {
-    if (!imageCropFrame) return;
-    const crop = state.imageEditor.crop || { x: 10, y: 10, width: 80, height: 80 };
-    const metrics = getRenderedImageMetrics();
-    if (!metrics) return;
-    imageCropFrame.style.left = `${metrics.offsetX + (crop.x / 100) * metrics.width}px`;
-    imageCropFrame.style.top = `${metrics.offsetY + (crop.y / 100) * metrics.height}px`;
-    imageCropFrame.style.width = `${(crop.width / 100) * metrics.width}px`;
-    imageCropFrame.style.height = `${(crop.height / 100) * metrics.height}px`;
-};
-
-const updateImageEditorPreview = () => {
-    if (!imageEditorPreview || !state.imageEditor.objectUrl) return;
-    const values = getImageEditorValues();
-    if (state.imageEditor.aspect !== values.aspect) {
-        state.imageEditor.aspect = values.aspect;
-        fitCropToAspect();
-    }
-    imageEditorPreview.src = state.imageEditor.objectUrl;
-    imageEditorPreview.onload = updateCropFrame;
-    imageEditorPreview.style.transform = `scale(${values.zoom})`;
-    imageEditorPreview.style.filter = `brightness(${values.brightness}%) contrast(${values.contrast}%) grayscale(${values.grayscale}%) sepia(${values.sepia}%)`;
-    updateCropFrame();
-    if (imageEditorOutput) {
-        const queue = state.imageEditor.queue || [];
-        const countText = queue.length > 1 ? ` - صورة ${state.imageEditor.queueIndex + 1} من ${queue.length}` : "";
-        imageEditorOutput.textContent = `تكبير ${values.zoom.toFixed(1)}x - سطوع ${values.brightness}% - تباين ${values.contrast}%${countText}`;
-    }
-};
-
-const resetImageEditorControls = () => {
-    imageEditorForm?.reset();
-    if (imageEditorForm?.elements.zoom) imageEditorForm.elements.zoom.value = "1";
-    if (imageEditorForm?.elements.brightness) imageEditorForm.elements.brightness.value = "100";
-    if (imageEditorForm?.elements.contrast) imageEditorForm.elements.contrast.value = "100";
-    if (imageEditorForm?.elements.grayscale) imageEditorForm.elements.grayscale.value = "0";
-    if (imageEditorForm?.elements.sepia) imageEditorForm.elements.sepia.value = "0";
-    state.imageEditor.aspect = "";
-};
-
-const loadCurrentImageEditorFile = () => {
-    const queue = state.imageEditor.queue || [];
-    const file = queue[state.imageEditor.queueIndex] || state.imageEditor.file;
-    if (!file) return;
-    if (state.imageEditor.objectUrl) URL.revokeObjectURL(state.imageEditor.objectUrl);
-    state.imageEditor.file = file;
-    state.imageEditor.objectUrl = URL.createObjectURL(file);
-    if (imageEditorFileName) {
-        imageEditorFileName.textContent = queue.length > 1
-            ? `${file.name} (${state.imageEditor.queueIndex + 1} من ${queue.length})`
-            : file.name;
-    }
-    resetImageEditorControls();
-    fitCropToAspect();
-    updateImageEditorPreview();
-};
-
-const openImageEditor = (input, file, files = []) => {
-    if (!imageEditorModal || !file || !file.type?.startsWith("image/")) return;
-    const queue = (files.length ? Array.from(files) : [file]).filter((item) => item?.type?.startsWith("image/"));
-    if (!queue.length) return;
-    state.imageEditor = {
-        input,
-        file: queue[0],
-        objectUrl: "",
-        crop: { x: 10, y: 10, width: 80, height: 80 },
-        queue,
-        queueIndex: 0,
-        processed: [],
-        aspect: "",
-    };
-    loadCurrentImageEditorFile();
-    imageEditorModal.classList.remove("is-hidden");
-    document.body.classList.add("modal-open");
-    initIcons();
-};
-
-const closeImageEditor = (clearInput = false) => {
-    if (clearInput && state.imageEditor.input) {
-        state.imageEditor.input.value = "";
-        editedFiles.delete(state.imageEditor.input);
-    }
-    if (state.imageEditor.objectUrl) URL.revokeObjectURL(state.imageEditor.objectUrl);
-    state.imageEditor = {
-        input: null,
-        file: null,
-        objectUrl: "",
-        crop: { x: 10, y: 10, width: 80, height: 80 },
-        queue: [],
-        queueIndex: 0,
-        processed: [],
-    };
-    imageEditorModal?.classList.add("is-hidden");
-    document.body.classList.remove("modal-open");
-};
-
-let cropInteraction = null;
-
-const startCropInteraction = (event) => {
-    if (!imageCropFrame || !event.target.closest("#imageCropFrame")) return;
-    event.preventDefault();
-    const imageMetrics = getRenderedImageMetrics();
-    if (!imageMetrics) return;
-    cropInteraction = {
-        mode: event.target.dataset.cropHandle || "move",
-        startX: event.clientX,
-        startY: event.clientY,
-        startCrop: { ...state.imageEditor.crop },
-        imageMetrics,
-    };
-    imageCropFrame.setPointerCapture?.(event.pointerId);
-};
-
-const updateCropInteraction = (event) => {
-    if (!cropInteraction) return;
-    const { mode, startX, startY, startCrop, imageMetrics } = cropInteraction;
-    const deltaX = ((event.clientX - startX) / imageMetrics.width) * 100;
-    const deltaY = ((event.clientY - startY) / imageMetrics.height) * 100;
-    const minSize = 12;
-    const ratio = getAspectRatio(getImageEditorValues().aspect);
-    let next = { ...startCrop };
-
-    if (mode === "move") {
-        next.x = clampValue(startCrop.x + deltaX, 0, 100 - startCrop.width);
-        next.y = clampValue(startCrop.y + deltaY, 0, 100 - startCrop.height);
-    } else {
-        const right = startCrop.x + startCrop.width;
-        const bottom = startCrop.y + startCrop.height;
-        if (mode.includes("e")) {
-            next.width = clampValue(startCrop.width + deltaX, minSize, 100 - startCrop.x);
-        }
-        if (mode.includes("s")) {
-            next.height = clampValue(startCrop.height + deltaY, minSize, 100 - startCrop.y);
-        }
-        if (mode.includes("w")) {
-            const newX = clampValue(startCrop.x + deltaX, 0, right - minSize);
-            next.x = newX;
-            next.width = right - newX;
-        }
-        if (mode.includes("n")) {
-            const newY = clampValue(startCrop.y + deltaY, 0, bottom - minSize);
-            next.y = newY;
-            next.height = bottom - newY;
-        }
-        if (ratio) {
-            const centerX = next.x + next.width / 2;
-            const centerY = next.y + next.height / 2;
-            if (next.width / next.height > ratio) {
-                next.width = next.height * ratio;
-            } else {
-                next.height = next.width / ratio;
-            }
-            next.width = clampValue(next.width, minSize, 100);
-            next.height = clampValue(next.height, minSize, 100);
-            next.x = clampValue(centerX - next.width / 2, 0, 100 - next.width);
-            next.y = clampValue(centerY - next.height / 2, 0, 100 - next.height);
-        }
-    }
-    state.imageEditor.crop = next;
-    updateCropFrame();
-};
-
-const stopCropInteraction = () => {
-    cropInteraction = null;
-};
-
-const loadImage = (src) => new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = src;
-});
-
-const createEditedImageFile = async () => {
-    const values = getImageEditorValues();
-    const image = await loadImage(state.imageEditor.objectUrl);
-    const crop = state.imageEditor.crop || { x: 0, y: 0, width: 100, height: 100 };
-    const ratio = getAspectRatio(values.aspect) || (crop.width / crop.height) || (image.width / image.height);
-    const outputWidth = Math.min(1600, Math.max(900, Math.round(image.width * (crop.width / 100))));
-    const outputHeight = Math.round(outputWidth / ratio);
-    const canvas = imageEditorCanvas;
-    canvas.width = outputWidth;
-    canvas.height = outputHeight;
-    const ctx = canvas.getContext("2d");
-    const cropX = (crop.x / 100) * image.width;
-    const cropY = (crop.y / 100) * image.height;
-    const cropWidth = Math.max(1, (crop.width / 100) * image.width);
-    const cropHeight = Math.max(1, (crop.height / 100) * image.height);
-    let sourceWidth = cropWidth / values.zoom;
-    let sourceHeight = cropHeight / values.zoom;
-    if (sourceWidth / sourceHeight > ratio) {
-        sourceWidth = sourceHeight * ratio;
-    } else {
-        sourceHeight = sourceWidth / ratio;
-    }
-    sourceWidth = clampValue(sourceWidth, 1, image.width);
-    sourceHeight = clampValue(sourceHeight, 1, image.height);
-    const sourceX = clampValue(cropX + (cropWidth - sourceWidth) / 2, 0, image.width - sourceWidth);
-    const sourceY = clampValue(cropY + (cropHeight - sourceHeight) / 2, 0, image.height - sourceHeight);
-    ctx.filter = `brightness(${values.brightness}%) contrast(${values.contrast}%) grayscale(${values.grayscale}%) sepia(${values.sepia}%)`;
-    ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
-    return new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-            const original = state.imageEditor.file;
-            const cleanName = original.name.replace(/\.[^.]+$/, "");
-            resolve(new File([blob], `${cleanName}-edited.jpg`, { type: "image/jpeg" }));
-        }, "image/jpeg", 0.9);
-    });
-};
-
 const saveEvent = async (event) => {
     event.preventDefault();
     showMessage("جاري حفظ الفعالية...", eventFormMessage);
@@ -2370,6 +2229,7 @@ const saveEvent = async (event) => {
         const uploadedGallery = await uploadFiles(galleryFiles);
         const payload = {
             title: eventForm.elements.title.value,
+            titleSize: eventForm.elements.titleSize?.value || "normal",
             category: eventForm.elements.category.value,
             location: eventForm.elements.location.value,
             venueName: eventForm.elements.venueName?.value || "",
@@ -2610,7 +2470,7 @@ const resetUserForm = () => {
         userAvatarInput.value = "";
         editedFiles.delete(userAvatarInput);
     }
-    if (userAvatarName) userAvatarName.textContent = "اختياري - تظهر في ملف الموظف وقائمة المستخدمين";
+    if (userAvatarName) userAvatarName.textContent = "اختياري - المقاس المقترح: 600 × 600 بكسل";
     updateAvatarPreview("");
     userFormTitle.textContent = "إضافة مستخدم";
     renderPermissionsGrid({});
@@ -2716,7 +2576,7 @@ const editUser = (userId) => {
         userAvatarInput.value = "";
         editedFiles.delete(userAvatarInput);
     }
-    if (userAvatarName) userAvatarName.textContent = getUserAvatar(user) ? "صورة محفوظة حاليًا" : "اختياري - تظهر في ملف الموظف وقائمة المستخدمين";
+    if (userAvatarName) userAvatarName.textContent = getUserAvatar(user) ? "صورة محفوظة حاليًا" : "اختياري - المقاس المقترح: 600 × 600 بكسل";
     updateAvatarPreview(getUserAvatar(user));
     userFormTitle.textContent = "تعديل مستخدم";
     renderPermissionsGrid(user.permissions || {});
@@ -2729,7 +2589,7 @@ const saveUser = async (event) => {
     showMessage("جاري حفظ المستخدم...", userFormMessage);
     try {
         const formData = new FormData(userForm);
-        const userId = formData.get("userId") || state.editingUser?.userId || "";
+        const userId = state.editingUser?.userId || formData.get("userId") || "";
         const editingEmail = state.editingUser?.email || (
             state.editingUser?.userId === state.admin?.userId ? state.admin?.authEmail || "" : ""
         );
@@ -3036,6 +2896,11 @@ leadsTable.addEventListener("change", (event) => {
 });
 
 leadsTable.addEventListener("click", (event) => {
+    const whatsappButton = event.target.closest("[data-whatsapp-lead]");
+    if (whatsappButton) {
+        handleLeadWhatsappAction(whatsappButton.dataset.whatsappLead);
+        return;
+    }
     const deleteButton = event.target.closest("[data-delete-lead]");
     if (deleteButton) {
         const leadId = Number(deleteButton.dataset.deleteLead || 0);
@@ -3085,6 +2950,11 @@ profileMenu?.addEventListener("click", (event) => {
 leadDetailGrid?.addEventListener("change", async (event) => {
     const leadId = Number(event.target.dataset.modalLeadStatus || 0);
     if (leadId) await updateLead(leadId, event.target.value);
+});
+
+leadDetailGrid?.addEventListener("click", (event) => {
+    const whatsappButton = event.target.closest("[data-whatsapp-lead]");
+    if (whatsappButton) handleLeadWhatsappAction(whatsappButton.dataset.whatsappLead);
 });
 
 document.getElementById("closeLeadModal")?.addEventListener("click", closeLeadModal);
@@ -3162,7 +3032,7 @@ siteImageList?.addEventListener("click", async (event) => {
 siteImageList?.addEventListener("change", (event) => {
     const input = event.target.closest("[data-site-image-file]");
     const file = input?.files?.[0];
-    if (input && file) openImageEditor(input, file);
+    if (input && file) setInputFileLabel(input, file.name);
 });
 
 interestOptionList?.addEventListener("click", async (event) => {
@@ -3230,86 +3100,45 @@ supportLogosPreview?.addEventListener("click", (event) => {
     if (supportLogosName) supportLogosName.textContent = "تم حذف الشعار من الفعالية، احفظ التغيير.";
 });
 
-addSupportLogoButton?.addEventListener("click", addSupportLogoToEvent);
+openSupportLogoModalButton?.addEventListener("click", openSupportLogoModal);
+closeSupportLogoModalButton?.addEventListener("click", closeSupportLogoModal);
+cancelSupportLogoModalButton?.addEventListener("click", closeSupportLogoModal);
+supportLogoModal?.addEventListener("click", (event) => {
+    if (event.target === supportLogoModal) closeSupportLogoModal();
+});
+supportLogoForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await addSupportLogoToEvent();
+});
 
 coverInput.addEventListener("change", () => {
     const file = coverInput.files?.[0];
     coverName.textContent = file ? file.name : "لم يتم اختيار صورة جديدة";
     if (file) {
         coverPreview.src = URL.createObjectURL(file);
-        openImageEditor(coverInput, file);
     }
 });
 
 newSiteImageFile?.addEventListener("change", () => {
     const file = newSiteImageFile.files?.[0];
-    if (file) openImageEditor(newSiteImageFile, file);
+    if (file) setInputFileLabel(newSiteImageFile, file.name);
 });
 
 galleryInput.addEventListener("change", () => {
     const count = galleryInput.files?.length || 0;
-    galleryName.textContent = count ? `${count} صور جاهزة للرفع عند الحفظ` : "يمكن اختيار أكثر من صورة";
-    if (count) openImageEditor(galleryInput, galleryInput.files[0], galleryInput.files);
+    galleryName.textContent = count ? `${count} صور جاهزة للرفع عند الحفظ` : "المقاس المقترح: 1320 × 1080 بكسل لكل صورة";
+    if (count) renderTemporaryFilePreview(galleryPreview, galleryInput.files);
 });
 
 eventSupportLogosInput?.addEventListener("change", () => {
     const count = eventSupportLogosInput.files?.length || 0;
-    if (supportLogosName) supportLogosName.textContent = count ? "شعار جاهز للقص والاعتماد" : "اختر شعارًا ثم اعتمده من محرر الصورة";
-    if (count) openImageEditor(eventSupportLogosInput, eventSupportLogosInput.files[0]);
+    if (supportLogosName) supportLogosName.textContent = count ? "شعار جاهز للإضافة" : "المقاس المقترح: 600 × 360 بكسل";
 });
 
 userAvatarInput?.addEventListener("change", () => {
     const file = userAvatarInput.files?.[0];
-    if (userAvatarName) userAvatarName.textContent = file ? file.name : "اختياري - تظهر في ملف الموظف وقائمة المستخدمين";
-    if (file) openImageEditor(userAvatarInput, file);
-});
-
-imageEditorForm?.addEventListener("input", updateImageEditorPreview);
-imageEditorForm?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!state.imageEditor.input) return;
-    try {
-        const editedFile = await createEditedImageFile();
-        const input = state.imageEditor.input;
-        const queue = state.imageEditor.queue || [];
-        const processed = [...(state.imageEditor.processed || []), editedFile];
-        if (queue.length > 1 && state.imageEditor.queueIndex < queue.length - 1) {
-            state.imageEditor.processed = processed;
-            state.imageEditor.queueIndex += 1;
-            loadCurrentImageEditorFile();
-            showMessage("تم اعتماد الصورة، اختر الجزء للصورة التالية.");
-            return;
-        }
-        editedFiles.set(input, processed);
-        setInputFileLabel(input, processed.length > 1 ? `${processed.length} صور تم تجهيزها` : editedFile.name);
-        if (input === coverInput) {
-            coverPreview.src = URL.createObjectURL(editedFile);
-        }
-        if (input === galleryInput && galleryName) {
-            galleryName.textContent = `${processed.length} صور تم تجهيزها للرفع عند الحفظ`;
-            renderTemporaryFilePreview(galleryPreview, processed);
-        }
-        if (input === eventSupportLogosInput && supportLogosName) {
-            supportLogosName.textContent = "تم تجهيز الشعار، اكتب اسم الجهة ثم اضغط إضافة الشعار";
-        }
-        if (input === userAvatarInput) {
-            const previewUrl = URL.createObjectURL(editedFile);
-            updateAvatarPreview(previewUrl);
-            if (userAvatarName) userAvatarName.textContent = "تم تجهيز صورة الموظف";
-        }
-        closeImageEditor(false);
-        showMessage("تم اعتماد الصورة للتجهيز والرفع عند الحفظ.");
-    } catch (error) {
-        showError("تعذر تجهيز الصورة. حاول اختيار صورة أخرى.");
-    }
-});
-imageCropFrame?.addEventListener("pointerdown", startCropInteraction);
-document.addEventListener("pointermove", updateCropInteraction);
-document.addEventListener("pointerup", stopCropInteraction);
-closeImageEditorButton?.addEventListener("click", () => closeImageEditor(true));
-cancelImageEditorButton?.addEventListener("click", () => closeImageEditor(true));
-imageEditorModal?.addEventListener("click", (event) => {
-    if (event.target === imageEditorModal) closeImageEditor(true);
+    if (userAvatarName) userAvatarName.textContent = file ? file.name : "اختياري - المقاس المقترح: 600 × 600 بكسل";
+    if (file) updateAvatarPreview(URL.createObjectURL(file));
 });
 
 eventForm.addEventListener("submit", saveEvent);
