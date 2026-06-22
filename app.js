@@ -117,6 +117,32 @@ const getCategoryMeta = (category) => {
     };
 };
 
+const stringifySectionValue = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string" || typeof value === "number") return String(value).trim();
+    if (typeof value === "object") {
+        return String(value.title || value.text || value.name || value.label || value.value || "").trim();
+    }
+    return String(value).trim();
+};
+
+const normalizeEventSections = (sections = []) => (Array.isArray(sections) ? sections : [])
+    .map((section, index) => {
+        if (typeof section === "string") {
+            const [title = "", text = "", image = ""] = section.split("|").map((part) => part.trim());
+            return { title, text, image };
+        }
+        const title = stringifySectionValue(section.title || section.heading || section.name);
+        const text = stringifySectionValue(section.text || section.description || section.body || section.content);
+        const image = stringifySectionValue(section.image || section.imagePath || section.path || section.logo);
+        return {
+            title: title || (text || image ? `قسم ${index + 1}` : ""),
+            text,
+            image,
+        };
+    })
+    .filter((section) => section.title || section.text || section.image);
+
 const staticEvents = [
     {
         id: "static-event",
@@ -387,6 +413,7 @@ const openEventDetail = (eventId) => {
     const meta = getCategoryMeta(event.category);
     const gallery = event.gallery || [];
     const achievements = event.achievements?.length ? event.achievements : event.highlights || [];
+    const detailSections = normalizeEventSections(event.detailSections || []);
     eventDetailContent.innerHTML = `
         <div class="event-detail-hero">
             <img src="${escapeHtml(event.coverImage || "assets/logo-meheib.png")}" alt="${escapeHtml(event.title)}">
@@ -429,9 +456,9 @@ const openEventDetail = (eventId) => {
                 </div>
             </section>
         ` : ""}
-        ${event.detailSections?.length ? `
+        ${detailSections.length ? `
             <section class="event-detail-section detail-sections">
-                ${event.detailSections.map((section) => `
+                ${detailSections.map((section) => `
                     <article>
                         ${section.image ? `<img src="${escapeHtml(section.image)}" alt="${escapeHtml(section.title || event.title)}">` : ""}
                         <div>

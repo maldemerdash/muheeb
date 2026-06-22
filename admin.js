@@ -24,6 +24,7 @@ const state = {
     activeInquiry: { mode: "create", noteId: "", inquiryId: "" },
     coverPath: "",
     pendingSupportLogos: [],
+    pendingEventSections: [],
 };
 
 const labels = {
@@ -249,6 +250,14 @@ const eventSupportLogosInput = document.getElementById("supportLogosInput");
 const supportLogosName = document.getElementById("supportLogosName");
 const supportLogoLabelInput = document.getElementById("supportLogoLabel");
 const addSupportLogoButton = document.getElementById("addSupportLogoButton");
+const eventSectionsPreview = document.getElementById("eventSectionsPreview");
+const eventSectionModal = document.getElementById("eventSectionModal");
+const eventSectionForm = document.getElementById("eventSectionForm");
+const openEventSectionModalButton = document.getElementById("openEventSectionModal");
+const closeEventSectionModalButton = document.getElementById("closeEventSectionModal");
+const cancelEventSectionModalButton = document.getElementById("cancelEventSectionModal");
+const eventSectionImageInput = document.getElementById("eventSectionImageInput");
+const eventSectionImageName = document.getElementById("eventSectionImageName");
 
 const editedFiles = new WeakMap();
 
@@ -1316,16 +1325,33 @@ const stringifySupportLogoEntry = ({ name = "", logo = "" } = {}) => {
     return safeLogo ? `${safeName} | ${safeLogo}` : "";
 };
 
-const parseEventSections = (value) => splitLines(value).map((line) => {
-    const [title = "", text = "", image = ""] = line.split("|").map((part) => part.trim());
-    return { title, text, image };
-}).filter((section) => section.title || section.text || section.image);
+const stringifyClean = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string" || typeof value === "number") return String(value).trim();
+    if (typeof value === "object") {
+        return String(value.title || value.text || value.name || value.label || value.value || "").trim();
+    }
+    return String(value).trim();
+};
 
-const stringifyEventSections = (sections) => (sections || []).map((section) => [
-    section.title || "",
-    section.text || "",
-    section.image || "",
-].join(" | ")).join("\n");
+const normalizeEventSection = (section = {}, index = 0) => {
+    if (typeof section === "string") {
+        const [title = "", text = "", image = ""] = section.split("|").map((part) => part.trim());
+        return { title, text, image };
+    }
+    const title = stringifyClean(section.title || section.heading || section.name);
+    const text = stringifyClean(section.text || section.description || section.body || section.content);
+    const image = stringifyClean(section.image || section.imagePath || section.path || section.logo);
+    return {
+        title: title || (text || image ? `قسم ${index + 1}` : ""),
+        text,
+        image,
+    };
+};
+
+const normalizeEventSections = (sections = []) => (Array.isArray(sections) ? sections : [])
+    .map(normalizeEventSection)
+    .filter((section) => section.title || section.text || section.image);
 
 const renderEvents = () => {
     eventsList.innerHTML = state.events.map((event) => `
@@ -2031,9 +2057,11 @@ const resetEventForm = () => {
         editedFiles.delete(eventSupportLogosInput);
     }
     state.pendingSupportLogos = [];
+    state.pendingEventSections = [];
     coverPreview.removeAttribute("src");
     galleryPreview.innerHTML = "";
     renderSupportLogos([]);
+    renderEventSections([]);
     renderEventCategorySelect();
     if (eventForm.elements.titleSize) eventForm.elements.titleSize.value = "normal";
     eventForm.elements.published.checked = true;
@@ -2062,7 +2090,7 @@ const editEvent = (eventId) => {
     eventForm.elements.description.value = event.description || "";
     eventForm.elements.highlights.value = (event.highlights || []).join("\n");
     if (eventForm.elements.achievements) eventForm.elements.achievements.value = (event.achievements || []).join("\n");
-    if (eventForm.elements.detailSections) eventForm.elements.detailSections.value = stringifyEventSections(event.detailSections || []);
+    state.pendingEventSections = normalizeEventSections(event.detailSections || []);
     eventForm.elements.sortOrder.value = event.sortOrder || 0;
     eventForm.elements.published.checked = Boolean(event.published);
     state.pendingSupportLogos = [...(event.supportLogos || [])];
@@ -2089,6 +2117,7 @@ const editEvent = (eventId) => {
     }
     renderGallery(event.gallery || []);
     renderSupportLogos(state.pendingSupportLogos);
+    renderEventSections(state.pendingEventSections);
     setView("eventsView");
 };
 
@@ -2115,6 +2144,21 @@ const renderSupportLogos = (logos = [], participants = []) => {
         </div>
     `;
     }).join("") || `<span class="meta-text">لا توجد شعارات محفوظة للجهات.</span>`;
+};
+
+const renderEventSections = (sections = []) => {
+    if (!eventSectionsPreview) return;
+    eventSectionsPreview.innerHTML = normalizeEventSections(sections).map((section, index) => `
+        <article class="event-section-thumb">
+            ${section.image ? `<img src="${escapeHtml(section.image)}" alt="${escapeHtml(section.title)}">` : `<div class="event-section-placeholder"><i data-lucide="image"></i></div>`}
+            <div>
+                <strong>${escapeHtml(section.title || `قسم ${index + 1}`)}</strong>
+                <p>${escapeHtml(section.text || "بدون وصف")}</p>
+            </div>
+            <button type="button" title="حذف القسم" data-remove-event-section="${index}">×</button>
+        </article>
+    `).join("") || `<span class="meta-text">لا توجد أقسام إضافية. اضغط إضافة قسم لإضافة عنوان ووصف وصورة.</span>`;
+    initIcons();
 };
 
 const renderTemporaryFilePreview = (container, files = [], names = [], className = "") => {
@@ -2154,6 +2198,30 @@ const closeSupportLogoModal = () => {
     if (supportLogosName) supportLogosName.textContent = "المقاس المقترح: 600 × 360 بكسل";
 };
 
+const openEventSectionModal = () => {
+    eventSectionForm?.reset();
+    if (eventSectionImageInput) {
+        eventSectionImageInput.value = "";
+        editedFiles.delete(eventSectionImageInput);
+    }
+    if (eventSectionImageName) eventSectionImageName.textContent = "المقاس المقترح: 1200 × 760 بكسل";
+    eventSectionModal?.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    window.setTimeout(() => eventSectionForm?.elements.sectionTitle?.focus(), 80);
+    initIcons();
+};
+
+const closeEventSectionModal = () => {
+    eventSectionModal?.classList.add("is-hidden");
+    document.body.classList.remove("modal-open");
+    eventSectionForm?.reset();
+    if (eventSectionImageInput) {
+        eventSectionImageInput.value = "";
+        editedFiles.delete(eventSectionImageInput);
+    }
+    if (eventSectionImageName) eventSectionImageName.textContent = "المقاس المقترح: 1200 × 760 بكسل";
+};
+
 const uploadFiles = async (files, folder = "events") => {
     return window.MuheebData.uploadFiles(files, folder);
 };
@@ -2188,6 +2256,38 @@ const addSupportLogoToEvent = async () => {
         renderSupportLogos(state.pendingSupportLogos);
         closeSupportLogoModal();
         showMessage("تمت إضافة شعار الجهة. احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
+    } catch (error) {
+        showError(error.message, eventFormMessage);
+    }
+};
+
+const addSectionToEvent = async () => {
+    const files = getInputFiles(eventSectionImageInput);
+    const title = eventSectionForm?.elements.sectionTitle?.value?.trim() || "";
+    const text = eventSectionForm?.elements.sectionText?.value?.trim() || "";
+    if (!title) {
+        showError("اكتب عنوان القسم أولاً.", eventFormMessage);
+        return;
+    }
+    if (!text) {
+        showError("اكتب وصف القسم أولاً.", eventFormMessage);
+        return;
+    }
+    if (!files?.length) {
+        showError("اختر صورة القسم أولاً.", eventFormMessage);
+        return;
+    }
+    showMessage("جاري إضافة القسم...", eventFormMessage);
+    try {
+        const uploaded = await uploadFiles(files, "event-sections");
+        state.pendingEventSections.push({
+            title,
+            text,
+            image: uploaded[0]?.path || "",
+        });
+        renderEventSections(state.pendingEventSections);
+        closeEventSectionModal();
+        showMessage("تمت إضافة القسم. احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
     } catch (error) {
         showError(error.message, eventFormMessage);
     }
@@ -2244,7 +2344,7 @@ const saveEvent = async (event) => {
             participants: [],
             achievements: splitLines(eventForm.elements.achievements?.value || ""),
             supportLogos: [...state.pendingSupportLogos],
-            detailSections: parseEventSections(eventForm.elements.detailSections?.value || ""),
+            detailSections: normalizeEventSections(state.pendingEventSections),
             sortOrder: Number(eventForm.elements.sortOrder.value || 0),
             published: eventForm.elements.published.checked,
             coverImage: state.coverPath,
@@ -3111,6 +3211,27 @@ supportLogoForm?.addEventListener("submit", async (event) => {
     await addSupportLogoToEvent();
 });
 
+eventSectionsPreview?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-event-section]");
+    if (!button) return;
+    const index = Number(button.dataset.removeEventSection);
+    if (Number.isNaN(index)) return;
+    state.pendingEventSections.splice(index, 1);
+    renderEventSections(state.pendingEventSections);
+    showMessage("تم حذف القسم من الفعالية، احفظ التغيير لتثبيته.", eventFormMessage);
+});
+
+openEventSectionModalButton?.addEventListener("click", openEventSectionModal);
+closeEventSectionModalButton?.addEventListener("click", closeEventSectionModal);
+cancelEventSectionModalButton?.addEventListener("click", closeEventSectionModal);
+eventSectionModal?.addEventListener("click", (event) => {
+    if (event.target === eventSectionModal) closeEventSectionModal();
+});
+eventSectionForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await addSectionToEvent();
+});
+
 coverInput.addEventListener("change", () => {
     const file = coverInput.files?.[0];
     coverName.textContent = file ? file.name : "لم يتم اختيار صورة جديدة";
@@ -3133,6 +3254,11 @@ galleryInput.addEventListener("change", () => {
 eventSupportLogosInput?.addEventListener("change", () => {
     const count = eventSupportLogosInput.files?.length || 0;
     if (supportLogosName) supportLogosName.textContent = count ? "شعار جاهز للإضافة" : "المقاس المقترح: 600 × 360 بكسل";
+});
+
+eventSectionImageInput?.addEventListener("change", () => {
+    const file = eventSectionImageInput.files?.[0];
+    if (eventSectionImageName) eventSectionImageName.textContent = file ? file.name : "المقاس المقترح: 1200 × 760 بكسل";
 });
 
 userAvatarInput?.addEventListener("change", () => {

@@ -185,6 +185,32 @@
             });
     };
 
+    const stringifyClean = (value) => {
+        if (value === null || value === undefined) return "";
+        if (typeof value === "string" || typeof value === "number") return String(value).trim();
+        if (typeof value === "object") {
+            return String(value.title || value.text || value.name || value.label || value.value || "").trim();
+        }
+        return String(value).trim();
+    };
+
+    const normalizeEventSections = (sections = []) => (Array.isArray(sections) ? sections : [])
+        .map((section, index) => {
+            if (typeof section === "string") {
+                const [title = "", text = "", image = ""] = section.split("|").map((part) => part.trim());
+                return { title, text, image };
+            }
+            const title = stringifyClean(section.title || section.heading || section.name);
+            const text = stringifyClean(section.text || section.description || section.body || section.content);
+            const image = stringifyClean(section.image || section.imagePath || section.path || section.logo);
+            return {
+                title: title || (text || image ? `قسم ${index + 1}` : ""),
+                text,
+                image,
+            };
+        })
+        .filter((section) => section.title || section.text || section.image);
+
     const toCamelEvent = (event) => ({
         id: event.id,
         title: event.title,
@@ -204,7 +230,7 @@
         participants: Array.isArray(event.participants) ? event.participants : [],
         achievements: Array.isArray(event.achievements) ? event.achievements : [],
         supportLogos: uniqueTextItems(event.support_logos || event.supportLogos || []),
-        detailSections: Array.isArray(event.detail_sections || event.detailSections) ? (event.detail_sections || event.detailSections) : [],
+        detailSections: normalizeEventSections(event.detail_sections || event.detailSections || []),
         coverImage: event.cover_image || event.coverImage || "",
         published: Boolean(event.published),
         sortOrder: event.sort_order || event.sortOrder || 0,
@@ -913,7 +939,7 @@
                 participants: payload.participants || [],
                 achievements: payload.achievements || [],
                 support_logos: uniqueTextItems(payload.supportLogos || []),
-                detail_sections: payload.detailSections || [],
+                detail_sections: normalizeEventSections(payload.detailSections || []),
                 cover_image: payload.coverImage || "",
                 published: Boolean(payload.published),
                 sort_order: Number(payload.sortOrder || 0),

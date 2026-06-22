@@ -94,6 +94,32 @@ const repeatForMarquee = (items) => {
 
 const looksLikeImagePath = (value) => /^(https?:|data:|assets\/|uploads\/|event-images\/|storage\/)/i.test(String(value || ""));
 
+const stringifySectionValue = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string" || typeof value === "number") return String(value).trim();
+    if (typeof value === "object") {
+        return String(value.title || value.text || value.name || value.label || value.value || "").trim();
+    }
+    return String(value).trim();
+};
+
+const normalizeEventSections = (sections = []) => (Array.isArray(sections) ? sections : [])
+    .map((section, index) => {
+        if (typeof section === "string") {
+            const [title = "", text = "", image = ""] = section.split("|").map((part) => part.trim());
+            return { title, text, image };
+        }
+        const title = stringifySectionValue(section.title || section.heading || section.name);
+        const text = stringifySectionValue(section.text || section.description || section.body || section.content);
+        const image = stringifySectionValue(section.image || section.imagePath || section.path || section.logo);
+        return {
+            title: title || (text || image ? `قسم ${index + 1}` : ""),
+            text,
+            image,
+        };
+    })
+    .filter((section) => section.title || section.text || section.image);
+
 const normalizePartner = (logo, index, participants) => {
     if (typeof logo === "object" && logo !== null) {
         return {
@@ -130,7 +156,8 @@ const renderEvent = (event) => {
     const highlights = Array.isArray(event.highlights) ? event.highlights : [];
     const achievements = Array.isArray(event.achievements) ? event.achievements : [];
     const partners = buildPartners(event);
-    const detailSections = event.detailSections?.length ? event.detailSections : [
+    const eventDetailSections = normalizeEventSections(event.detailSections || []);
+    const detailSections = eventDetailSections.length ? eventDetailSections : [
         {
             title: getEventContentValue("event_default_section_title", "تفاصيل التجربة"),
             text: event.description || "يمكن إضافة أقسام تفصيلية لهذه الفعالية من لوحة التحكم.",

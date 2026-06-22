@@ -1618,6 +1618,70 @@ td {
     width: 100%;
 }
 
+.event-sections-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    min-height: 96px;
+}
+
+.event-section-thumb {
+    position: relative;
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 12px;
+    align-items: stretch;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+}
+
+.event-section-thumb img,
+.event-section-placeholder {
+    width: 100%;
+    height: 104px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--sand);
+}
+
+.event-section-placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--gold);
+}
+
+.event-section-thumb strong {
+    display: block;
+    color: var(--burgundy);
+    font-weight: 900;
+    margin-bottom: 6px;
+}
+
+.event-section-thumb p {
+    display: -webkit-box;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.8;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.event-section-thumb button {
+    position: absolute;
+    inset: 8px 8px auto auto;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--white);
+    background: rgba(163, 52, 58, 0.92);
+}
+
 .gallery-thumb {
     position: relative;
     overflow: hidden;
@@ -1664,7 +1728,8 @@ td {
     background: rgba(163, 52, 58, 0.92);
 }
 
-.support-logo-modal {
+.support-logo-modal,
+.event-section-modal {
     width: min(760px, calc(100% - 28px));
 }
 
@@ -2096,8 +2161,14 @@ td {
     .event-form-actions,
     .event-main-fields,
     .event-venue-fields,
-    .event-time-fields {
+    .event-time-fields,
+    .event-section-thumb {
         grid-template-columns: 1fr;
+    }
+
+    .event-section-thumb img,
+    .event-section-placeholder {
+        height: 160px;
     }
 
     .visual-editor-intro,
