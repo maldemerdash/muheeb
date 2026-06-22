@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=event-sections-order-20260622">
+    <link rel="stylesheet" href="admin.css?v=gallery-controls-20260622">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -430,6 +430,16 @@
                                     <small id="galleryName">المقاس المقترح: 1320 × 1080 بكسل لكل صورة</small>
                                 </label>
                             </div>
+                            <div class="gallery-caption-controls">
+                                <label>
+                                    <span>تسمية الصور الجديدة</span>
+                                    <input type="text" name="galleryCaptionText" placeholder="مثال: ملتقى التوظيف الأول 2026">
+                                </label>
+                                <label class="toggle-field">
+                                    <input type="checkbox" name="galleryCaptionVisible" checked>
+                                    <span>إظهار التسمية على الصور الجديدة</span>
+                                </label>
+                            </div>
                             <div class="gallery-preview gallery-wide-preview" id="galleryPreview"></div>
                         </section>
 
@@ -831,7 +841,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=precision-admin-20260622"></script>
-    <script src="admin.js?v=event-sections-order-20260622"></script>
+    <script src="supabase-client.js?v=gallery-controls-20260622"></script>
+    <script src="admin.js?v=gallery-controls-20260622"></script>
 </body>
 </html>

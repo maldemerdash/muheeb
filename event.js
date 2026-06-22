@@ -16,6 +16,21 @@ const eventCategoryMeta = {
 
 let eventPageCategoryOptions = [];
 let eventPageContent = {};
+const eventPageHiddenGalleryCaptionPrefix = "__muheeb_hidden_gallery_caption__:";
+
+const parseEventGalleryCaption = (altText = "") => {
+    const raw = String(altText || "");
+    if (raw.startsWith(eventPageHiddenGalleryCaptionPrefix)) {
+        return {
+            text: raw.slice(eventPageHiddenGalleryCaptionPrefix.length),
+            visible: false,
+        };
+    }
+    return {
+        text: raw,
+        visible: Boolean(raw),
+    };
+};
 
 const getEventContentValue = (key, fallback = "") => {
     const value = eventPageContent?.[key];
@@ -193,12 +208,15 @@ const renderEvent = (event) => {
         `).join("")
         : `<article><i data-lucide="badge-check"></i><span>يمكن إضافة الإنجازات المحققة من لوحة التحكم.</span></article>`;
 
-    document.getElementById("eventGalleryTrack").innerHTML = repeatForMarquee(gallery).map((image) => `
-        <article class="slide">
-            <img src="${eventEscapeHtml(image.imagePath)}" alt="${eventEscapeHtml(image.altText || event.title)}">
-            <span>${eventEscapeHtml(image.altText || event.title)}</span>
-        </article>
-    `).join("");
+    document.getElementById("eventGalleryTrack").innerHTML = repeatForMarquee(gallery).map((image) => {
+        const caption = parseEventGalleryCaption(image.altText || "");
+        return `
+            <article class="slide">
+                <img src="${eventEscapeHtml(image.imagePath)}" alt="${eventEscapeHtml(caption.text || event.title)}">
+                ${caption.visible && caption.text ? `<span>${eventEscapeHtml(caption.text)}</span>` : ""}
+            </article>
+        `;
+    }).join("");
 
     document.getElementById("eventPartnersTrack").innerHTML = partners.length
         ? `<div class="event-logo-track">${repeatForMarquee(partners).map((logo) => `

@@ -225,6 +225,15 @@ const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
 const getEventPageUrl = (event) => `event.html?id=${encodeURIComponent(event.id)}`;
 
 const appLooksLikeImagePath = (value) => /^(https?:|data:|assets\/|uploads\/|event-images\/|storage\/)/i.test(String(value || ""));
+const hiddenGalleryCaptionPrefix = "__muheeb_hidden_gallery_caption__:";
+
+const parseGalleryCaption = (altText = "") => {
+    const raw = String(altText || "");
+    if (raw.startsWith(hiddenGalleryCaptionPrefix)) {
+        return raw.slice(hiddenGalleryCaptionPrefix.length);
+    }
+    return raw;
+};
 
 const normalizePartnerLogo = (entry, index = 0) => {
     if (typeof entry === "object" && entry !== null) {
@@ -473,7 +482,7 @@ const openEventDetail = (eventId) => {
             <section class="event-detail-section">
                 <h3>معرض الصور</h3>
                 <div class="event-gallery-grid">
-                    ${gallery.map((image) => `<img src="${escapeHtml(image.imagePath)}" alt="${escapeHtml(image.altText || event.title)}">`).join("")}
+                    ${gallery.map((image) => `<img src="${escapeHtml(image.imagePath)}" alt="${escapeHtml(parseGalleryCaption(image.altText) || event.title)}">`).join("")}
                 </div>
             </section>
         ` : ""}

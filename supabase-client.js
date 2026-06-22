@@ -171,6 +171,7 @@
                 id: image.id,
                 imagePath: image.image_path || image.imagePath || "",
                 altText: image.alt_text || image.altText || "",
+                sortOrder: image.sort_order || image.sortOrder || 0,
             }));
     };
 
@@ -986,11 +987,20 @@
             }
             if (saveError) throw saveError;
             if (payload.galleryImages?.length) {
+                const { data: lastImageRows, error: lastImageError } = await client
+                    .from("event_images")
+                    .select("sort_order")
+                    .eq("event_id", savedEvent.id)
+                    .order("sort_order", { ascending: false })
+                    .order("id", { ascending: false })
+                    .limit(1);
+                if (lastImageError) throw lastImageError;
+                const startOrder = Number(lastImageRows?.[0]?.sort_order || 0);
                 const galleryRows = payload.galleryImages.map((path, index) => ({
                     event_id: savedEvent.id,
                     image_path: path,
-                    alt_text: payload.title,
-                    sort_order: index + 1,
+                    alt_text: payload.galleryCaptionAltText ?? payload.title,
+                    sort_order: startOrder + index + 1,
                 }));
                 const { error } = await client.from("event_images").insert(galleryRows);
                 if (error) throw error;
@@ -1043,6 +1053,35 @@
             await requireAdmin();
             const { error } = await client.from("event_images").delete().eq("id", imageId);
             if (error) throw error;
+        },
+
+        async updateEventImage(imageId, payload = {}) {
+            const client = await getSupabaseClient();
+            if (!client) {
+                await localJson(`/api/admin/event-images/${imageId}`, {
+                    method: "PUT",
+                    body: JSON.stringify(payload),
+                });
+                return null;
+            }
+            await requireAdmin();
+            const row = {};
+            if ("altText" in payload) row.alt_text = String(payload.altText || "").trim();
+            if ("sortOrder" in payload) row.sort_order = Number(payload.sortOrder || 0);
+            if (!Object.keys(row).length) return null;
+            const { data, error } = await client
+                .from("event_images")
+                .update(row)
+                .eq("id", imageId)
+                .select("id, image_path, alt_text, sort_order")
+                .single();
+            if (error) throw error;
+            return data ? {
+                id: data.id,
+                imagePath: data.image_path || "",
+                altText: data.alt_text || "",
+                sortOrder: data.sort_order || 0,
+            } : null;
         },
 
         async listSiteContent() {

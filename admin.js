@@ -28,6 +28,27 @@ const state = {
     activeEventSectionIndex: null,
 };
 
+const hiddenGalleryCaptionPrefix = "__muheeb_hidden_gallery_caption__:";
+
+const parseGalleryCaption = (altText = "") => {
+    const raw = String(altText || "");
+    if (raw.startsWith(hiddenGalleryCaptionPrefix)) {
+        return {
+            text: raw.slice(hiddenGalleryCaptionPrefix.length),
+            visible: false,
+        };
+    }
+    return {
+        text: raw,
+        visible: true,
+    };
+};
+
+const encodeGalleryCaption = (text = "", visible = true) => {
+    const safeText = String(text || "").trim();
+    return visible ? safeText : `${hiddenGalleryCaptionPrefix}${safeText}`;
+};
+
 const labels = {
     new: "جديد",
     contacted: "تم التواصل",
@@ -2069,6 +2090,8 @@ const resetEventForm = () => {
     renderEventSections([]);
     renderEventCategorySelect();
     if (eventForm.elements.titleSize) eventForm.elements.titleSize.value = "normal";
+    if (eventForm.elements.galleryCaptionText) eventForm.elements.galleryCaptionText.value = "";
+    if (eventForm.elements.galleryCaptionVisible) eventForm.elements.galleryCaptionVisible.checked = true;
     eventForm.elements.published.checked = true;
     eventForm.elements.sortOrder.value = "0";
 };
@@ -2081,6 +2104,8 @@ const editEvent = (eventId) => {
     eventIdInput.value = event.id;
     eventFormTitle.textContent = "تعديل فعالية";
     eventForm.elements.title.value = event.title || "";
+    if (eventForm.elements.galleryCaptionText) eventForm.elements.galleryCaptionText.value = event.title || "";
+    if (eventForm.elements.galleryCaptionVisible) eventForm.elements.galleryCaptionVisible.checked = true;
     if (eventForm.elements.titleSize) eventForm.elements.titleSize.value = event.titleSize || "normal";
     renderEventCategorySelect();
     eventForm.elements.category.value = event.category || "event";
@@ -2127,12 +2152,40 @@ const editEvent = (eventId) => {
 };
 
 const renderGallery = (gallery) => {
-    galleryPreview.innerHTML = gallery.map((image) => `
-        <div class="gallery-thumb">
+    const safeGallery = Array.isArray(gallery) ? gallery : [];
+    galleryPreview.innerHTML = safeGallery.map((image, index) => {
+        const caption = parseGalleryCaption(image.altText || "");
+        return `
+        <div class="gallery-thumb event-gallery-admin-thumb" data-gallery-image-card="${image.id}">
             <img src="${escapeHtml(image.imagePath)}" alt="">
-            <button type="button" title="حذف الصورة" data-delete-image="${image.id}">×</button>
+            <div class="event-gallery-caption-fields">
+                <label>
+                    <span>تسمية الصورة</span>
+                    <input type="text" data-gallery-caption value="${escapeHtml(caption.text)}" placeholder="اكتب التسمية التي تظهر على الصورة">
+                </label>
+                <label class="toggle-field compact-toggle">
+                    <input type="checkbox" data-gallery-caption-visible ${caption.visible ? "checked" : ""}>
+                    <span>إظهار التسمية</span>
+                </label>
+            </div>
+            <div class="event-section-actions gallery-image-actions">
+                <button type="button" title="رفع الصورة للأعلى" aria-label="رفع الصورة للأعلى" data-move-gallery-image="${image.id}" data-direction="-1" ${index === 0 ? "disabled" : ""}>
+                    <i data-lucide="arrow-up"></i>
+                </button>
+                <button type="button" title="إنزال الصورة للأسفل" aria-label="إنزال الصورة للأسفل" data-move-gallery-image="${image.id}" data-direction="1" ${index === safeGallery.length - 1 ? "disabled" : ""}>
+                    <i data-lucide="arrow-down"></i>
+                </button>
+                <button type="button" title="حفظ تسمية الصورة" aria-label="حفظ تسمية الصورة" data-save-gallery-image="${image.id}">
+                    <i data-lucide="save"></i>
+                </button>
+                <button type="button" title="حذف الصورة" aria-label="حذف الصورة" data-delete-image="${image.id}">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </div>
         </div>
-    `).join("") || `<span class="meta-text">لا توجد صور إضافية.</span>`;
+    `;
+    }).join("") || `<span class="meta-text">لا توجد صور إضافية.</span>`;
+    initIcons();
 };
 
 const renderSupportLogos = (logos = [], participants = []) => {
@@ -2340,6 +2393,55 @@ const saveSectionToEvent = async () => {
     }
 };
 
+const refreshCurrentEventEditor = async () => {
+    const eventId = state.editingEvent?.id;
+    await loadAll();
+    if (eventId) {
+        const refreshed = state.events.find((item) => item.id === eventId);
+        if (refreshed) editEvent(refreshed.id);
+    }
+};
+
+const getGalleryCardPayload = (imageId) => {
+    const card = galleryPreview.querySelector(`[data-gallery-image-card="${imageId}"]`);
+    return {
+        altText: encodeGalleryCaption(
+            card?.querySelector("[data-gallery-caption]")?.value || "",
+            card?.querySelector("[data-gallery-caption-visible]")?.checked !== false,
+        ),
+    };
+};
+
+const saveGalleryImageSettings = async (imageId) => {
+    const payload = getGalleryCardPayload(imageId);
+    await window.MuheebData.updateEventImage(imageId, payload);
+    await refreshCurrentEventEditor();
+    showMessage("تم حفظ تسمية الصورة.", eventFormMessage);
+};
+
+const moveGalleryImage = async (imageId, direction) => {
+    const gallery = state.editingEvent?.gallery || [];
+    const index = gallery.findIndex((image) => Number(image.id) === Number(imageId));
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= gallery.length) return;
+    const current = gallery[index];
+    const target = gallery[nextIndex];
+    const currentPayload = getGalleryCardPayload(current.id);
+    const targetPayload = getGalleryCardPayload(target.id);
+    await Promise.all([
+        window.MuheebData.updateEventImage(current.id, {
+            altText: currentPayload.altText ?? current.altText ?? "",
+            sortOrder: Number(target.sortOrder || nextIndex + 1),
+        }),
+        window.MuheebData.updateEventImage(target.id, {
+            altText: targetPayload.altText ?? target.altText ?? "",
+            sortOrder: Number(current.sortOrder || index + 1),
+        }),
+    ]);
+    await refreshCurrentEventEditor();
+    showMessage("تم تغيير ترتيب الصورة في المعرض.", eventFormMessage);
+};
+
 const getFriendlyFileLabel = (label, fallback = "تم تجهيز الصورة") => {
     const value = String(label || "").trim();
     if (!value) return fallback;
@@ -2396,6 +2498,10 @@ const saveEvent = async (event) => {
             published: eventForm.elements.published.checked,
             coverImage: state.coverPath,
             galleryImages: uploadedGallery.map((file) => file.path),
+            galleryCaptionAltText: encodeGalleryCaption(
+                eventForm.elements.galleryCaptionText?.value || eventForm.elements.title.value,
+                eventForm.elements.galleryCaptionVisible?.checked !== false,
+            ),
         };
         const eventId = Number(eventIdInput.value || 0);
         await window.MuheebData.saveEvent(payload, eventId || null);
@@ -3222,15 +3328,21 @@ eventsList.addEventListener("click", async (event) => {
 });
 
 galleryPreview.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-delete-image]");
-    if (!button) return;
+    const saveButton = event.target.closest("[data-save-gallery-image]");
+    const moveButton = event.target.closest("[data-move-gallery-image]");
+    const deleteButton = event.target.closest("[data-delete-image]");
+    if (!saveButton && !moveButton && !deleteButton) return;
     try {
-        await window.MuheebData.deleteEventImage(Number(button.dataset.deleteImage));
-        await loadAll();
-        if (state.editingEvent) {
-            const refreshed = state.events.find((item) => item.id === state.editingEvent.id);
-            if (refreshed) editEvent(refreshed.id);
+        if (saveButton) {
+            await saveGalleryImageSettings(Number(saveButton.dataset.saveGalleryImage));
+            return;
         }
+        if (moveButton) {
+            await moveGalleryImage(Number(moveButton.dataset.moveGalleryImage), Number(moveButton.dataset.direction));
+            return;
+        }
+        await window.MuheebData.deleteEventImage(Number(deleteButton.dataset.deleteImage));
+        await refreshCurrentEventEditor();
         showMessage("تم حذف الصورة من المعرض.");
     } catch (error) {
         showError(error.message);
