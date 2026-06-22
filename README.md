@@ -70,6 +70,7 @@ MUHEEB_ADMIN_USER="admin" MUHEEB_ADMIN_PASSWORD="StrongPasswordHere" python3 ser
 - `supabase/cms_upgrade.sql`: جداول إدارة محتوى الموقع وصوره واختيارات النموذج.
 - `supabase/team_permissions_upgrade.sql`: جداول المستخدمين التفصيلية، صلاحيات اللوحة، ملاحظات الطلبات المسندة، والإشعارات.
 - `supabase/workflow_profile_events_upgrade.sql`: صلاحيات الطلبات المتقدمة، قراءة الإشعارات، استفسارات الملاحظات، طلبات تعديل بيانات المستخدم، وتفاصيل الفعاليات الموسعة.
+- `supabase/notifications_inquiries_media_upgrade.sql`: تفعيل ردود الاستفسارات، ضبط ظهور الإشعارات للمستخدم المعني فقط، وإضافة صور خلفية دخول المشرف والفوتر.
 - `supabase-config.js`: تضع فيه رابط Supabase و`anon public key`.
 - `supabase-client.js`: طبقة الاتصال التي تعمل مع Supabase عند النشر أو مع `server.py` محليًا.
 - `vercel.json`: إعدادات نشر الواجهة على Vercel.

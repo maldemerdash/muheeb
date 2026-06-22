@@ -1106,6 +1106,16 @@ button {
     filter: brightness(0) invert(1);
 }
 
+.site-footer .footer-main-image {
+    width: min(220px, 100%);
+    max-height: 96px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    filter: none;
+    opacity: 0.72;
+}
+
 .site-footer p {
     max-width: 440px;
     margin: 4px 0 4px;

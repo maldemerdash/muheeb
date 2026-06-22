@@ -286,8 +286,6 @@ using (
     and (
         target_user_id is null
         or target_user_id = auth.uid()
-        or public.admin_has_permission('leads')
-        or public.admin_has_permission('users')
     )
 );
 
@@ -354,5 +352,17 @@ create policy "Admins can update notification reads"
 on public.admin_notifications
 for update
 to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (
+    public.is_admin()
+    and (
+        target_user_id is null
+        or target_user_id = auth.uid()
+    )
+)
+with check (
+    public.is_admin()
+    and (
+        target_user_id is null
+        or target_user_id = auth.uid()
+    )
+);

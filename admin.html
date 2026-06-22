@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=event-controls-20260622">
+    <link rel="stylesheet" href="admin.css?v=notifications-media-20260622">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -550,6 +550,8 @@
                         <option value="site_core">صور أساسية</option>
                         <option value="identity_gallery">معرض الهوية المتحرك</option>
                         <option value="services">صور الخدمات</option>
+                        <option value="admin_login">شاشة دخول المشرف</option>
+                        <option value="footer">صور الفوتر</option>
                         <option value="custom">صور إضافية</option>
                     </select>
                 </label>
@@ -616,6 +618,39 @@
                 <div class="lead-notes-list" id="leadNotesList"></div>
             </div>
         </section>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="noteInquiryModal" role="dialog" aria-modal="true" aria-labelledby="noteInquiryTitle">
+        <form class="lead-modal note-inquiry-modal" id="noteInquiryForm">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow" id="noteInquiryEyebrow">استفسارات المتابعة</p>
+                    <h2 id="noteInquiryTitle">إرسال استفسار</h2>
+                </div>
+                <button class="ghost-btn icon-only" type="button" id="closeNoteInquiryModal" aria-label="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <input type="hidden" name="mode" value="create">
+            <input type="hidden" name="noteId">
+            <input type="hidden" name="inquiryId">
+            <div class="inquiry-context" id="noteInquiryContext"></div>
+            <label>
+                <span id="noteInquiryLabel">نص الاستفسار</span>
+                <textarea name="body" rows="5" placeholder="اكتب الاستفسار هنا" required></textarea>
+            </label>
+            <div class="event-actions modal-actions">
+                <button class="ghost-btn" type="button" id="cancelNoteInquiryModal">
+                    <i data-lucide="x"></i>
+                    <span>إلغاء</span>
+                </button>
+                <button class="primary-btn" type="submit">
+                    <i data-lucide="send"></i>
+                    <span id="noteInquirySubmitText">إرسال الاستفسار</span>
+                </button>
+            </div>
+            <p class="form-message" id="noteInquiryMessage" role="status"></p>
+        </form>
     </div>
 
     <div class="modal-backdrop is-hidden" id="userModal" role="dialog" aria-modal="true" aria-labelledby="userFormTitle">
@@ -786,7 +821,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=event-controls-20260622"></script>
-    <script src="admin.js?v=event-controls-20260622"></script>
+    <script src="supabase-client.js?v=notifications-media-20260622"></script>
+    <script src="admin.js?v=notifications-media-20260622"></script>
 </body>
 </html>

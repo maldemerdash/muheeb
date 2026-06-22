@@ -121,6 +121,9 @@
         body: inquiry.body || "",
         createdBy: inquiry.created_by || inquiry.createdBy || "",
         createdAt: inquiry.created_at || inquiry.createdAt,
+        replyBody: inquiry.reply_body || inquiry.replyBody || "",
+        replyBy: inquiry.reply_by || inquiry.replyBy || "",
+        replyAt: inquiry.reply_at || inquiry.replyAt || "",
     });
 
     const toCamelProfileRequest = (request) => ({
@@ -308,7 +311,9 @@
         { image_key: "service_3_image", label: "صورة خدمة الهوية والتطبيقات", group_name: "services", image_path: "assets/identity-cards-clean.png", alt_text: "تطبيقات الهوية البصرية", published: true, sort_order: 32 },
         { image_key: "execution_image", label: "صورة رحلة التنفيذ", group_name: "site_core", image_path: "assets/identity-stamp-clean.png", alt_text: "توثيق واعتماد مخرجات مهيب", published: true, sort_order: 50 },
         { image_key: "interest_background", label: "خلفية نموذج الطلب", group_name: "site_core", image_path: "assets/brand-palette.jpg", alt_text: "لوحة ألوان مهيب", published: true, sort_order: 60 },
-        { image_key: "footer_logo", label: "شعار الفوتر", group_name: "site_core", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 70 },
+        { image_key: "footer_logo", label: "شعار الفوتر", group_name: "footer", image_path: "assets/logo-meheib.png", alt_text: "شعار مهيب", published: true, sort_order: 70 },
+        { image_key: "footer_main_image", label: "صورة الفوتر في الصفحة الرئيسية", group_name: "footer", image_path: "assets/identity-wall-clean.png", alt_text: "صورة بصرية للفوتر", published: true, sort_order: 71 },
+        { image_key: "admin_login_background", label: "خلفية شاشة دخول المشرف", group_name: "admin_login", image_path: "assets/brand-palette.jpg", alt_text: "خلفية لوحة التحكم", published: true, sort_order: 80 },
     ];
 
     const contentRowsToObject = (rows) =>
@@ -612,6 +617,23 @@
                     body: payload.body,
                     created_by: user.id,
                 })
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelLeadNoteInquiry(data);
+        },
+
+        async replyLeadNoteInquiry(inquiryId, body) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data, error } = await client
+                .from("lead_note_inquiries")
+                .update({
+                    reply_body: String(body || "").trim(),
+                    reply_by: user.id,
+                    reply_at: new Date().toISOString(),
+                })
+                .eq("id", inquiryId)
                 .select("*")
                 .single();
             if (error) throw error;

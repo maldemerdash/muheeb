@@ -21,6 +21,7 @@ const state = {
     editingInterestOption: null,
     editingUser: null,
     activeLeadId: null,
+    activeInquiry: { mode: "create", noteId: "", inquiryId: "" },
     coverPath: "",
     pendingSupportLogos: [],
     imageEditor: {
@@ -78,12 +79,16 @@ const siteImagePageOrder = {
     execution_image: 50,
     interest_background: 60,
     footer_logo: 70,
+    footer_main_image: 71,
+    admin_login_background: 80,
 };
 
 const siteImageGroupOrder = {
     site_core: 10,
     identity_gallery: 20,
     services: 30,
+    footer: 40,
+    admin_login: 50,
     custom: 90,
 };
 
@@ -217,6 +222,16 @@ const leadNotesList = document.getElementById("leadNotesList");
 const leadNoteForm = document.getElementById("leadNoteForm");
 const leadNoteAssignee = document.getElementById("leadNoteAssignee");
 const leadModalProgress = document.getElementById("leadModalProgress");
+const noteInquiryModal = document.getElementById("noteInquiryModal");
+const noteInquiryForm = document.getElementById("noteInquiryForm");
+const noteInquiryTitle = document.getElementById("noteInquiryTitle");
+const noteInquiryEyebrow = document.getElementById("noteInquiryEyebrow");
+const noteInquiryContext = document.getElementById("noteInquiryContext");
+const noteInquiryLabel = document.getElementById("noteInquiryLabel");
+const noteInquirySubmitText = document.getElementById("noteInquirySubmitText");
+const noteInquiryMessage = document.getElementById("noteInquiryMessage");
+const closeNoteInquiryModalButton = document.getElementById("closeNoteInquiryModal");
+const cancelNoteInquiryModalButton = document.getElementById("cancelNoteInquiryModal");
 const userForm = document.getElementById("userForm");
 const userFormTitle = document.getElementById("userFormTitle");
 const userFormMessage = document.getElementById("userFormMessage");
@@ -331,6 +346,12 @@ const getDisplayName = (user = state.admin) => user?.fullName || user?.username 
 
 const getUserById = (userId) => state.users.find((user) => user.userId === userId);
 
+const userHasPermission = (user, permission) => (
+    user?.role === "owner" ||
+    user?.permissions?.all === true ||
+    user?.permissions?.[permission] === true
+);
+
 const getUserAvatar = (user = state.admin) => user?.avatarUrl || user?.permissions?.avatarUrl || "";
 
 const getInitials = (name) => String(name || "م")
@@ -374,6 +395,41 @@ const getVisibleLeads = () => (state.leads || []).filter(canAccessLead);
 
 const formatLeadPhone = (lead) => `+${lead.countryCode || ""} ${lead.phone || ""}`.trim();
 
+const normalizeWhatsappDigits = (value) => {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("00")) return digits.slice(2);
+    if (digits.startsWith("966")) return digits;
+    if (digits.startsWith("05")) return `966${digits.slice(1)}`;
+    if (digits.startsWith("5") && digits.length === 9) return `966${digits}`;
+    return digits;
+};
+
+const buildWhatsappUrl = (phone, message = "") => {
+    const digits = normalizeWhatsappDigits(phone);
+    if (!digits) return "";
+    const text = message ? `?text=${encodeURIComponent(message)}` : "";
+    return `https://wa.me/${digits}${text}`;
+};
+
+const getLeadWhatsappUrl = (lead) => buildWhatsappUrl(
+    `${lead?.countryCode || ""}${lead?.phone || ""}`,
+    "تم الاطلاع على طلبك وسيتم التواصل معك وتسعدني خدمتك"
+);
+
+const openWhatsappMessage = (phone, message, popup = null) => {
+    const url = buildWhatsappUrl(phone, message);
+    if (!url) {
+        popup?.close?.();
+        return;
+    }
+    if (popup) {
+        popup.location.href = url;
+        return;
+    }
+    window.open(url, "_blank", "noopener");
+};
+
 const renderPhoneValue = (lead) => {
     if (!canViewLeadPhone()) return `<span class="muted-text">مخفي حسب الصلاحية</span>`;
     return `<span class="phone-ltr">${escapeHtml(formatLeadPhone(lead))}</span>`;
@@ -409,7 +465,37 @@ const getNoteInquiries = (noteId) => state.noteInquiries
     .map((inquiry) => ({
         ...inquiry,
         createdByName: getDisplayName(getUserById(inquiry.createdBy) || {}),
+        replyByName: getDisplayName(getUserById(inquiry.replyBy) || {}),
     }));
+
+const getVisibleNotifications = (notifications) => (notifications || []).filter((notification) => (
+    !notification.targetUserId ||
+    notification.targetUserId === state.admin?.userId
+));
+
+const createTargetedNotifications = async (targetIds, payload) => {
+    const ids = Array.from(new Set((targetIds || []).filter((id) => id && id !== state.admin?.userId)));
+    await Promise.all(ids.map((targetUserId) => window.MuheebData.createNotification({
+        ...payload,
+        targetUserId,
+    }).catch(() => null)));
+};
+
+const getInquiryNotificationTargets = (note) => {
+    const targetIds = new Set();
+    if (note?.createdBy) targetIds.add(note.createdBy);
+    state.users
+        .filter((user) => user.active && userHasPermission(user, "manage_note_inquiries"))
+        .forEach((user) => targetIds.add(user.userId));
+    return Array.from(targetIds);
+};
+
+const canReplyToInquiry = () => (
+    can("manage_note_inquiries") ||
+    can("assign_notes") ||
+    canViewAllLeads() ||
+    isOwner()
+);
 
 const getProgress = (lead) => {
     const notes = getVisibleNotes(lead);
@@ -458,6 +544,19 @@ const sortSiteImagesByPageOrder = (images) => [...(images || [])].sort((a, b) =>
     if (sortDiff) return sortDiff;
     return (a.id || 0) - (b.id || 0);
 });
+
+const getPublishedSiteImage = (imageKey) => state.siteImages.find((image) => (
+    image.imageKey === imageKey &&
+    image.published !== false &&
+    image.imagePath
+));
+
+const applyAdminSiteImages = () => {
+    const loginBackground = getPublishedSiteImage("admin_login_background");
+    if (loginBackground?.imagePath) {
+        loginView?.style.setProperty("--admin-login-bg", `url("${loginBackground.imagePath}")`);
+    }
+};
 
 const showMessage = (message, target = globalMessage, type = "success") => {
     if (!message) return;
@@ -598,8 +697,9 @@ const loadAll = async () => {
         state.admin = { ...state.admin, ...currentAdminRow };
         showApp();
     }
-    state.notifications = notifications || [];
+    state.notifications = getVisibleNotifications(notifications);
     state.profileRequests = profileRequests || [];
+    applyAdminSiteImages();
     renderStats(stats || {});
     renderLeads();
     renderEvents();
@@ -679,7 +779,7 @@ const renderLeads = () => {
             <td>
                 <div class="lead-actions">
                     ${canViewLeadPhone() ? `
-                    <a class="ghost-btn icon-only small-icon" href="https://wa.me/${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}" target="_blank" rel="noopener" title="واتساب" aria-label="واتساب">
+                    <a class="ghost-btn icon-only small-icon" href="${escapeHtml(getLeadWhatsappUrl(lead))}" target="_blank" rel="noopener" title="واتساب" aria-label="واتساب">
                         <i data-lucide="message-circle"></i>
                     </a>
                     ` : ""}
@@ -721,7 +821,7 @@ const renderLeadModal = () => {
         <article>
             <span>واتساب</span>
             ${canViewLeadPhone()
-                ? `<a href="https://wa.me/${escapeHtml(lead.countryCode)}${escapeHtml(lead.phone)}" target="_blank" rel="noopener">فتح واتساب</a>`
+                ? `<a href="${escapeHtml(getLeadWhatsappUrl(lead))}" target="_blank" rel="noopener">فتح واتساب</a>`
                 : `<strong class="muted-text">غير متاح</strong>`}
         </article>
         <article>
@@ -771,13 +871,14 @@ const renderLeadNotes = (lead) => {
     const notes = getVisibleNotes(lead);
     leadNotesList.innerHTML = notes.map((note) => {
         const inquiries = getNoteInquiries(note.id);
+        const isStoredNote = state.leadNotes.some((item) => item.id === note.id);
         const canCompleteNote = !note.legacy && !note.done && (
             note.assignedTo === state.admin?.userId ||
             isOwner() ||
             can("users") ||
             can("assign_notes")
         );
-        const canAskInquiry = !note.legacy && !note.done && note.assignedTo === state.admin?.userId;
+        const canAskInquiry = isStoredNote && !note.legacy && !note.done && note.assignedTo === state.admin?.userId;
         return `
         <article class="lead-note ${note.done ? "is-done" : ""}">
             <div>
@@ -788,16 +889,36 @@ const renderLeadNotes = (lead) => {
                 ${note.doneAt ? `<span>أُنجزت: ${formatDate(note.doneAt)}</span>` : ""}
                 ${inquiries.length ? `
                     <div class="note-inquiries">
-                        ${inquiries.map((inquiry) => `
-                            <div class="note-inquiry">
-                                <i data-lucide="message-square-text"></i>
-                                <div>
-                                    <strong>${escapeHtml(inquiry.createdByName || "مستخدم")}</strong>
-                                    <p>${escapeHtml(inquiry.body)}</p>
-                                    <span>${formatDate(inquiry.createdAt)}</span>
+                        ${inquiries.map((inquiry) => {
+                            const canReply = canReplyToInquiry() && !inquiry.replyBody && inquiry.createdBy !== state.admin?.userId;
+                            return `
+                                <div class="note-inquiry ${inquiry.replyBody ? "has-reply" : ""}">
+                                    <i data-lucide="message-square-text"></i>
+                                    <div class="note-inquiry-content">
+                                        <div class="inquiry-head">
+                                            <strong>${escapeHtml(inquiry.createdByName || "مستخدم")}</strong>
+                                            <span>${formatDate(inquiry.createdAt)}</span>
+                                        </div>
+                                        <p>${escapeHtml(inquiry.body)}</p>
+                                        ${inquiry.replyBody ? `
+                                            <div class="note-inquiry-reply">
+                                                <i data-lucide="corner-down-left"></i>
+                                                <div>
+                                                    <strong>رد ${escapeHtml(inquiry.replyByName || "المشرف")}</strong>
+                                                    <p>${escapeHtml(inquiry.replyBody)}</p>
+                                                    <span>${formatDate(inquiry.replyAt)}</span>
+                                                </div>
+                                            </div>
+                                        ` : canReply ? `
+                                            <button class="ghost-btn small-inline-btn" type="button" data-reply-inquiry="${escapeHtml(inquiry.id)}">
+                                                <i data-lucide="reply"></i>
+                                                <span>رد على الاستفسار</span>
+                                            </button>
+                                        ` : `<span class="meta-text">بانتظار الرد</span>`}
+                                    </div>
                                 </div>
-                            </div>
-                        `).join("")}
+                            `;
+                        }).join("")}
                     </div>
                 ` : ""}
             </div>
@@ -829,6 +950,46 @@ const closeLeadModal = () => {
     leadNoteForm?.reset();
 };
 
+const closeNoteInquiryModal = () => {
+    state.activeInquiry = { mode: "create", noteId: "", inquiryId: "" };
+    noteInquiryModal?.classList.add("is-hidden");
+    noteInquiryForm?.reset();
+    if (noteInquiryMessage) noteInquiryMessage.textContent = "";
+    if (noteInquiryModal && leadModal?.classList.contains("is-hidden")) {
+        document.body.classList.remove("modal-open");
+    }
+};
+
+const openNoteInquiryModal = ({ mode = "create", noteId = "", inquiryId = "" } = {}) => {
+    const lead = getActiveLead();
+    const note = noteId ? state.leadNotes.find((item) => item.id === noteId) : null;
+    const inquiry = inquiryId ? state.noteInquiries.find((item) => item.id === inquiryId) : null;
+    const sourceNote = note || state.leadNotes.find((item) => item.id === inquiry?.noteId);
+    if (!lead || (!sourceNote && mode === "create") || (!inquiry && mode === "reply")) return;
+    state.activeInquiry = {
+        mode,
+        noteId: sourceNote?.id || "",
+        inquiryId: inquiry?.id || "",
+    };
+    noteInquiryForm.elements.mode.value = mode;
+    noteInquiryForm.elements.noteId.value = sourceNote?.id || "";
+    noteInquiryForm.elements.inquiryId.value = inquiry?.id || "";
+    if (noteInquiryEyebrow) noteInquiryEyebrow.textContent = mode === "reply" ? "رد على استفسار" : "استفسار على مهمة";
+    if (noteInquiryTitle) noteInquiryTitle.textContent = mode === "reply" ? "الرد على الاستفسار" : "إرسال استفسار للمشرف";
+    if (noteInquiryLabel) noteInquiryLabel.textContent = mode === "reply" ? "نص الرد" : "نص الاستفسار";
+    if (noteInquirySubmitText) noteInquirySubmitText.textContent = mode === "reply" ? "إرسال الرد" : "إرسال الاستفسار";
+    if (noteInquiryContext) {
+        noteInquiryContext.innerHTML = `
+            <span>الطلب: ${escapeHtml(lead.name)}</span>
+            <strong>${escapeHtml(sourceNote?.text || "ملاحظة متابعة")}</strong>
+            ${inquiry ? `<p>${escapeHtml(inquiry.body)}</p>` : ""}
+        `;
+    }
+    noteInquiryModal?.classList.remove("is-hidden");
+    document.body.classList.add("modal-open");
+    initIcons();
+};
+
 const saveLeadNotes = async (lead, notes) => {
     await window.MuheebData.updateLead(lead.id, {
         status: lead.status,
@@ -843,11 +1004,22 @@ const addLeadNote = async (text, assignedTo = "") => {
     const lead = getActiveLead();
     if (!lead || !text.trim()) return;
     const assignee = getUserById(assignedTo) || state.admin;
-    const note = await window.MuheebData.createLeadNote({
-        leadId: lead.id,
-        text: text.trim(),
-        assignedTo: assignee?.userId || state.admin?.userId || "",
-    });
+    const shouldNotifyAssignee = assignee?.userId && assignee.userId !== state.admin?.userId;
+    const assigneeWhatsappWindow = shouldNotifyAssignee && assignee.phone
+        ? window.open("about:blank", "_blank")
+        : null;
+    if (assigneeWhatsappWindow) assigneeWhatsappWindow.opener = null;
+    let note = null;
+    try {
+        note = await window.MuheebData.createLeadNote({
+            leadId: lead.id,
+            text: text.trim(),
+            assignedTo: assignee?.userId || state.admin?.userId || "",
+        });
+    } catch (error) {
+        assigneeWhatsappWindow?.close?.();
+        throw error;
+    }
     if (note?.assignedTo && note.assignedTo !== state.admin?.userId) {
         await window.MuheebData.createNotification({
             targetUserId: note.assignedTo,
@@ -857,6 +1029,13 @@ const addLeadNote = async (text, assignedTo = "") => {
             title: "مهمة مسندة إليك",
             message: `${getDisplayName()} أسند إليك ملاحظة على طلب ${lead.name}.`,
         }).catch(() => null);
+        openWhatsappMessage(
+            assignee.phone,
+            "تم إسناد مهمة جديدة يرجى الاطلاع عليها في صفحتك الشخصية",
+            assigneeWhatsappWindow
+        );
+    } else {
+        assigneeWhatsappWindow?.close?.();
     }
     await loadAll();
     state.activeLeadId = lead.id;
@@ -893,16 +1072,30 @@ const addNoteInquiry = async (noteId, body) => {
         noteId,
         body: body.trim(),
     });
-    if (note.createdBy && note.createdBy !== state.admin?.userId) {
-        await window.MuheebData.createNotification({
-            targetUserId: note.createdBy,
-            leadId: lead.id,
-            noteId,
-            kind: "note_inquiry",
-            title: "استفسار على ملاحظة متابعة",
-            message: `${getDisplayName()} أضاف استفسارًا على طلب ${lead.name}.`,
-        }).catch(() => null);
-    }
+    await createTargetedNotifications(getInquiryNotificationTargets(note), {
+        leadId: lead.id,
+        noteId,
+        kind: "note_inquiry",
+        title: "استفسار على ملاحظة متابعة",
+        message: `${getDisplayName()} أضاف استفسارًا على طلب ${lead.name}.`,
+    });
+    await loadAll();
+    state.activeLeadId = lead.id;
+    renderLeadModal();
+};
+
+const replyNoteInquiry = async (inquiryId, body) => {
+    const lead = getActiveLead();
+    const inquiry = state.noteInquiries.find((item) => item.id === inquiryId);
+    if (!lead || !inquiry || !body.trim()) return;
+    await window.MuheebData.replyLeadNoteInquiry(inquiryId, body.trim());
+    await createTargetedNotifications([inquiry.createdBy], {
+        leadId: lead.id,
+        noteId: inquiry.noteId,
+        kind: "note_inquiry_reply",
+        title: "رد على استفسارك",
+        message: `${getDisplayName()} رد على استفسارك في طلب ${lead.name}.`,
+    });
     await loadAll();
     state.activeLeadId = lead.id;
     renderLeadModal();
@@ -1368,6 +1561,8 @@ const siteImageGroupMeta = {
     site_core: { title: "صور الواجهة والأقسام الأساسية", description: "الصور التي تظهر في الهيرو، رحلة التنفيذ، نموذج الطلب، والتذييل.", icon: "layout-template" },
     identity_gallery: { title: "معرض الهوية المتحرك", description: "صور الشريط المتحرك لتطبيقات الهوية في الصفحة الرئيسية.", icon: "gallery-horizontal-end" },
     services: { title: "صور الخدمات", description: "صور بطاقات الخدمات الثلاثة في الموقع.", icon: "sparkles" },
+    footer: { title: "صور الفوتر", description: "الصورة والشعار الخاصان بتذييل صفحات الموقع.", icon: "panel-bottom" },
+    admin_login: { title: "شاشة دخول المشرف", description: "خلفية شاشة تسجيل الدخول الخاصة بلوحة التحكم.", icon: "log-in" },
     custom: { title: "صور إضافية", description: "صور مخصصة يمكن إضافتها لاستخدامات لاحقة أو أقسام جديدة.", icon: "image-plus" },
 };
 
@@ -2655,6 +2850,11 @@ document.getElementById("closeLeadModal")?.addEventListener("click", closeLeadMo
 leadModal?.addEventListener("click", (event) => {
     if (event.target === leadModal) closeLeadModal();
 });
+closeNoteInquiryModalButton?.addEventListener("click", closeNoteInquiryModal);
+cancelNoteInquiryModalButton?.addEventListener("click", closeNoteInquiryModal);
+noteInquiryModal?.addEventListener("click", (event) => {
+    if (event.target === noteInquiryModal) closeNoteInquiryModal();
+});
 
 leadNoteForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2680,14 +2880,30 @@ leadNotesList?.addEventListener("click", async (event) => {
     }
     const inquiryButton = event.target.closest("[data-inquire-note]");
     if (inquiryButton) {
-        const body = window.prompt("اكتب الاستفسار الذي تريد إرساله للمشرف:");
-        if (!body || !body.trim()) return;
-        try {
-            await addNoteInquiry(inquiryButton.dataset.inquireNote, body);
+        openNoteInquiryModal({ mode: "create", noteId: inquiryButton.dataset.inquireNote });
+        return;
+    }
+    const replyButton = event.target.closest("[data-reply-inquiry]");
+    if (replyButton) {
+        openNoteInquiryModal({ mode: "reply", inquiryId: replyButton.dataset.replyInquiry });
+    }
+});
+
+noteInquiryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const mode = noteInquiryForm.elements.mode.value;
+    const body = noteInquiryForm.elements.body.value;
+    try {
+        if (mode === "reply") {
+            await replyNoteInquiry(noteInquiryForm.elements.inquiryId.value, body);
+            showMessage("تم إرسال الرد على الاستفسار.");
+        } else {
+            await addNoteInquiry(noteInquiryForm.elements.noteId.value, body);
             showMessage("تم إرسال الاستفسار للمشرف.");
-        } catch (error) {
-            showError(error.message);
         }
+        closeNoteInquiryModal();
+    } catch (error) {
+        showError(error.message, noteInquiryMessage);
     }
 });
 

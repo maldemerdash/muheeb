@@ -246,7 +246,9 @@ values
     ('service_3_image', 'صورة خدمة الهوية والتطبيقات', 'services', 'assets/identity-cards-clean.png', 'تطبيقات الهوية البصرية', true, 32),
     ('execution_image', 'صورة رحلة التنفيذ', 'site_core', 'assets/identity-stamp-clean.png', 'توثيق واعتماد مخرجات مهيب', true, 50),
     ('interest_background', 'خلفية نموذج الطلب', 'site_core', 'assets/brand-palette.jpg', 'لوحة ألوان مهيب', true, 60),
-    ('footer_logo', 'شعار الفوتر', 'site_core', 'assets/logo-meheib.png', 'شعار مهيب', true, 70)
+    ('footer_logo', 'شعار الفوتر', 'footer', 'assets/logo-meheib.png', 'شعار مهيب', true, 70),
+    ('footer_main_image', 'صورة الفوتر في الصفحة الرئيسية', 'footer', 'assets/identity-wall-clean.png', 'صورة بصرية للفوتر', true, 71),
+    ('admin_login_background', 'خلفية شاشة دخول المشرف', 'admin_login', 'assets/brand-palette.jpg', 'خلفية لوحة التحكم', true, 80)
 on conflict (image_key) do update
 set label = excluded.label,
     group_name = excluded.group_name,

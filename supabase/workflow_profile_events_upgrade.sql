@@ -80,8 +80,16 @@ create table if not exists public.lead_note_inquiries (
     note_id uuid not null references public.lead_notes(id) on delete cascade,
     body text not null,
     created_by uuid references auth.users(id) on delete set null,
-    created_at timestamptz not null default now()
+    created_at timestamptz not null default now(),
+    reply_body text,
+    reply_by uuid references auth.users(id) on delete set null,
+    reply_at timestamptz
 );
+
+alter table public.lead_note_inquiries
+add column if not exists reply_body text,
+add column if not exists reply_by uuid references auth.users(id) on delete set null,
+add column if not exists reply_at timestamptz;
 
 create table if not exists public.profile_change_requests (
     id bigint generated always as identity primary key,
@@ -171,6 +179,24 @@ with check (
         where lead_notes.id = note_id
         and lead_notes.assigned_to = auth.uid()
     )
+);
+
+drop policy if exists "Managers can reply to note inquiries" on public.lead_note_inquiries;
+create policy "Managers can reply to note inquiries"
+on public.lead_note_inquiries
+for update
+to authenticated
+using (
+    public.admin_has_permission('manage_note_inquiries')
+    or public.admin_has_permission('assign_notes')
+    or public.admin_has_permission('leads')
+    or public.admin_has_permission('leads_view_all')
+)
+with check (
+    public.admin_has_permission('manage_note_inquiries')
+    or public.admin_has_permission('assign_notes')
+    or public.admin_has_permission('leads')
+    or public.admin_has_permission('leads_view_all')
 );
 
 drop policy if exists "Admins can read notifications" on public.admin_notifications;

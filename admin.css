@@ -123,7 +123,7 @@ a {
     padding: 28px;
     background:
         linear-gradient(135deg, rgba(69, 18, 22, 0.9), rgba(69, 18, 22, 0.72)),
-        url("assets/brand-palette.jpg") center / cover;
+        var(--admin-login-bg, url("assets/brand-palette.jpg")) center / cover;
 }
 
 .auth-card,
@@ -2167,14 +2167,79 @@ input[type="time"],
     background: rgba(196, 152, 58, 0.12);
 }
 
+.note-inquiry.has-reply {
+    background: rgba(45, 123, 84, 0.09);
+}
+
 .note-inquiry svg {
     width: 18px;
     height: 18px;
     color: var(--gold);
 }
 
+.note-inquiry-content {
+    display: grid;
+    gap: 8px;
+}
+
+.inquiry-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .note-inquiry p {
     margin: 2px 0;
+}
+
+.note-inquiry-reply {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(45, 123, 84, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.note-inquiry-reply svg {
+    color: #2d7b54;
+}
+
+.small-inline-btn {
+    width: fit-content;
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 0.84rem;
+}
+
+.note-inquiry-modal {
+    width: min(760px, calc(100% - 28px));
+}
+
+.inquiry-context {
+    display: grid;
+    gap: 7px;
+    padding: 14px;
+    border: 1px solid rgba(196, 152, 58, 0.26);
+    border-radius: 8px;
+    background: #fbfaf7;
+}
+
+.inquiry-context span {
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.inquiry-context strong {
+    color: var(--burgundy);
+}
+
+.inquiry-context p {
+    margin: 0;
+    color: var(--charcoal);
+    line-height: 1.8;
 }
 
 .users-table tr.is-disabled td,
