@@ -424,17 +424,17 @@ const openWhatsappMessage = (phone, message, popup = null) => {
     const url = buildWhatsappUrl(phone, message);
     if (!url) {
         popup?.close?.();
-        return;
+        return null;
     }
     if (popup) {
         popup.location.href = url;
-        return;
+        return popup;
     }
-    window.open(url, "_blank", "noopener");
+    return window.open(url, "_blank", "noopener");
 };
 
 const openWhatsappForUser = (user, message, popup = null) => {
-    openWhatsappMessage(getUserPhone(user), message, popup);
+    return openWhatsappMessage(getUserPhone(user), message, popup);
 };
 
 const getFirstUserWithPhone = (targetIds = []) => (
@@ -1044,10 +1044,10 @@ const addLeadNote = async (text, assignedTo = "") => {
     const assignee = getUserById(assignedTo) || state.admin;
     const shouldNotifyAssignee = assignee?.userId && assignee.userId !== state.admin?.userId;
     const assigneePhone = getUserPhone(assignee);
+    const assigneeWhatsappMessage = `تم إسناد مهمة جديدة إليك على طلب ${lead.name}. يرجى الدخول إلى حسابك لمعاينتها.`;
     const assigneeWhatsappWindow = shouldNotifyAssignee && assigneePhone
-        ? window.open("about:blank", "_blank")
+        ? openWhatsappMessage(assigneePhone, assigneeWhatsappMessage)
         : null;
-    if (assigneeWhatsappWindow) assigneeWhatsappWindow.opener = null;
     let note = null;
     let notificationError = null;
     try {
@@ -1071,15 +1071,14 @@ const addLeadNote = async (text, assignedTo = "") => {
             });
             openWhatsappMessage(
                 assigneePhone,
-                `تم إسناد مهمة جديدة إليك على طلب ${lead.name}. يرجى الدخول إلى حسابك لمعاينتها.`,
+                assigneeWhatsappMessage,
                 assigneeWhatsappWindow
             );
         } catch (error) {
             notificationError = error;
-            assigneeWhatsappWindow?.close?.();
         }
     } else {
-        assigneeWhatsappWindow?.close?.();
+        // No external follow-up is needed when the note is assigned to the current user.
     }
     await loadAll();
     state.activeLeadId = lead.id;
@@ -1094,10 +1093,10 @@ const completeLeadNote = async (noteId) => {
     const notifyUserId = sourceNote?.createdBy || "";
     const manager = getUserById(notifyUserId);
     const shouldNotifyManager = notifyUserId && notifyUserId !== state.admin?.userId;
+    const managerWhatsappMessage = `تم إنجاز المهمة المسندة على طلب ${lead.name} بواسطة ${getDisplayName()}.`;
     const managerWhatsappWindow = shouldNotifyManager && manager && getUserPhone(manager)
-        ? window.open("about:blank", "_blank")
+        ? openWhatsappForUser(manager, managerWhatsappMessage)
         : null;
-    if (managerWhatsappWindow) managerWhatsappWindow.opener = null;
     let completedNote = null;
     let notificationError = null;
     try {
@@ -1118,15 +1117,14 @@ const completeLeadNote = async (noteId) => {
                 });
                 openWhatsappForUser(
                     manager,
-                    `تم إنجاز المهمة المسندة على طلب ${lead.name} بواسطة ${getDisplayName()}.`,
+                    managerWhatsappMessage,
                     managerWhatsappWindow
                 );
             } catch (error) {
                 notificationError = error;
-                managerWhatsappWindow?.close?.();
             }
         } else {
-            managerWhatsappWindow?.close?.();
+            // The completing user should not receive their own completion follow-up.
         }
         await loadAll();
         state.activeLeadId = lead.id;
@@ -1141,8 +1139,8 @@ const addNoteInquiry = async (noteId, body) => {
     if (!lead || !note || !body.trim()) return;
     const targetIds = getInquiryNotificationTargets(note);
     const targetUser = getFirstUserWithPhone(targetIds);
-    const inquiryWhatsappWindow = targetUser ? window.open("about:blank", "_blank") : null;
-    if (inquiryWhatsappWindow) inquiryWhatsappWindow.opener = null;
+    const inquiryWhatsappMessage = `تم إرسال استفسار على مهمة مرتبطة بطلب ${lead.name}. يرجى الدخول إلى لوحة التحكم للرد.`;
+    const inquiryWhatsappWindow = targetUser ? openWhatsappForUser(targetUser, inquiryWhatsappMessage) : null;
     let notificationError = null;
     try {
         await window.MuheebData.createLeadNoteInquiry({
@@ -1165,15 +1163,14 @@ const addNoteInquiry = async (noteId, body) => {
         if (targetUser) {
             openWhatsappForUser(
                 targetUser,
-                `تم إرسال استفسار على مهمة مرتبطة بطلب ${lead.name}. يرجى الدخول إلى لوحة التحكم للرد.`,
+                inquiryWhatsappMessage,
                 inquiryWhatsappWindow
             );
         } else {
-            inquiryWhatsappWindow?.close?.();
+            // No WhatsApp number is available for the inquiry recipient.
         }
     } catch (error) {
         notificationError = error;
-        inquiryWhatsappWindow?.close?.();
     }
     await loadAll();
     state.activeLeadId = lead.id;
@@ -1186,10 +1183,10 @@ const replyNoteInquiry = async (inquiryId, body) => {
     const inquiry = state.noteInquiries.find((item) => String(item.id) === String(inquiryId));
     if (!lead || !inquiry || !body.trim()) return;
     const requester = getUserById(inquiry.createdBy);
+    const replyWhatsappMessage = `تم الرد على استفسارك بخصوص طلب ${lead.name}. يرجى الدخول إلى حسابك لمراجعة الرد.`;
     const replyWhatsappWindow = requester && requester.userId !== state.admin?.userId && getUserPhone(requester)
-        ? window.open("about:blank", "_blank")
+        ? openWhatsappForUser(requester, replyWhatsappMessage)
         : null;
-    if (replyWhatsappWindow) replyWhatsappWindow.opener = null;
     let notificationError = null;
     try {
         await window.MuheebData.replyLeadNoteInquiry(inquiryId, body.trim());
@@ -1208,13 +1205,12 @@ const replyNoteInquiry = async (inquiryId, body) => {
         if (replyWhatsappWindow) {
             openWhatsappForUser(
                 requester,
-                `تم الرد على استفسارك بخصوص طلب ${lead.name}. يرجى الدخول إلى حسابك لمراجعة الرد.`,
+                replyWhatsappMessage,
                 replyWhatsappWindow
             );
         }
     } catch (error) {
         notificationError = error;
-        replyWhatsappWindow?.close?.();
     }
     await loadAll();
     state.activeLeadId = lead.id;
