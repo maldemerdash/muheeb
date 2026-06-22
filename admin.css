@@ -1767,12 +1767,42 @@ td {
     display: grid;
     gap: 8px;
     padding: 10px;
+    overflow: visible;
     background: var(--white);
 }
 
 .support-thumb img {
     height: 86px;
     object-fit: contain;
+}
+
+.support-logo-name-field {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+}
+
+.support-thumb .support-logo-name-field span {
+    padding: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: start;
+}
+
+.support-thumb .support-logo-name-field input {
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    background: var(--white);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+.support-logo-actions {
+    justify-content: center;
 }
 
 .support-thumb span,

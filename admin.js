@@ -2208,13 +2208,24 @@ const renderSupportLogos = (logos = [], participants = []) => {
         const logo = parseSupportLogoEntry(entry, index);
         const logoName = logo.name || safeParticipants[index] || `جهة ${index + 1}`;
         return `
-        <div class="gallery-thumb support-thumb">
+        <div class="gallery-thumb support-thumb" data-support-logo-card="${index}">
             ${logo.logo ? `<img src="${escapeHtml(logo.logo)}" alt="${escapeHtml(logoName)}">` : `<span class="meta-text">بدون شعار</span>`}
-            <span>${escapeHtml(logoName)}</span>
-            <button type="button" title="حذف الشعار" data-remove-support-logo="${index}">×</button>
+            <label class="support-logo-name-field">
+                <span>اسم الجهة</span>
+                <input type="text" data-support-logo-name value="${escapeHtml(logoName)}" placeholder="اسم الجهة المشاركة">
+            </label>
+            <div class="event-section-actions support-logo-actions">
+                <button type="button" title="حفظ اسم الجهة" aria-label="حفظ اسم الجهة" data-save-support-logo="${index}">
+                    <i data-lucide="save"></i>
+                </button>
+                <button type="button" title="حذف الشعار" aria-label="حذف الشعار" data-remove-support-logo="${index}">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </div>
         </div>
     `;
     }).join("") || `<span class="meta-text">لا توجد شعارات محفوظة للجهات.</span>`;
+    initIcons();
 };
 
 const renderEventSections = (sections = []) => {
@@ -2425,11 +2436,54 @@ const getGalleryCardPayload = (imageId) => {
     };
 };
 
+const getSupportLogoCardEntry = (index) => {
+    const current = parseSupportLogoEntry(state.pendingSupportLogos[index], index);
+    const card = supportLogosPreview?.querySelector(`[data-support-logo-card="${index}"]`);
+    const name = card?.querySelector("[data-support-logo-name]")?.value?.trim() || current.name || `جهة ${index + 1}`;
+    return stringifySupportLogoEntry({ name, logo: current.logo });
+};
+
+const collectSupportLogosFromPreview = () => {
+    const cards = supportLogosPreview?.querySelectorAll("[data-support-logo-card]");
+    if (!cards?.length) return [...state.pendingSupportLogos];
+    const nextLogos = Array.from(cards)
+        .map((card) => Number(card.dataset.supportLogoCard))
+        .filter((index) => !Number.isNaN(index))
+        .map(getSupportLogoCardEntry)
+        .filter(Boolean);
+    state.pendingSupportLogos = nextLogos;
+    return nextLogos;
+};
+
+const saveSupportLogoName = (index) => {
+    if (Number.isNaN(index) || index < 0 || index >= state.pendingSupportLogos.length) return;
+    const nextEntry = getSupportLogoCardEntry(index);
+    if (!nextEntry) {
+        showError("تعذر حفظ اسم الجهة لأن الشعار غير موجود.", eventFormMessage);
+        return;
+    }
+    state.pendingSupportLogos[index] = nextEntry;
+    renderSupportLogos(state.pendingSupportLogos);
+    showMessage("تم تعديل اسم الجهة. احفظ الفعالية لتثبيت التغيير.", eventFormMessage);
+};
+
+const syncGallerySettingsFromPreview = async () => {
+    const gallery = getOrderedGallery(state.editingEvent?.gallery || []);
+    if (!gallery.length) return;
+    await Promise.all(gallery.map((image, imageIndex) => {
+        const payload = getGalleryCardPayload(image.id);
+        return window.MuheebData.updateEventImage(image.id, {
+            altText: payload.altText ?? image.altText ?? "",
+            sortOrder: imageIndex + 1,
+        });
+    }));
+};
+
 const saveGalleryImageSettings = async (imageId) => {
     const payload = getGalleryCardPayload(imageId);
     await window.MuheebData.updateEventImage(imageId, payload);
     await refreshCurrentEventEditor();
-    showMessage("تم حفظ تسمية الصورة.", eventFormMessage);
+    showMessage("تم حفظ تعديل تسمية الصورة في المعرض.", eventFormMessage);
 };
 
 const moveGalleryImage = async (imageId, direction) => {
@@ -2485,6 +2539,7 @@ const saveEvent = async (event) => {
             state.coverPath = uploadedCover[0]?.path || state.coverPath;
         }
         const uploadedGallery = await uploadFiles(galleryFiles);
+        const supportLogos = collectSupportLogosFromPreview();
         const payload = {
             title: eventForm.elements.title.value,
             titleSize: eventForm.elements.titleSize?.value || "normal",
@@ -2501,7 +2556,7 @@ const saveEvent = async (event) => {
             highlights: splitLines(eventForm.elements.highlights.value),
             participants: [],
             achievements: splitLines(eventForm.elements.achievements?.value || ""),
-            supportLogos: [...state.pendingSupportLogos],
+            supportLogos,
             detailSections: normalizeEventSections(state.pendingEventSections),
             sortOrder: Number(eventForm.elements.sortOrder.value || 0),
             published: eventForm.elements.published.checked,
@@ -2514,6 +2569,7 @@ const saveEvent = async (event) => {
         };
         const eventId = Number(eventIdInput.value || 0);
         await window.MuheebData.saveEvent(payload, eventId || null);
+        if (eventId) await syncGallerySettingsFromPreview();
         resetEventForm();
         await loadAll();
         showMessage("تم حفظ الفعالية بنجاح.", eventFormMessage);
@@ -3359,13 +3415,19 @@ galleryPreview.addEventListener("click", async (event) => {
 });
 
 supportLogosPreview?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-remove-support-logo]");
-    if (!button) return;
-    const index = Number(button.dataset.removeSupportLogo);
+    const saveButton = event.target.closest("[data-save-support-logo]");
+    const removeButton = event.target.closest("[data-remove-support-logo]");
+    if (!saveButton && !removeButton) return;
+    const index = Number(saveButton?.dataset.saveSupportLogo ?? removeButton?.dataset.removeSupportLogo);
     if (Number.isNaN(index)) return;
+    if (saveButton) {
+        saveSupportLogoName(index);
+        return;
+    }
     state.pendingSupportLogos.splice(index, 1);
     renderSupportLogos(state.pendingSupportLogos);
     if (supportLogosName) supportLogosName.textContent = "تم حذف الشعار من الفعالية، احفظ التغيير.";
+    showMessage("تم حذف الجهة من المعاينة. احفظ الفعالية لتثبيت الحذف.", eventFormMessage);
 });
 
 openSupportLogoModalButton?.addEventListener("click", openSupportLogoModal);
