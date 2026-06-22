@@ -66,6 +66,17 @@
         return payload;
     };
 
+    const supabaseError = (context, error) => {
+        const parts = [
+            context,
+            error?.message,
+            error?.details,
+            error?.hint,
+            error?.code ? `code: ${error.code}` : "",
+        ].filter(Boolean);
+        return new Error(parts.join(" - "));
+    };
+
     const toCamelLead = (lead) => ({
         id: lead.id,
         name: lead.name,
@@ -723,12 +734,24 @@
                 title: payload.title,
                 message: payload.message,
             };
+            const { data: rpcData, error: rpcError } = await client.rpc("create_admin_notification", {
+                p_target_user_id: row.target_user_id,
+                p_lead_id: row.lead_id,
+                p_note_id: row.note_id,
+                p_kind: row.kind,
+                p_title: row.title,
+                p_message: row.message,
+            });
+            if (!rpcError) return toCamelNotification(Array.isArray(rpcData) ? rpcData[0] : rpcData);
+            const missingRpc = rpcError.code === "PGRST202" || /create_admin_notification/i.test(rpcError.message || "");
+            if (!missingRpc) throw supabaseError("تعذر إنشاء الإشعار عبر دالة Supabase", rpcError);
+
             const { data, error } = await client
                 .from("admin_notifications")
                 .insert(row)
                 .select("*")
                 .single();
-            if (error) throw error;
+            if (error) throw supabaseError("تعذر إنشاء الإشعار في جدول admin_notifications", error);
             return toCamelNotification(data);
         },
 

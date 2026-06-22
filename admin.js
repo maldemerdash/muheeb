@@ -498,7 +498,11 @@ const createTargetedNotifications = async (targetIds, payload) => {
     const rejected = results.filter((result) => result.status === "rejected");
     if (rejected.length) {
         console.error("Muheeb notification delivery failed:", rejected.map((result) => result.reason));
-        throw new Error(notificationFailureMessage);
+        const details = rejected
+            .map((result) => result.reason?.message || String(result.reason || ""))
+            .filter(Boolean)
+            .join(" | ");
+        throw new Error(details ? `${notificationFailureMessage} السبب: ${details}` : notificationFailureMessage);
     }
     return results.map((result) => result.value);
 };
