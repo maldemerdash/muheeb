@@ -118,6 +118,15 @@
         createdAt: notification.created_at || notification.createdAt,
     });
 
+    const toCamelChatMessage = (message) => ({
+        id: message.id,
+        senderUserId: message.sender_user_id || message.senderUserId || "",
+        recipientUserId: message.recipient_user_id || message.recipientUserId || "",
+        body: message.body || "",
+        attachment: message.attachment || {},
+        createdAt: message.created_at || message.createdAt,
+    });
+
     const toCamelLeadNote = (note) => ({
         id: note.id,
         leadId: note.lead_id || note.leadId,
@@ -936,6 +945,97 @@
                 return payload.files || [];
             }
             return uploadSupabaseFiles(files, folder);
+        },
+
+        async listChatMessages(peerUserId) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data, error } = await client
+                .from("admin_chat_messages")
+                .select("*")
+                .or(`and(sender_user_id.eq.${user.id},recipient_user_id.eq.${peerUserId}),and(sender_user_id.eq.${peerUserId},recipient_user_id.eq.${user.id})`)
+                .order("created_at", { ascending: true })
+                .limit(250);
+            if (error) throw error;
+            return (data || []).map(toCamelChatMessage);
+        },
+
+        async sendChatMessage(payload) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const row = {
+                sender_user_id: user.id,
+                recipient_user_id: payload.recipientUserId,
+                body: String(payload.body || "").trim(),
+                attachment: payload.attachment || {},
+            };
+            const { data, error } = await client
+                .from("admin_chat_messages")
+                .insert(row)
+                .select("*")
+                .single();
+            if (error) throw error;
+            return toCamelChatMessage(data);
+        },
+
+        async subscribeChatMessages(peerUserId, onMessage) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const channel = client
+                .channel(`muheeb-chat-${user.id}-${peerUserId}`)
+                .on(
+                    "postgres_changes",
+                    { event: "INSERT", schema: "public", table: "admin_chat_messages" },
+                    ({ new: message }) => {
+                        const isCurrentConversation = (
+                            (message.sender_user_id === user.id && message.recipient_user_id === peerUserId) ||
+                            (message.sender_user_id === peerUserId && message.recipient_user_id === user.id)
+                        );
+                        if (isCurrentConversation) onMessage?.(toCamelChatMessage(message));
+                    }
+                )
+                .subscribe();
+            return channel;
+        },
+
+        async unsubscribeChatMessages(channel) {
+            const client = await getSupabaseClient();
+            if (client && channel) {
+                await client.removeChannel(channel);
+            }
+        },
+
+        async addEventGalleryImages(eventId, payload = {}) {
+            const client = await requireSupabase();
+            await requireAdmin();
+            const galleryImages = payload.galleryImages || [];
+            if (!galleryImages.length) return [];
+            const { data: lastImageRows, error: lastImageError } = await client
+                .from("event_images")
+                .select("sort_order")
+                .eq("event_id", eventId)
+                .order("sort_order", { ascending: false })
+                .order("id", { ascending: false })
+                .limit(1);
+            if (lastImageError) throw lastImageError;
+            const startOrder = Number(lastImageRows?.[0]?.sort_order || 0);
+            const rows = galleryImages.map((path, index) => ({
+                event_id: eventId,
+                image_path: path,
+                alt_text: payload.galleryCaptionAltText || "",
+                sort_order: startOrder + index + 1,
+            }));
+            const { data, error } = await client
+                .from("event_images")
+                .insert(rows)
+                .select("id, image_path, alt_text, sort_order");
+            if (error) throw error;
+            return (data || []).map((image) => ({
+                id: image.id,
+                imagePath: image.image_path || "",
+                altText: image.alt_text || "",
+                sortOrder: image.sort_order || 0,
+            }));
         },
 
         async saveEvent(payload, eventId) {

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=partner-gallery-edit-20260622">
+    <link rel="stylesheet" href="admin.css?v=chat-permissions-20260623">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -47,6 +47,10 @@
                 <button class="nav-item" type="button" data-view="leadsView" data-permission="leads">
                     <i data-lucide="inbox"></i>
                     <span>طلبات العملاء</span>
+                </button>
+                <button class="nav-item" type="button" data-view="chatView" data-permission="chat">
+                    <i data-lucide="messages-square"></i>
+                    <span>الدردشة</span>
                 </button>
                 <button class="nav-item" type="button" data-view="contentView" data-permission="content">
                     <i data-lucide="file-pen-line"></i>
@@ -193,6 +197,41 @@
                 </div>
             </section>
 
+            <section class="admin-view" id="chatView">
+                <div class="chat-layout">
+                    <aside class="panel-card chat-users-panel">
+                        <div class="panel-header">
+                            <div>
+                                <p class="eyebrow">الدردشة المباشرة</p>
+                                <h2>الفريق</h2>
+                            </div>
+                        </div>
+                        <div class="chat-users-list" id="chatUsersList"></div>
+                    </aside>
+                    <section class="panel-card chat-panel">
+                        <div class="chat-header" id="chatHeader">
+                            <div>
+                                <p class="eyebrow">المحادثة</p>
+                                <h2>اختر مستخدمًا لبدء الدردشة</h2>
+                            </div>
+                        </div>
+                        <div class="chat-messages" id="chatMessages"></div>
+                        <form class="chat-form" id="chatForm">
+                            <label class="chat-attachment-button" title="إرفاق ملف" aria-label="إرفاق ملف">
+                                <input type="file" id="chatAttachmentInput" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                                <i data-lucide="paperclip"></i>
+                            </label>
+                            <textarea name="message" rows="2" placeholder="اكتب رسالة للفريق"></textarea>
+                            <button class="primary-btn icon-only" type="submit" title="إرسال" aria-label="إرسال">
+                                <i data-lucide="send"></i>
+                            </button>
+                            <small id="chatAttachmentName">لا يوجد مرفق</small>
+                        </form>
+                        <p class="form-message" id="chatMessageStatus" role="status"></p>
+                    </section>
+                </div>
+            </section>
+
             <section class="admin-view" id="contentView">
                 <div class="panel-card">
                     <div class="panel-header">
@@ -298,14 +337,14 @@
                                 <p class="eyebrow">إدارة الفعاليات</p>
                                 <h2 id="eventFormTitle">إضافة فعالية</h2>
                             </div>
-                            <button class="ghost-btn" type="button" id="resetEventForm">
+                            <button class="ghost-btn" type="button" id="resetEventForm" data-permission="events_manage">
                                 <i data-lucide="plus"></i>
                                 <span>جديد</span>
                             </button>
                         </div>
                         <input type="hidden" name="eventId" id="eventId">
                         <input type="hidden" name="eventDate">
-                        <section class="event-editor-section event-cover-editor">
+                        <section class="event-editor-section event-cover-editor" data-permission="events_details">
                             <div class="event-cover-copy">
                                 <p class="eyebrow">غلاف الفعالية</p>
                                 <h3>صورة الغلاف كما ستظهر في صفحة الفعالية</h3>
@@ -321,7 +360,7 @@
                             </div>
                         </section>
 
-                        <section class="event-editor-section">
+                        <section class="event-editor-section" data-permission="events_details">
                             <div class="event-editor-section-head">
                                 <div>
                                     <p class="eyebrow">تفاصيل الفعالية</p>
@@ -403,7 +442,7 @@
                             </div>
                         </section>
 
-                        <section class="event-editor-section">
+                        <section class="event-editor-section" data-permission="events_partners">
                             <div class="event-editor-section-head">
                                 <div>
                                     <p class="eyebrow">الجهات المشاركة</p>
@@ -418,7 +457,7 @@
                             <div class="gallery-preview support-preview" id="supportLogosPreview"></div>
                         </section>
 
-                        <section class="event-editor-section">
+                        <section class="event-editor-section" data-permission="events_gallery_images">
                             <div class="event-editor-section-head">
                                 <div>
                                     <p class="eyebrow">معرض الصور</p>
@@ -441,9 +480,13 @@
                                 </label>
                             </div>
                             <div class="gallery-preview gallery-wide-preview" id="galleryPreview"></div>
+                            <button class="primary-btn gallery-only-save" type="submit" data-permission="events_gallery_images">
+                                <i data-lucide="save"></i>
+                                <span>حفظ صور المعرض</span>
+                            </button>
                         </section>
 
-                        <section class="event-editor-section">
+                        <section class="event-editor-section" data-permission="events_sections">
                             <div class="event-editor-section-head">
                                 <div>
                                     <p class="eyebrow">أقسام صفحة الفعالية</p>
@@ -457,12 +500,12 @@
                             <p class="dimension-hint">المقاس المقترح لصورة القسم: 1200 × 760 بكسل</p>
                             <div class="event-sections-preview" id="eventSectionsPreview"></div>
                         </section>
-                        <div class="event-form-actions">
-                            <label>
+                        <div class="event-form-actions" data-permission="events">
+                            <label data-permission="events_manage">
                                 <span>ترتيب الظهور</span>
                                 <input type="number" name="sortOrder" min="0" value="0">
                             </label>
-                            <label class="toggle-field">
+                            <label class="toggle-field" data-permission="events_manage">
                                 <input type="checkbox" name="published" checked>
                                 <span>نشر الفعالية في الموقع</span>
                             </label>
@@ -493,7 +536,7 @@
                             <p class="eyebrow">الفريق والصلاحيات</p>
                             <h2>قائمة المستخدمين</h2>
                         </div>
-                        <button class="primary-btn compact-action" type="button" id="openUserModalButton">
+                        <button class="primary-btn compact-action" type="button" id="openUserModalButton" data-permission="users_add">
                             <i data-lucide="user-plus"></i>
                             <span>إضافة مستخدم</span>
                         </button>
@@ -841,7 +884,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=gallery-order-fix-20260622"></script>
-    <script src="admin.js?v=partner-gallery-edit-20260622"></script>
+    <script src="supabase-client.js?v=chat-permissions-20260623"></script>
+    <script src="admin.js?v=chat-permissions-20260623"></script>
 </body>
 </html>

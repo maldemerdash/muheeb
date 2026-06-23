@@ -16,11 +16,14 @@ const state = {
     notifications: [],
     noteInquiries: [],
     profileRequests: [],
+    chatMessages: [],
     activeView: "overviewView",
     editingEvent: null,
     editingInterestOption: null,
     editingUser: null,
     activeLeadId: null,
+    activeChatUserId: "",
+    chatChannel: null,
     activeInquiry: { mode: "create", noteId: "", inquiryId: "" },
     coverPath: "",
     pendingSupportLogos: [],
@@ -159,23 +162,163 @@ const ensureSiteContentRows = (rows = []) => {
     return Array.from(byKey.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 };
 
-const permissionItems = [
-    { key: "overview", label: "نظرة عامة" },
-    { key: "leads", label: "طلبات العملاء" },
-    { key: "leads_view_all", label: "الاطلاع على كامل طلبات العملاء" },
-    { key: "leads_assigned_only", label: "إظهار الطلبات المسندة فقط" },
-    { key: "leads_view_phone", label: "إظهار رقم الجوال والواتساب" },
-    { key: "content", label: "محتوى الموقع" },
-    { key: "site_images", label: "صور الموقع" },
-    { key: "interest_options", label: "القوائم المنسدلة" },
-    { key: "events", label: "الفعاليات والمعرض" },
-    { key: "users", label: "المستخدمون والصلاحيات" },
-    { key: "security", label: "الأمان" },
-    { key: "delete_leads", label: "حذف طلبات العملاء" },
-    { key: "assign_notes", label: "إسناد ملاحظات المتابعة" },
-    { key: "manage_note_inquiries", label: "متابعة استفسارات الملاحظات" },
-    { key: "profile_requests", label: "مراجعة طلبات تعديل البيانات" },
+const permissionGroups = [
+    {
+        title: "نظرة عامة",
+        icon: "layout-dashboard",
+        items: [{ key: "overview", label: "عرض نظرة عامة" }],
+    },
+    {
+        title: "الدردشة",
+        icon: "messages-square",
+        items: [{ key: "chat", label: "استخدام الدردشة المباشرة" }],
+    },
+    {
+        title: "طلبات العملاء",
+        icon: "inbox",
+        items: [
+            { key: "leads", label: "دخول صفحة طلبات العملاء" },
+            { key: "leads_view_all", label: "الاطلاع على كامل طلبات العملاء" },
+            { key: "leads_assigned_only", label: "إظهار الطلبات المسندة فقط" },
+            { key: "leads_view_phone", label: "إظهار رقم الجوال والواتساب" },
+            { key: "delete_leads", label: "حذف طلبات العملاء" },
+            { key: "assign_notes", label: "إسناد ملاحظات المتابعة" },
+            { key: "manage_note_inquiries", label: "متابعة استفسارات الملاحظات" },
+        ],
+    },
+    {
+        title: "محتوى الموقع",
+        icon: "file-pen-line",
+        items: [
+            { key: "content", label: "كل محتوى الموقع" },
+            { key: "content_header", label: "الهيدر والتنقل" },
+            { key: "content_hero", label: "الواجهة الرئيسية" },
+            { key: "content_about", label: "عن مهيب" },
+            { key: "content_services", label: "الخدمات" },
+            { key: "content_works", label: "الأعمال والفعاليات" },
+            { key: "content_journey", label: "رحلة التنفيذ" },
+            { key: "content_form", label: "نموذج الطلب" },
+            { key: "content_contact", label: "صفحة التواصل" },
+            { key: "content_footer", label: "التذييل والبيانات الرسمية" },
+        ],
+    },
+    {
+        title: "صور الموقع",
+        icon: "image-up",
+        items: [
+            { key: "site_images", label: "كل صور الموقع" },
+            { key: "site_images_core", label: "صور الواجهة والأقسام الأساسية" },
+            { key: "site_images_identity", label: "معرض الهوية المتحرك" },
+            { key: "site_images_services", label: "صور الخدمات" },
+            { key: "site_images_footer", label: "صور الفوتر" },
+            { key: "site_images_admin_login", label: "شاشة دخول المشرف" },
+            { key: "site_images_custom", label: "صور إضافية" },
+        ],
+    },
+    {
+        title: "القوائم المنسدلة",
+        icon: "list-plus",
+        items: [
+            { key: "interest_options", label: "كل القوائم المنسدلة" },
+            { key: "interest_options_interest", label: "خيارات نموذج الطلب" },
+            { key: "interest_options_event_category", label: "تصنيفات الفعاليات" },
+        ],
+    },
+    {
+        title: "الفعاليات والمعرض",
+        icon: "images",
+        items: [
+            { key: "events", label: "كل الفعاليات والمعرض" },
+            { key: "events_manage", label: "إضافة وتعديل وحذف الفعاليات" },
+            { key: "events_details", label: "تعديل تفاصيل الفعالية" },
+            { key: "events_partners", label: "تعديل الجهات المشاركة" },
+            { key: "events_gallery_images", label: "إضافة صور لمعرض الفعالية فقط" },
+            { key: "events_sections", label: "تعديل أقسام صفحة الفعالية" },
+        ],
+    },
+    {
+        title: "المستخدمون",
+        icon: "users-round",
+        items: [
+            { key: "users", label: "عرض صفحة المستخدمين" },
+            { key: "users_add", label: "إضافة مستخدم" },
+            { key: "users_edit", label: "تعديل مستخدم" },
+            { key: "users_delete", label: "حذف مستخدم" },
+        ],
+    },
+    {
+        title: "الأمان والملف الشخصي",
+        icon: "shield-check",
+        items: [
+            { key: "security", label: "الأمان" },
+            { key: "profile_requests", label: "مراجعة طلبات تعديل البيانات" },
+        ],
+    },
 ];
+
+const permissionItems = permissionGroups.flatMap((group) => group.items);
+
+const permissionFallbacks = {
+    leads: ["leads_view_all", "leads_assigned_only"],
+    content: [
+        "content_header",
+        "content_hero",
+        "content_about",
+        "content_services",
+        "content_works",
+        "content_journey",
+        "content_form",
+        "content_contact",
+        "content_footer",
+    ],
+    site_images: [
+        "site_images_core",
+        "site_images_identity",
+        "site_images_services",
+        "site_images_footer",
+        "site_images_admin_login",
+        "site_images_custom",
+    ],
+    interest_options: ["interest_options_interest", "interest_options_event_category"],
+    events: ["events_manage", "events_details", "events_partners", "events_gallery_images", "events_sections"],
+    users: ["users_add", "users_edit", "users_delete"],
+};
+
+const parentPermissionByChild = Object.entries(permissionFallbacks).reduce((acc, [parent, children]) => {
+    children.forEach((child) => {
+        acc[child] = parent;
+    });
+    return acc;
+}, {});
+
+const contentGroupPermissions = {
+    "الهيدر": "content_header",
+    "الصفحة الرئيسية": "content_hero",
+    "عن مهيب": "content_about",
+    "الخدمات": "content_services",
+    "الأعمال والفعاليات": "content_works",
+    "معرض الهوية": "content_works",
+    "المميزات": "content_works",
+    "رحلة التنفيذ": "content_journey",
+    "نموذج الطلب": "content_form",
+    "صفحة التواصل": "content_contact",
+    "التواصل والفوتر": "content_footer",
+    "صفحة الفعالية": "events_details",
+};
+
+const siteImageGroupPermissions = {
+    site_core: "site_images_core",
+    identity_gallery: "site_images_identity",
+    services: "site_images_services",
+    footer: "site_images_footer",
+    admin_login: "site_images_admin_login",
+    custom: "site_images_custom",
+};
+
+const dropdownTypePermissions = {
+    interest: "interest_options_interest",
+    event_category: "interest_options_event_category",
+};
 
 const loginView = document.getElementById("loginView");
 const adminShell = document.getElementById("adminShell");
@@ -283,6 +426,13 @@ const cancelEventSectionModalButton = document.getElementById("cancelEventSectio
 const eventSectionSubmitText = document.getElementById("eventSectionSubmitText");
 const eventSectionImageInput = document.getElementById("eventSectionImageInput");
 const eventSectionImageName = document.getElementById("eventSectionImageName");
+const chatUsersList = document.getElementById("chatUsersList");
+const chatMessages = document.getElementById("chatMessages");
+const chatForm = document.getElementById("chatForm");
+const chatAttachmentInput = document.getElementById("chatAttachmentInput");
+const chatAttachmentName = document.getElementById("chatAttachmentName");
+const chatMessageStatus = document.getElementById("chatMessageStatus");
+const chatHeader = document.getElementById("chatHeader");
 
 const editedFiles = new WeakMap();
 
@@ -356,24 +506,58 @@ const can = (permission) => {
     if (permission === "leads") {
         return hasPermissionFlag("leads") || hasPermissionFlag("leads_view_all") || hasPermissionFlag("leads_assigned_only");
     }
+    if (hasPermissionFlag(permission)) {
+        return true;
+    }
+    const parent = parentPermissionByChild[permission];
+    if (parent && hasPermissionFlag(parent)) {
+        return true;
+    }
+    const children = permissionFallbacks[permission] || [];
+    if (children.some((child) => hasPermissionFlag(child))) {
+        return true;
+    }
     return hasPermissionFlag(permission);
 };
 
-const canViewAllLeads = () => hasPermissionFlag("leads") || hasPermissionFlag("leads_view_all");
+const canViewAllLeads = () => can("leads") && (hasPermissionFlag("leads") || hasPermissionFlag("leads_view_all"));
 
-const canViewAssignedLeads = () => canViewAllLeads() || hasPermissionFlag("leads_assigned_only");
+const canViewAssignedLeads = () => canViewAllLeads() || can("leads_assigned_only");
 
-const canViewLeadPhone = () => hasPermissionFlag("leads_view_phone") || canViewAllLeads();
+const canViewLeadPhone = () => can("leads_view_phone") || canViewAllLeads();
+
+const getContentPermission = (rowOrGroupName = "") => {
+    const groupName = typeof rowOrGroupName === "string" ? rowOrGroupName : rowOrGroupName?.groupName;
+    return contentGroupPermissions[groupName] || "content";
+};
+
+const getSiteImagePermission = (groupName = "") => (
+    siteImageGroupPermissions[groupName || "custom"] || "site_images_custom"
+);
+
+const getDropdownPermission = (type = "interest") => (
+    dropdownTypePermissions[type || "interest"] || "interest_options"
+);
 
 const getDisplayName = (user = state.admin) => user?.fullName || user?.username || user?.email || user?.authEmail || "مستخدم";
 
 const getUserById = (userId) => state.users.find((user) => user.userId === userId);
 
-const userHasPermission = (user, permission) => (
-    user?.role === "owner" ||
-    user?.permissions?.all === true ||
-    user?.permissions?.[permission] === true
-);
+const userHasPermission = (user, permission) => {
+    if (
+        user?.role === "owner" ||
+        user?.permissions?.all === true ||
+        user?.permissions?.[permission] === true
+    ) {
+        return true;
+    }
+    const parent = parentPermissionByChild[permission];
+    if (parent && user?.permissions?.[parent] === true) {
+        return true;
+    }
+    const children = permissionFallbacks[permission] || [];
+    return children.some((child) => user?.permissions?.[child] === true);
+};
 
 const getUserAvatar = (user = state.admin) => user?.avatarUrl || user?.permissions?.avatarUrl || "";
 
@@ -754,6 +938,10 @@ const setView = (viewId) => {
         button.classList.toggle("active", button.dataset.view === viewId);
     });
     pageTitle.textContent = document.querySelector(`[data-view="${viewId}"] span`)?.textContent || "لوحة التحكم";
+    if (viewId === "chatView") {
+        renderChatUsers();
+        renderChatMessages();
+    }
 };
 
 const getFirstAllowedView = () => {
@@ -766,10 +954,22 @@ const getFirstAllowedView = () => {
 
 const applyPermissions = () => {
     document.querySelectorAll("[data-permission]").forEach((element) => {
-        element.classList.toggle("is-hidden", !can(element.dataset.permission));
+        const allowed = can(element.dataset.permission);
+        element.classList.toggle("is-hidden", !allowed);
+        if ("disabled" in element) {
+            element.disabled = !allowed;
+        }
+        element.querySelectorAll("input, select, textarea, button").forEach((control) => {
+            control.disabled = !allowed;
+        });
     });
     document.querySelectorAll("[data-requires-delete-leads]").forEach((element) => {
         element.classList.toggle("is-hidden", !can("delete_leads"));
+    });
+    document.querySelectorAll(".gallery-only-save").forEach((element) => {
+        const showGalleryOnlySave = !can("events_manage") && can("events_gallery_images");
+        element.classList.toggle("is-hidden", !showGalleryOnlySave);
+        element.disabled = !showGalleryOnlySave;
     });
     if (!can(document.querySelector(`[data-view="${state.activeView}"]`)?.dataset.permission || "overview")) {
         setView(getFirstAllowedView());
@@ -843,6 +1043,7 @@ const loadAll = async () => {
     renderSiteImages();
     renderInterestOptions();
     renderUsers();
+    renderChatUsers();
     renderProfileRequests();
     renderNotifications();
     applyPermissions();
@@ -1392,6 +1593,8 @@ const getOrderedGallery = (gallery = []) => (Array.isArray(gallery) ? gallery : 
     });
 
 const renderEvents = () => {
+    const canEditEvents = can("events_manage") || can("events_details") || can("events_partners") || can("events_gallery_images") || can("events_sections");
+    const canDeleteEvents = can("events_manage");
     eventsList.innerHTML = state.events.map((event) => `
         <article class="event-item">
             <img src="${escapeHtml(event.coverImage || "assets/logo-meheib.png")}" alt="">
@@ -1401,12 +1604,16 @@ const renderEvents = () => {
                 <div class="meta-text">${escapeHtml(event.dateFrom || event.eventDate || "بدون تاريخ")}${event.dateTo ? ` إلى ${escapeHtml(event.dateTo)}` : ""}</div>
                 <span class="badge ${event.published ? "" : "is-dim"}">${event.published ? "منشور" : "مخفي"}</span>
                 <div class="event-actions">
-                    <button class="ghost-btn icon-only small-icon" type="button" data-edit-event="${event.id}" title="تعديل" aria-label="تعديل الفعالية">
-                        <i data-lucide="pencil"></i>
-                    </button>
-                    <button class="danger-btn icon-only small-icon" type="button" data-delete-event="${event.id}" title="حذف" aria-label="حذف الفعالية">
-                        <i data-lucide="trash-2"></i>
-                    </button>
+                    ${canEditEvents ? `
+                        <button class="ghost-btn icon-only small-icon" type="button" data-edit-event="${event.id}" title="تعديل" aria-label="تعديل الفعالية">
+                            <i data-lucide="pencil"></i>
+                        </button>
+                    ` : ""}
+                    ${canDeleteEvents ? `
+                        <button class="danger-btn icon-only small-icon" type="button" data-delete-event="${event.id}" title="حذف" aria-label="حذف الفعالية">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    ` : ""}
                 </div>
             </div>
         </article>
@@ -1601,7 +1808,7 @@ const renderExtraContentFields = () => {
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     if (!extras.length) return "";
     return `
-        <details class="visual-extra-fields">
+        <details class="visual-extra-fields" data-permission="content">
             <summary>
                 <i data-lucide="settings-2"></i>
                 <span>حقول إضافية متقدمة</span>
@@ -1628,18 +1835,18 @@ const renderContentEditor = () => {
                 <span>بعد التعديل اضغط زر حفظ النصوص في أعلى الصفحة.</span>
             </div>
             <nav class="visual-editor-nav" aria-label="أقسام محرر محتوى الموقع">
-                <a href="#visualHeader"><i data-lucide="menu"></i><span>الهيدر</span></a>
-                <a href="#visualHero"><i data-lucide="layout-template"></i><span>الواجهة</span></a>
-                <a href="#visualAbout"><i data-lucide="badge-info"></i><span>عن مهيب</span></a>
-                <a href="#visualServices"><i data-lucide="sparkles"></i><span>الخدمات</span></a>
-                <a href="#visualWorks"><i data-lucide="layers-3"></i><span>الأعمال</span></a>
-                <a href="#visualJourney"><i data-lucide="route"></i><span>الرحلة</span></a>
-                <a href="#visualForm"><i data-lucide="send"></i><span>النموذج</span></a>
-                <a href="#visualContact"><i data-lucide="messages-square"></i><span>التواصل</span></a>
-                <a href="#visualFooter"><i data-lucide="panel-bottom"></i><span>التذييل</span></a>
+                <a href="#visualHeader" data-permission="content_header"><i data-lucide="menu"></i><span>الهيدر</span></a>
+                <a href="#visualHero" data-permission="content_hero"><i data-lucide="layout-template"></i><span>الواجهة</span></a>
+                <a href="#visualAbout" data-permission="content_about"><i data-lucide="badge-info"></i><span>عن مهيب</span></a>
+                <a href="#visualServices" data-permission="content_services"><i data-lucide="sparkles"></i><span>الخدمات</span></a>
+                <a href="#visualWorks" data-permission="content_works"><i data-lucide="layers-3"></i><span>الأعمال</span></a>
+                <a href="#visualJourney" data-permission="content_journey"><i data-lucide="route"></i><span>الرحلة</span></a>
+                <a href="#visualForm" data-permission="content_form"><i data-lucide="send"></i><span>النموذج</span></a>
+                <a href="#visualContact" data-permission="content_contact"><i data-lucide="messages-square"></i><span>التواصل</span></a>
+                <a href="#visualFooter" data-permission="content_footer"><i data-lucide="panel-bottom"></i><span>التذييل</span></a>
             </nav>
 
-            <section class="visual-preview-section visual-header-editor" id="visualHeader">
+            <section class="visual-preview-section visual-header-editor" id="visualHeader" data-permission="content_header">
                 ${renderContentSectionHeader("00", "الهيدر والتنقل", "أسماء الروابط وترتيبها كما تظهر في أعلى الموقع", "menu")}
                 <div class="visual-nav-labels">
                     ${renderVisualField("nav_home_label", { label: "الرابط الأول" })}
@@ -1652,7 +1859,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section visual-hero-editor" id="visualHero">
+            <section class="visual-preview-section visual-hero-editor" id="visualHero" data-permission="content_hero">
                 ${renderContentSectionHeader("01", "الصفحة الرئيسية", "الواجهة الأولى للموقع", "layout-template")}
                 <div class="visual-hero-surface">
                     <div class="visual-hero-media">
@@ -1674,7 +1881,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section" id="visualAbout">
+            <section class="visual-preview-section" id="visualAbout" data-permission="content_about">
                 ${renderContentSectionHeader("02", "عن مهيب", "التعريف والإحصائيات", "badge-info")}
                 <div class="visual-about-grid">
                     <div class="visual-copy-block">
@@ -1693,7 +1900,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section" id="visualServices">
+            <section class="visual-preview-section" id="visualServices" data-permission="content_services">
                 ${renderContentSectionHeader("03", "الخدمات", "بطاقات الخدمات كما يراها الزائر", "sparkles")}
                 <div class="visual-copy-block visual-copy-wide">
                     ${renderVisualField("services_eyebrow", { label: "العنوان الصغير" })}
@@ -1707,7 +1914,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section" id="visualWorks">
+            <section class="visual-preview-section" id="visualWorks" data-permission="content_works">
                 ${renderContentSectionHeader("04", "الأعمال والمميزات", "العناوين ومربعات نقاط القوة", "layers-3")}
                 <div class="visual-two-column">
                     <div class="visual-copy-block">
@@ -1729,7 +1936,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section visual-journey-editor" id="visualJourney">
+            <section class="visual-preview-section visual-journey-editor" id="visualJourney" data-permission="content_journey">
                 ${renderContentSectionHeader("05", "رحلة التنفيذ", "من الفكرة إلى التوثيق", "route")}
                 <div class="visual-two-column">
                     <div class="visual-stamp-preview">
@@ -1750,7 +1957,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section" id="visualForm">
+            <section class="visual-preview-section" id="visualForm" data-permission="content_form">
                 ${renderContentSectionHeader("06", "نموذج الطلب", "النصوص التي يراها العميل قبل الإرسال", "send")}
                 <div class="visual-form-editor">
                     <div class="visual-copy-block">
@@ -1774,7 +1981,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section visual-contact-editor" id="visualContact">
+            <section class="visual-preview-section visual-contact-editor" id="visualContact" data-permission="content_contact">
                 ${renderContentSectionHeader("07", "صفحة تواصل معنا", "محتوى الصفحة المستقلة", "messages-square")}
                 <div class="visual-contact-hero">
                     <div>
@@ -1802,7 +2009,7 @@ const renderContentEditor = () => {
                 </div>
             </section>
 
-            <section class="visual-preview-section visual-footer-editor" id="visualFooter">
+            <section class="visual-preview-section visual-footer-editor" id="visualFooter" data-permission="content_footer">
                 ${renderContentSectionHeader("08", "التذييل والبيانات الرسمية", "النصوص الصغيرة أسفل الموقع", "panel-bottom")}
                 <div class="visual-footer-surface">
                     <div class="visual-footer-brand">
@@ -1926,7 +2133,7 @@ const renderSiteImages = () => {
             ${sortedGroups.map(([groupName]) => {
                 const meta = getSiteImageGroupMeta(groupName);
                 return `
-                    <a href="#${escapeHtml(groupId(groupName))}">
+                    <a href="#${escapeHtml(groupId(groupName))}" data-permission="${escapeHtml(getSiteImagePermission(groupName))}">
                         <i data-lucide="${escapeHtml(meta.icon)}"></i>
                         <span>${escapeHtml(meta.title)}</span>
                     </a>
@@ -1938,7 +2145,7 @@ const renderSiteImages = () => {
         const meta = getSiteImageGroupMeta(groupName);
         const sortedImages = sortSiteImagesByPageOrder(images);
         return `
-            <section class="site-image-group" id="${escapeHtml(groupId(groupName))}">
+            <section class="site-image-group" id="${escapeHtml(groupId(groupName))}" data-permission="${escapeHtml(getSiteImagePermission(groupName))}">
                 <div class="visual-section-heading">
                     <span class="visual-section-number">${String(index + 1).padStart(2, "0")}</span>
                     <div>
@@ -1955,17 +2162,47 @@ const renderSiteImages = () => {
     initIcons();
 };
 
+const syncSiteImageGroupPermissionOptions = () => {
+    const select = siteImageForm?.elements.groupName;
+    if (!select) return;
+    let firstAllowed = "";
+    Array.from(select.options).forEach((option) => {
+        const allowed = can(getSiteImagePermission(option.value));
+        option.disabled = !allowed;
+        if (allowed && !firstAllowed) firstAllowed = option.value;
+    });
+    if (!firstAllowed) {
+        select.value = "";
+        select.disabled = true;
+        return;
+    }
+    select.disabled = false;
+    if (!select.value || select.selectedOptions[0]?.disabled) {
+        select.value = firstAllowed;
+    }
+};
+
 const resetInterestOptionForm = () => {
     state.editingInterestOption = null;
     interestOptionForm.reset();
     interestOptionForm.elements.optionId.value = "";
-    if (interestOptionForm.elements.optionType) interestOptionForm.elements.optionType.value = "interest";
+    const firstAllowedType = Object.keys(dropdownTypeLabels).find((type) => can(getDropdownPermission(type))) || "interest";
+    if (interestOptionForm.elements.optionType) {
+        Array.from(interestOptionForm.elements.optionType.options).forEach((option) => {
+            option.disabled = !can(getDropdownPermission(option.value));
+        });
+        interestOptionForm.elements.optionType.value = firstAllowedType;
+    }
     interestOptionForm.elements.published.checked = true;
     interestOptionForm.elements.sortOrder.value = "0";
     interestOptionFormTitle.textContent = "إضافة عنصر للقوائم";
 };
 
 const startNewInterestOption = (type = "interest") => {
+    if (!can(getDropdownPermission(type))) {
+        showError("ليست لديك صلاحية إضافة عناصر في هذه القائمة.");
+        return;
+    }
     resetInterestOptionForm();
     if (interestOptionForm.elements.optionType) interestOptionForm.elements.optionType.value = type;
     interestOptionFormTitle.textContent = `إضافة عنصر إلى ${dropdownTypeLabels[type] || "القوائم"}`;
@@ -2011,7 +2248,7 @@ const renderInterestOptions = () => {
     const renderGroup = (type) => {
         const options = state.interestOptions.filter((option) => (option.optionType || "interest") === type);
         return `
-            <section class="dropdown-option-group">
+            <section class="dropdown-option-group" data-permission="${escapeHtml(getDropdownPermission(type))}">
                 <div class="dropdown-group-head">
                     <div class="visual-section-heading compact-heading">
                         <span class="visual-section-number">${type === "interest" ? "01" : "02"}</span>
@@ -2532,44 +2769,89 @@ const saveEvent = async (event) => {
     event.preventDefault();
     showMessage("جاري حفظ الفعالية...", eventFormMessage);
     try {
+        const eventId = Number(eventIdInput.value || 0);
+        const existingEvent = eventId
+            ? (state.events.find((item) => Number(item.id) === eventId) || state.editingEvent || {})
+            : {};
         const coverFiles = getInputFiles(coverInput);
         const galleryFiles = getInputFiles(galleryInput);
-        if (coverFiles && coverFiles.length) {
+        const canManageEvents = can("events_manage");
+        const canEditDetails = canManageEvents || can("events_details");
+        const canEditPartners = canManageEvents || can("events_partners");
+        const canEditGallery = canManageEvents || can("events_gallery_images");
+        const canEditSections = canManageEvents || can("events_sections");
+        const canSaveAnyEventPart = canManageEvents || canEditDetails || canEditPartners || canEditGallery || canEditSections;
+        const isGalleryOnlySave = !canManageEvents && !canEditDetails && !canEditPartners && !canEditSections && canEditGallery;
+        if (isGalleryOnlySave) {
+            if (!eventId) {
+                throw new Error("اختر فعالية موجودة أولاً لإضافة صور إلى معرضها.");
+            }
+            if (!galleryFiles?.length) {
+                throw new Error("اختر صورًا جديدة لإضافتها إلى معرض الفعالية.");
+            }
+            const uploadedGallery = await uploadFiles(galleryFiles);
+            await window.MuheebData.addEventGalleryImages(eventId, {
+                galleryImages: uploadedGallery.map((file) => file.path),
+                galleryCaptionAltText: encodeGalleryCaption(
+                    eventForm.elements.galleryCaptionText?.value || state.editingEvent?.title || "",
+                    eventForm.elements.galleryCaptionVisible?.checked !== false,
+                ),
+            });
+            if (galleryInput) {
+                galleryInput.value = "";
+                editedFiles.delete(galleryInput);
+            }
+            galleryName.textContent = "المقاس المقترح: 1320 × 1080 بكسل لكل صورة";
+            await refreshCurrentEventEditor();
+            showMessage("تمت إضافة صور المعرض بنجاح.", eventFormMessage);
+            return;
+        }
+        if (!canSaveAnyEventPart) {
+            throw new Error("ليست لديك صلاحية حفظ بيانات الفعالية.");
+        }
+        if (!eventId && !canManageEvents) {
+            throw new Error("إضافة فعالية جديدة تحتاج صلاحية إدارة الفعاليات.");
+        }
+        if (canEditDetails && coverFiles && coverFiles.length) {
             const uploadedCover = await uploadFiles(coverFiles);
             state.coverPath = uploadedCover[0]?.path || state.coverPath;
         }
-        const uploadedGallery = await uploadFiles(galleryFiles);
-        const supportLogos = collectSupportLogosFromPreview();
+        const uploadedGallery = canEditGallery ? await uploadFiles(galleryFiles) : [];
+        const supportLogos = canEditPartners ? collectSupportLogosFromPreview() : (existingEvent.supportLogos || []);
+        const detailSections = canEditSections ? normalizeEventSections(state.pendingEventSections) : normalizeEventSections(existingEvent.detailSections || []);
         const payload = {
-            title: eventForm.elements.title.value,
-            titleSize: eventForm.elements.titleSize?.value || "normal",
-            category: eventForm.elements.category.value,
-            location: eventForm.elements.location.value,
-            venueName: eventForm.elements.venueName?.value || "",
-            mapUrl: eventForm.elements.mapUrl?.value || "",
-            eventDate: eventForm.elements.eventDate.value,
-            dateFrom: eventForm.elements.dateFrom?.value || "",
-            dateTo: eventForm.elements.dateTo?.value || "",
-            timeFrom: eventForm.elements.timeFrom?.value || "",
-            timeTo: eventForm.elements.timeTo?.value || "",
-            description: eventForm.elements.description.value,
-            highlights: splitLines(eventForm.elements.highlights.value),
+            title: canEditDetails ? eventForm.elements.title.value : (existingEvent.title || ""),
+            titleSize: canEditDetails ? (eventForm.elements.titleSize?.value || "normal") : (existingEvent.titleSize || "normal"),
+            category: canEditDetails ? eventForm.elements.category.value : (existingEvent.category || "event"),
+            location: canEditDetails ? eventForm.elements.location.value : (existingEvent.location || ""),
+            venueName: canEditDetails ? (eventForm.elements.venueName?.value || "") : (existingEvent.venueName || ""),
+            mapUrl: canEditDetails ? (eventForm.elements.mapUrl?.value || "") : (existingEvent.mapUrl || ""),
+            eventDate: canEditDetails ? eventForm.elements.eventDate.value : (existingEvent.eventDate || existingEvent.dateFrom || ""),
+            dateFrom: canEditDetails ? (eventForm.elements.dateFrom?.value || "") : (existingEvent.dateFrom || ""),
+            dateTo: canEditDetails ? (eventForm.elements.dateTo?.value || "") : (existingEvent.dateTo || ""),
+            timeFrom: canEditDetails ? (eventForm.elements.timeFrom?.value || "") : (existingEvent.timeFrom || ""),
+            timeTo: canEditDetails ? (eventForm.elements.timeTo?.value || "") : (existingEvent.timeTo || ""),
+            description: canEditDetails ? eventForm.elements.description.value : (existingEvent.description || ""),
+            highlights: canEditDetails ? splitLines(eventForm.elements.highlights.value) : (existingEvent.highlights || []),
             participants: [],
-            achievements: splitLines(eventForm.elements.achievements?.value || ""),
+            achievements: canEditDetails ? splitLines(eventForm.elements.achievements?.value || "") : (existingEvent.achievements || []),
             supportLogos,
-            detailSections: normalizeEventSections(state.pendingEventSections),
-            sortOrder: Number(eventForm.elements.sortOrder.value || 0),
-            published: eventForm.elements.published.checked,
-            coverImage: state.coverPath,
+            detailSections,
+            sortOrder: canManageEvents ? Number(eventForm.elements.sortOrder.value || 0) : Number(existingEvent.sortOrder || 0),
+            published: canManageEvents ? eventForm.elements.published.checked : Boolean(existingEvent.published),
+            coverImage: canEditDetails ? state.coverPath : (existingEvent.coverImage || ""),
             galleryImages: uploadedGallery.map((file) => file.path),
             galleryCaptionAltText: encodeGalleryCaption(
-                eventForm.elements.galleryCaptionText?.value || eventForm.elements.title.value,
-                eventForm.elements.galleryCaptionVisible?.checked !== false,
+                canEditGallery
+                    ? (eventForm.elements.galleryCaptionText?.value || eventForm.elements.title.value)
+                    : (parseGalleryCaption(existingEvent.gallery?.[0]?.altText || "").text || existingEvent.title || ""),
+                canEditGallery
+                    ? eventForm.elements.galleryCaptionVisible?.checked !== false
+                    : parseGalleryCaption(existingEvent.gallery?.[0]?.altText || "").visible,
             ),
         };
-        const eventId = Number(eventIdInput.value || 0);
         await window.MuheebData.saveEvent(payload, eventId || null);
-        if (eventId) await syncGallerySettingsFromPreview();
+        if (eventId && canEditGallery) await syncGallerySettingsFromPreview();
         resetEventForm();
         await loadAll();
         showMessage("تم حفظ الفعالية بنجاح.", eventFormMessage);
@@ -2587,6 +2869,7 @@ const openSiteImageModal = () => {
     if (siteImageForm?.elements.published) siteImageForm.elements.published.checked = true;
     if (siteImageForm?.elements.sortOrder) siteImageForm.elements.sortOrder.value = "0";
     if (siteImageFormMessage) siteImageFormMessage.textContent = "";
+    syncSiteImageGroupPermissionOptions();
     siteImageModal?.classList.remove("is-hidden");
     document.body.classList.add("modal-open");
     initIcons();
@@ -2611,12 +2894,16 @@ const saveSiteContent = async () => {
         });
         const rows = Array.from(inputMap.values()).map((input) => {
             const source = getContentRow(input.dataset.contentInput);
+            if (!can(getContentPermission(source))) return null;
             return {
                 ...source,
                 contentKey: input.dataset.contentInput,
                 value: input.value,
             };
-        });
+        }).filter(Boolean);
+        if (!rows.length) {
+            throw new Error("ليست لديك صلاحية تعديل أي قسم من محتوى الموقع.");
+        }
         state.siteContent = await window.MuheebData.saveSiteContent(rows);
         await loadAll();
         showMessage("تم حفظ نصوص الموقع بنجاح.", contentMessage);
@@ -2652,6 +2939,9 @@ const saveExistingSiteImage = async (imageId) => {
     try {
         const payload = await readSiteImageCardPayload(imageId);
         if (!payload) return;
+        if (!can(getSiteImagePermission(payload.groupName))) {
+            throw new Error("ليست لديك صلاحية تعديل هذه المجموعة من الصور.");
+        }
         await window.MuheebData.saveSiteImage(payload, imageId);
         await loadAll();
         showMessage("تم حفظ الصورة.");
@@ -2665,11 +2955,15 @@ const saveNewSiteImage = async (event) => {
     showMessage("جاري إضافة الصورة...", siteImageFormMessage);
     try {
         const formData = new FormData(siteImageForm);
+        const groupName = String(formData.get("groupName") || "custom");
+        if (!can(getSiteImagePermission(groupName))) {
+            throw new Error("ليست لديك صلاحية إضافة صورة في هذه المجموعة.");
+        }
         const uploaded = await uploadFiles(getInputFiles(newSiteImageFile), "site");
         await window.MuheebData.saveSiteImage({
             imageKey: formData.get("imageKey"),
             label: formData.get("label"),
-            groupName: formData.get("groupName"),
+            groupName,
             imagePath: uploaded[0]?.path || "",
             altText: formData.get("altText"),
             sortOrder: Number(formData.get("sortOrder") || 0),
@@ -2689,6 +2983,9 @@ const toggleSiteImage = async (imageId) => {
     const image = state.siteImages.find((item) => item.id === imageId);
     if (!image) return;
     try {
+        if (!can(getSiteImagePermission(image.groupName))) {
+            throw new Error("ليست لديك صلاحية تعديل هذه المجموعة من الصور.");
+        }
         await window.MuheebData.saveSiteImage({
             ...image,
             published: !image.published,
@@ -2703,6 +3000,9 @@ const toggleSiteImage = async (imageId) => {
 const restoreDefaultSiteImages = async () => {
     showMessage("جاري استعادة الصور الافتراضية...");
     try {
+        if (!can("site_images")) {
+            throw new Error("استعادة الصور الافتراضية تحتاج صلاحية كاملة على صور الموقع.");
+        }
         await window.MuheebData.restoreDefaultSiteImages();
         await loadAll();
         showMessage("تمت استعادة الصور الافتراضية للمكتبة.");
@@ -2714,6 +3014,10 @@ const restoreDefaultSiteImages = async () => {
 const editInterestOption = (optionId) => {
     const option = state.interestOptions.find((item) => item.id === optionId);
     if (!option) return;
+    if (!can(getDropdownPermission(option.optionType || "interest"))) {
+        showError("ليست لديك صلاحية تعديل هذا النوع من القوائم.");
+        return;
+    }
     state.editingInterestOption = option;
     interestOptionForm.elements.optionId.value = option.id;
     if (interestOptionForm.elements.optionType) interestOptionForm.elements.optionType.value = option.optionType || "interest";
@@ -2731,8 +3035,12 @@ const saveInterestOption = async (event) => {
     try {
         const formData = new FormData(interestOptionForm);
         const optionId = Number(formData.get("optionId") || 0);
+        const optionType = formData.get("optionType") || "interest";
+        if (!can(getDropdownPermission(optionType))) {
+            throw new Error("ليست لديك صلاحية حفظ هذا النوع من القوائم.");
+        }
         await window.MuheebData.saveInterestOption({
-            optionType: formData.get("optionType") || "interest",
+            optionType,
             label: formData.get("label"),
             value: formData.get("value"),
             sortOrder: Number(formData.get("sortOrder") || 0),
@@ -2750,6 +3058,9 @@ const toggleInterestOption = async (optionId) => {
     const option = state.interestOptions.find((item) => item.id === optionId);
     if (!option) return;
     try {
+        if (!can(getDropdownPermission(option.optionType || "interest"))) {
+            throw new Error("ليست لديك صلاحية تعديل هذا النوع من القوائم.");
+        }
         await window.MuheebData.saveInterestOption({
             ...option,
             optionType: option.optionType || "interest",
@@ -2765,6 +3076,10 @@ const toggleInterestOption = async (optionId) => {
 const deleteInterestOption = async (optionId) => {
     const option = state.interestOptions.find((item) => item.id === optionId);
     if (!option) return;
+    if (!can(getDropdownPermission(option.optionType || "interest"))) {
+        showError("ليست لديك صلاحية حذف هذا النوع من القوائم.");
+        return;
+    }
     if (!confirm(`هل تريد حذف "${option.label}" من القوائم المنسدلة؟`)) return;
     try {
         await window.MuheebData.deleteInterestOption(optionId);
@@ -2808,22 +3123,43 @@ const closeUserModal = () => {
 
 const renderPermissionsGrid = (permissions = {}) => {
     if (!permissionsGrid) return;
-    permissionsGrid.innerHTML = permissionItems.map((permission) => `
-        <label class="permission-item">
-            <input type="checkbox" name="permission_${escapeHtml(permission.key)}" ${permissions[permission.key] ? "checked" : ""}>
-            <span>${escapeHtml(permission.label)}</span>
-        </label>
+    permissionsGrid.innerHTML = permissionGroups.map((group) => `
+        <section class="permission-group-card">
+            <h3>
+                <i data-lucide="${escapeHtml(group.icon)}"></i>
+                <span>${escapeHtml(group.title)}</span>
+            </h3>
+            <div class="permission-group-items">
+                ${group.items.map((permission) => `
+                    <label class="permission-item">
+                        <input type="checkbox" name="permission_${escapeHtml(permission.key)}" ${permissions[permission.key] ? "checked" : ""}>
+                        <span>${escapeHtml(permission.label)}</span>
+                    </label>
+                `).join("")}
+            </div>
+        </section>
     `).join("");
+    initIcons();
 };
 
-const readUserPermissions = () => Object.fromEntries(permissionItems.map((permission) => [
-    permission.key,
-    Boolean(userForm.elements[`permission_${permission.key}`]?.checked),
-]));
+const readUserPermissions = () => {
+    const permissions = Object.fromEntries(permissionItems.map((permission) => [
+        permission.key,
+        Boolean(userForm.elements[`permission_${permission.key}`]?.checked),
+    ]));
+    Object.entries(permissionFallbacks).forEach(([parent, children]) => {
+        if (children.some((child) => permissions[child])) {
+            permissions[parent] = true;
+        }
+    });
+    return permissions;
+};
 
 const renderUsers = () => {
     renderPermissionsGrid(state.editingUser?.permissions || {});
     if (!usersList) return;
+    const canEditUsers = can("users_edit");
+    const canDeleteUsers = can("users_delete");
     usersList.innerHTML = `
         <div class="table-wrap">
             <table class="users-table">
@@ -2857,10 +3193,12 @@ const renderUsers = () => {
                             <td><span class="badge ${user.active ? "" : "is-dim"}">${user.role === "owner" ? "مالك" : user.active ? "نشط" : "موقوف"}</span></td>
                             <td>
                                 <div class="lead-actions">
-                                    <button class="ghost-btn icon-only small-icon" type="button" data-edit-user="${escapeHtml(user.userId)}" title="تعديل">
-                                        <i data-lucide="pencil"></i>
-                                    </button>
-                                    ${user.userId !== state.admin?.userId && user.role !== "owner" ? `
+                                    ${canEditUsers ? `
+                                        <button class="ghost-btn icon-only small-icon" type="button" data-edit-user="${escapeHtml(user.userId)}" title="تعديل">
+                                            <i data-lucide="pencil"></i>
+                                        </button>
+                                    ` : ""}
+                                    ${canDeleteUsers && user.userId !== state.admin?.userId && user.role !== "owner" ? `
                                         <button class="danger-btn icon-only small-icon" type="button" data-delete-user="${escapeHtml(user.userId)}" title="إزالة الصلاحية">
                                             <i data-lucide="trash-2"></i>
                                         </button>
@@ -2877,7 +3215,174 @@ const renderUsers = () => {
     initIcons();
 };
 
+const getChatPeer = () => state.users.find((user) => user.userId === state.activeChatUserId);
+
+const renderChatUsers = () => {
+    if (!chatUsersList) return;
+    if (!can("chat")) {
+        chatUsersList.innerHTML = `<div class="compact-item"><span>لا توجد صلاحية لاستخدام الدردشة.</span></div>`;
+        return;
+    }
+    const users = state.users.filter((user) => (
+        user.active !== false &&
+        user.userId &&
+        user.userId !== state.admin?.userId
+    ));
+    chatUsersList.innerHTML = users.map((user) => `
+        <button class="chat-user-button ${user.userId === state.activeChatUserId ? "is-active" : ""}" type="button" data-chat-user="${escapeHtml(user.userId)}">
+            ${renderUserAvatar(user, "table-avatar")}
+            <span>
+                <strong>${escapeHtml(getDisplayName(user))}</strong>
+                <span>${escapeHtml(user.email || user.phone || "عضو فريق")}</span>
+            </span>
+        </button>
+    `).join("") || `<div class="compact-item"><span>لا يوجد مستخدمون مفعلون للدردشة.</span></div>`;
+    initIcons();
+};
+
+const renderChatMessages = () => {
+    if (!chatMessages) return;
+    const peer = getChatPeer();
+    if (chatHeader) {
+        chatHeader.innerHTML = peer ? `
+            <div class="chat-peer-title">
+                ${renderUserAvatar(peer, "table-avatar")}
+                <div>
+                    <p class="eyebrow">محادثة مباشرة</p>
+                    <h2>${escapeHtml(getDisplayName(peer))}</h2>
+                </div>
+            </div>
+        ` : `
+            <div>
+                <p class="eyebrow">المحادثة</p>
+                <h2>اختر مستخدمًا لبدء الدردشة</h2>
+            </div>
+        `;
+    }
+    if (!peer) {
+        chatMessages.innerHTML = `<div class="chat-empty">اختر عضوًا من الفريق لبدء المحادثة.</div>`;
+        initIcons();
+        return;
+    }
+    chatMessages.innerHTML = state.chatMessages.map((message) => {
+        const isMine = message.senderUserId === state.admin?.userId;
+        const sender = getUserById(message.senderUserId) || (isMine ? state.admin : peer);
+        const attachment = message.attachment || {};
+        const attachmentUrl = attachment.url || attachment.path || "";
+        return `
+            <article class="chat-message ${isMine ? "is-mine" : "is-theirs"}">
+                <div class="chat-message-meta">
+                    <span>${escapeHtml(isMine ? "أنت" : getDisplayName(sender))}</span>
+                    <time>${escapeHtml(formatDate(message.createdAt))}</time>
+                </div>
+                ${message.body ? `<p>${escapeHtml(message.body)}</p>` : ""}
+                ${attachmentUrl ? `
+                    <a class="chat-attachment" href="${escapeHtml(attachmentUrl)}" target="_blank" rel="noopener">
+                        <i data-lucide="paperclip"></i>
+                        <span>${escapeHtml(attachment.name || "مرفق")}</span>
+                    </a>
+                ` : ""}
+            </article>
+        `;
+    }).join("") || `<div class="chat-empty">لا توجد رسائل بعد.</div>`;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    initIcons();
+};
+
+const closeChatSubscription = async () => {
+    if (state.chatChannel && window.MuheebData?.unsubscribeChatMessages) {
+        await window.MuheebData.unsubscribeChatMessages(state.chatChannel).catch(() => null);
+    }
+    state.chatChannel = null;
+};
+
+const openChatWithUser = async (userId) => {
+    if (!can("chat")) {
+        showError("ليست لديك صلاحية استخدام الدردشة.", chatMessageStatus);
+        return;
+    }
+    const peer = state.users.find((user) => user.userId === userId);
+    if (!peer) return;
+    state.activeChatUserId = userId;
+    renderChatUsers();
+    state.chatMessages = [];
+    if (chatMessages) chatMessages.innerHTML = `<div class="chat-empty">جاري تحميل المحادثة...</div>`;
+    try {
+        if (!window.MuheebData?.listChatMessages) {
+            throw new Error("لتفعيل الدردشة شغّل ملف supabase/chat_permissions_upgrade.sql في Supabase.");
+        }
+        state.chatMessages = await window.MuheebData.listChatMessages(userId);
+        renderChatMessages();
+        await closeChatSubscription();
+        if (window.MuheebData.subscribeChatMessages) {
+            state.chatChannel = await window.MuheebData.subscribeChatMessages(userId, (message) => {
+                if (!message?.id || state.chatMessages.some((item) => item.id === message.id)) return;
+                state.chatMessages.push(message);
+                renderChatMessages();
+            });
+        }
+    } catch (error) {
+        showError(error.message, chatMessageStatus);
+        renderChatMessages();
+    }
+};
+
+const sendChatMessage = async (event) => {
+    event.preventDefault();
+    if (!state.activeChatUserId) {
+        showError("اختر مستخدمًا قبل إرسال الرسالة.", chatMessageStatus);
+        return;
+    }
+    if (!can("chat")) {
+        showError("ليست لديك صلاحية استخدام الدردشة.", chatMessageStatus);
+        return;
+    }
+    const body = chatForm?.elements.message?.value?.trim() || "";
+    const attachmentFiles = getInputFiles(chatAttachmentInput);
+    if (!body && !attachmentFiles?.length) {
+        showError("اكتب رسالة أو أرفق ملفًا قبل الإرسال.", chatMessageStatus);
+        return;
+    }
+    showMessage("جاري إرسال الرسالة...", chatMessageStatus);
+    try {
+        let attachment = {};
+        if (attachmentFiles?.length) {
+            const uploaded = await uploadFiles(attachmentFiles, "chat");
+            const file = attachmentFiles[0];
+            attachment = {
+                url: uploaded[0]?.path || "",
+                path: uploaded[0]?.path || "",
+                name: file?.name || uploaded[0]?.name || "مرفق",
+                type: file?.type || "",
+                size: file?.size || 0,
+            };
+        }
+        const savedMessage = await window.MuheebData.sendChatMessage({
+            recipientUserId: state.activeChatUserId,
+            body,
+            attachment,
+        });
+        if (savedMessage?.id && !state.chatMessages.some((message) => message.id === savedMessage.id)) {
+            state.chatMessages.push(savedMessage);
+        }
+        if (chatForm?.elements.message) chatForm.elements.message.value = "";
+        if (chatAttachmentInput) {
+            chatAttachmentInput.value = "";
+            editedFiles.delete(chatAttachmentInput);
+        }
+        if (chatAttachmentName) chatAttachmentName.textContent = "لا يوجد مرفق";
+        renderChatMessages();
+        showMessage("تم إرسال الرسالة.", chatMessageStatus);
+    } catch (error) {
+        showError(error.message, chatMessageStatus);
+    }
+};
+
 const editUser = (userId) => {
+    if (!can("users_edit")) {
+        showError("ليست لديك صلاحية تعديل المستخدمين.");
+        return;
+    }
     const user = state.users.find((item) => item.userId === userId);
     if (!user || !userForm) return;
     state.editingUser = user;
@@ -2908,6 +3413,12 @@ const saveUser = async (event) => {
     try {
         const formData = new FormData(userForm);
         const userId = state.editingUser?.userId || formData.get("userId") || "";
+        if (userId && !can("users_edit")) {
+            throw new Error("ليست لديك صلاحية تعديل المستخدمين.");
+        }
+        if (!userId && !can("users_add")) {
+            throw new Error("ليست لديك صلاحية إضافة مستخدم.");
+        }
         const editingEmail = state.editingUser?.email || (
             state.editingUser?.userId === state.admin?.userId ? state.admin?.authEmail || "" : ""
         );
@@ -2939,6 +3450,10 @@ const saveUser = async (event) => {
 };
 
 const deleteUser = async (userId) => {
+    if (!can("users_delete")) {
+        showError("ليست لديك صلاحية حذف المستخدمين.");
+        return;
+    }
     if (!window.confirm("هل تريد إزالة صلاحيات هذا المستخدم من لوحة التحكم؟")) return;
     try {
         await window.MuheebData.deleteAdminUser(userId);
@@ -3114,6 +3629,7 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 });
 
 document.getElementById("logoutButton").addEventListener("click", async () => {
+    await closeChatSubscription();
     await window.MuheebData.logout().catch(() => null);
     state.admin = null;
     showLogin();
@@ -3148,7 +3664,13 @@ interestOptionForm?.addEventListener("submit", saveInterestOption);
 document.getElementById("resetInterestOptionForm")?.addEventListener("click", resetInterestOptionForm);
 userForm?.addEventListener("submit", saveUser);
 document.getElementById("resetUserForm")?.addEventListener("click", resetUserForm);
-openUserModalButton?.addEventListener("click", () => openUserModal("new"));
+openUserModalButton?.addEventListener("click", () => {
+    if (!can("users_add")) {
+        showError("ليست لديك صلاحية إضافة مستخدم.");
+        return;
+    }
+    openUserModal("new");
+});
 closeUserModalButton?.addEventListener("click", closeUserModal);
 userModal?.addEventListener("click", (event) => {
     if (event.target === userModal) closeUserModal();
@@ -3205,6 +3727,22 @@ usersList?.addEventListener("click", async (event) => {
     }
     if (deleteButton) {
         await deleteUser(deleteButton.dataset.deleteUser);
+    }
+});
+
+chatUsersList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-chat-user]");
+    if (button) {
+        openChatWithUser(button.dataset.chatUser);
+    }
+});
+
+chatForm?.addEventListener("submit", sendChatMessage);
+
+chatAttachmentInput?.addEventListener("change", () => {
+    const file = getInputFiles(chatAttachmentInput)?.[0];
+    if (chatAttachmentName) {
+        chatAttachmentName.textContent = file ? getFriendlyFileLabel(file.name, "تم اختيار مرفق") : "لا يوجد مرفق";
     }
 });
 
