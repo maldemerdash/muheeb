@@ -35,7 +35,7 @@ on public.admin_chat_messages (recipient_user_id, sender_user_id, created_at);
 
 alter table public.admin_chat_messages enable row level security;
 
-grant select, insert, update on table public.admin_chat_messages to authenticated;
+grant select, insert, update, delete on table public.admin_chat_messages to authenticated;
 
 do $$
 begin
@@ -92,6 +92,19 @@ using (
 with check (
     public.is_admin()
     and recipient_user_id = auth.uid()
+);
+
+drop policy if exists "Admins can delete their chat messages" on public.admin_chat_messages;
+create policy "Admins can delete their chat messages"
+on public.admin_chat_messages
+for delete
+to authenticated
+using (
+    public.is_admin()
+    and (
+        sender_user_id = auth.uid()
+        or recipient_user_id = auth.uid()
+    )
 );
 
 drop policy if exists "Managers can create admin users" on public.admin_users;

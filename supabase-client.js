@@ -998,6 +998,17 @@
             return unreadRows.length;
         },
 
+        async deleteChatMessages(peerUserId) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { error } = await client
+                .from("admin_chat_messages")
+                .delete()
+                .or(`and(sender_user_id.eq.${user.id},recipient_user_id.eq.${peerUserId}),and(sender_user_id.eq.${peerUserId},recipient_user_id.eq.${user.id})`);
+            if (error) throw error;
+            return true;
+        },
+
         async sendChatMessage(payload) {
             const client = await requireSupabase();
             const user = await requireAdmin();

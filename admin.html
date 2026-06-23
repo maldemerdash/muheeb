@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=chat-unread-20260623">
+    <link rel="stylesheet" href="admin.css?v=chat-cleanup-20260623">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -219,7 +219,7 @@
                         <div class="chat-messages" id="chatMessages"></div>
                         <form class="chat-form" id="chatForm">
                             <label class="chat-attachment-button" title="إرفاق ملف" aria-label="إرفاق ملف">
-                                <input type="file" id="chatAttachmentInput" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                                <input type="file" id="chatAttachmentInput">
                                 <i data-lucide="paperclip"></i>
                             </label>
                             <textarea name="message" rows="2" placeholder="اكتب رسالة للفريق"></textarea>
@@ -885,7 +885,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=chat-unread-20260623"></script>
-    <script src="admin.js?v=chat-unread-20260623"></script>
+    <script src="supabase-client.js?v=chat-cleanup-20260623"></script>
+    <script src="admin.js?v=chat-cleanup-20260623"></script>
 </body>
 </html>

@@ -1007,9 +1007,15 @@ td {
     cursor: pointer;
 }
 
-.chat-user-button > span:not(.chat-user-unread) {
+.chat-user-copy {
     flex: 1;
     min-width: 0;
+}
+
+.chat-user-button .table-avatar {
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
 }
 
 .chat-user-button.is-active {
@@ -1022,12 +1028,12 @@ td {
     background: var(--gold);
 }
 
-.chat-user-button strong,
-.chat-user-button span {
+.chat-user-copy strong,
+.chat-user-copy span {
     display: block;
 }
 
-.chat-user-button span {
+.chat-user-copy span {
     color: var(--muted);
     font-size: 0.84rem;
 }
@@ -1040,6 +1046,10 @@ td {
 }
 
 .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
     padding: 20px;
     border-bottom: 1px solid var(--line);
     background: #fffdf9;
@@ -1054,6 +1064,20 @@ td {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
+}
+
+.chat-clear-button {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    color: var(--danger);
+}
+
+.chat-clear-button svg {
+    width: 18px;
+    height: 18px;
 }
 
 .chat-messages {

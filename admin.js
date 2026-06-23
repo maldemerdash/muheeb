@@ -3310,7 +3310,7 @@ const renderChatUsers = () => {
     chatUsersList.innerHTML = users.map((user) => `
         <button class="chat-user-button ${user.userId === state.activeChatUserId ? "is-active" : ""}" type="button" data-chat-user="${escapeHtml(user.userId)}">
             ${renderUserAvatar(user, "table-avatar")}
-            <span>
+            <span class="chat-user-copy">
                 <strong>${escapeHtml(getDisplayName(user))}</strong>
                 <span>${escapeHtml(user.email || user.phone || "عضو فريق")}</span>
             </span>
@@ -3333,6 +3333,9 @@ const renderChatMessages = () => {
                     <h2>${escapeHtml(getDisplayName(peer))}</h2>
                 </div>
             </div>
+            <button class="ghost-btn icon-only chat-clear-button" type="button" data-clear-chat title="حذف محتوى المحادثة" aria-label="حذف محتوى المحادثة">
+                <i data-lucide="trash-2"></i>
+            </button>
         ` : `
             <div>
                 <p class="eyebrow">المحادثة</p>
@@ -3394,6 +3397,31 @@ const markChatThreadRead = async (peerUserId) => {
         await window.MuheebData.markChatMessagesRead(peerUserId);
     } catch (error) {
         console.error("Muheeb chat read failed:", error);
+    }
+};
+
+const clearActiveChat = async () => {
+    const peer = getChatPeer();
+    if (!peer || !state.activeChatUserId) {
+        showError("اختر محادثة أولاً.", chatMessageStatus);
+        return;
+    }
+    const confirmed = window.confirm(`هل تريد حذف كل رسائل المحادثة مع ${getDisplayName(peer)}؟ لا يمكن التراجع عن هذا الإجراء.`);
+    if (!confirmed) return;
+    showMessage("جاري حذف محتوى المحادثة...", chatMessageStatus);
+    try {
+        if (!window.MuheebData?.deleteChatMessages) {
+            throw new Error("لتفعيل حذف الدردشة شغّل ملف تحديث Supabase الخاص بحذف المحادثات.");
+        }
+        await window.MuheebData.deleteChatMessages(state.activeChatUserId);
+        state.chatMessages = [];
+        markChatThreadReadLocally(state.activeChatUserId);
+        renderChatMessages();
+        renderChatUsers();
+        renderNotifications();
+        showMessage("تم حذف محتوى المحادثة.", chatMessageStatus);
+    } catch (error) {
+        showError(error.message, chatMessageStatus);
     }
 };
 
@@ -3895,6 +3923,13 @@ chatUsersList?.addEventListener("click", (event) => {
 });
 
 chatForm?.addEventListener("submit", sendChatMessage);
+
+chatHeader?.addEventListener("click", (event) => {
+    const clearButton = event.target.closest("[data-clear-chat]");
+    if (clearButton) {
+        clearActiveChat();
+    }
+});
 
 chatAttachmentInput?.addEventListener("change", () => {
     const file = getInputFiles(chatAttachmentInput)?.[0];
