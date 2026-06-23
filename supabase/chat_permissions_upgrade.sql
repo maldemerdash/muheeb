@@ -16,12 +16,16 @@ create table if not exists public.admin_chat_messages (
     recipient_user_id uuid not null references auth.users(id) on delete cascade,
     body text not null default '',
     attachment jsonb not null default '{}'::jsonb,
+    read_by uuid[] not null default '{}'::uuid[],
     created_at timestamptz not null default now(),
     constraint admin_chat_messages_has_content check (
         length(trim(body)) > 0
         or attachment <> '{}'::jsonb
     )
 );
+
+alter table public.admin_chat_messages
+add column if not exists read_by uuid[] not null default '{}'::uuid[];
 
 create index if not exists admin_chat_messages_sender_recipient_idx
 on public.admin_chat_messages (sender_user_id, recipient_user_id, created_at);
@@ -31,7 +35,7 @@ on public.admin_chat_messages (recipient_user_id, sender_user_id, created_at);
 
 alter table public.admin_chat_messages enable row level security;
 
-grant select, insert on table public.admin_chat_messages to authenticated;
+grant select, insert, update on table public.admin_chat_messages to authenticated;
 
 do $$
 begin
@@ -74,6 +78,20 @@ with check (
     )
     and sender_user_id = auth.uid()
     and recipient_user_id <> auth.uid()
+);
+
+drop policy if exists "Admins can mark their chat messages read" on public.admin_chat_messages;
+create policy "Admins can mark their chat messages read"
+on public.admin_chat_messages
+for update
+to authenticated
+using (
+    public.is_admin()
+    and recipient_user_id = auth.uid()
+)
+with check (
+    public.is_admin()
+    and recipient_user_id = auth.uid()
 );
 
 drop policy if exists "Managers can create admin users" on public.admin_users;

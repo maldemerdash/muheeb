@@ -124,6 +124,7 @@
         recipientUserId: message.recipient_user_id || message.recipientUserId || "",
         body: message.body || "",
         attachment: message.attachment || {},
+        readBy: message.read_by || message.readBy || [],
         createdAt: message.created_at || message.createdAt,
     });
 
@@ -960,6 +961,43 @@
             return (data || []).map(toCamelChatMessage);
         },
 
+        async listUnreadChatMessages() {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data, error } = await client
+                .from("admin_chat_messages")
+                .select("*")
+                .eq("recipient_user_id", user.id)
+                .order("created_at", { ascending: false })
+                .limit(250);
+            if (error) throw error;
+            return (data || [])
+                .map(toCamelChatMessage)
+                .filter((message) => !(message.readBy || []).includes(user.id));
+        },
+
+        async markChatMessagesRead(peerUserId) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const { data, error } = await client
+                .from("admin_chat_messages")
+                .select("id, read_by")
+                .eq("sender_user_id", peerUserId)
+                .eq("recipient_user_id", user.id)
+                .order("created_at", { ascending: false })
+                .limit(250);
+            if (error) throw error;
+            const unreadRows = (data || []).filter((row) => !(row.read_by || []).includes(user.id));
+            const results = await Promise.all(unreadRows.map((row) => client
+                .from("admin_chat_messages")
+                .update({ read_by: Array.from(new Set([...(row.read_by || []), user.id])) })
+                .eq("id", row.id)
+            ));
+            const updateError = results.find((result) => result.error)?.error;
+            if (updateError) throw updateError;
+            return unreadRows.length;
+        },
+
         async sendChatMessage(payload) {
             const client = await requireSupabase();
             const user = await requireAdmin();
@@ -993,6 +1031,25 @@
                         );
                         if (isCurrentConversation) onMessage?.(toCamelChatMessage(message));
                     }
+                )
+                .subscribe();
+            return channel;
+        },
+
+        async subscribeIncomingChatMessages(onMessage) {
+            const client = await requireSupabase();
+            const user = await requireAdmin();
+            const channel = client
+                .channel(`muheeb-chat-incoming-${user.id}`)
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "INSERT",
+                        schema: "public",
+                        table: "admin_chat_messages",
+                        filter: `recipient_user_id=eq.${user.id}`,
+                    },
+                    ({ new: message }) => onMessage?.(toCamelChatMessage(message))
                 )
                 .subscribe();
             return channel;

@@ -17,6 +17,7 @@ const state = {
     noteInquiries: [],
     profileRequests: [],
     chatMessages: [],
+    chatUnreadMessages: [],
     activeView: "overviewView",
     editingEvent: null,
     editingInterestOption: null,
@@ -24,6 +25,7 @@ const state = {
     activeLeadId: null,
     activeChatUserId: "",
     chatChannel: null,
+    incomingChatChannel: null,
     activeInquiry: { mode: "create", noteId: "", inquiryId: "" },
     coverPath: "",
     pendingSupportLogos: [],
@@ -433,6 +435,7 @@ const chatAttachmentInput = document.getElementById("chatAttachmentInput");
 const chatAttachmentName = document.getElementById("chatAttachmentName");
 const chatMessageStatus = document.getElementById("chatMessageStatus");
 const chatHeader = document.getElementById("chatHeader");
+const chatNavBadge = document.getElementById("chatNavBadge");
 
 const editedFiles = new WeakMap();
 
@@ -768,6 +771,72 @@ const getVisibleNotifications = (notifications) => (notifications || []).filter(
     notification.targetUserId === state.admin?.userId
 ));
 
+const isChatMessageRead = (message) => (
+    message.senderUserId === state.admin?.userId ||
+    (message.readBy || []).includes(state.admin?.userId)
+);
+
+const normalizeUnreadChatMessages = (messages = []) => {
+    const seen = new Set();
+    return (messages || []).filter((message) => {
+        if (!message?.id || seen.has(message.id)) return false;
+        seen.add(message.id);
+        return message.recipientUserId === state.admin?.userId && !isChatMessageRead(message);
+    });
+};
+
+const getUnreadChatMessages = () => normalizeUnreadChatMessages(state.chatUnreadMessages);
+
+const getUnreadChatCount = () => getUnreadChatMessages().length;
+
+const getUnreadChatCountBySender = (userId) => getUnreadChatMessages()
+    .filter((message) => message.senderUserId === userId)
+    .length;
+
+const addUnreadChatMessage = (message) => {
+    if (!message?.id || message.recipientUserId !== state.admin?.userId || isChatMessageRead(message)) return;
+    if (state.chatUnreadMessages.some((item) => item.id === message.id)) return;
+    state.chatUnreadMessages = normalizeUnreadChatMessages([message, ...state.chatUnreadMessages]);
+};
+
+const markChatThreadReadLocally = (peerUserId) => {
+    if (!peerUserId || !state.admin?.userId) return;
+    state.chatUnreadMessages = state.chatUnreadMessages.filter((message) => message.senderUserId !== peerUserId);
+    state.chatMessages = state.chatMessages.map((message) => {
+        if (message.senderUserId !== peerUserId || message.recipientUserId !== state.admin.userId) return message;
+        return {
+            ...message,
+            readBy: Array.from(new Set([...(message.readBy || []), state.admin.userId])),
+        };
+    });
+};
+
+const renderChatBadges = () => {
+    const count = getUnreadChatCount();
+    if (chatNavBadge) {
+        chatNavBadge.textContent = String(count);
+        chatNavBadge.classList.toggle("is-hidden", !count);
+    }
+};
+
+const getChatNotificationGroups = () => {
+    const groups = new Map();
+    getUnreadChatMessages().forEach((message) => {
+        const key = message.senderUserId;
+        const group = groups.get(key) || {
+            userId: key,
+            count: 0,
+            latest: message,
+        };
+        group.count += 1;
+        if (new Date(message.createdAt || 0) > new Date(group.latest?.createdAt || 0)) {
+            group.latest = message;
+        }
+        groups.set(key, group);
+    });
+    return Array.from(groups.values());
+};
+
 const notificationFailureMessage = "تم حفظ الإجراء، لكن تعذر إرسال الإشعار للطرف المعني. تأكد من تشغيل ملف تحديث Supabase الخاص بالإشعارات.";
 
 const createTargetedNotifications = async (targetIds, payload) => {
@@ -990,6 +1059,7 @@ const loadAll = async () => {
     let leadNotes = [];
     let noteInquiries = [];
     let profileRequests = [];
+    let chatUnreadMessages = [];
     try {
         [siteContent, siteImages, interestOptions] = await Promise.all([
             window.MuheebData.listSiteContent(),
@@ -1034,6 +1104,14 @@ const loadAll = async () => {
         showApp();
     }
     state.notifications = getVisibleNotifications(notifications);
+    if (can("chat") && window.MuheebData?.listUnreadChatMessages) {
+        try {
+            chatUnreadMessages = await window.MuheebData.listUnreadChatMessages();
+        } catch (error) {
+            console.error("Muheeb unread chat load failed:", error);
+        }
+    }
+    state.chatUnreadMessages = normalizeUnreadChatMessages(chatUnreadMessages);
     state.profileRequests = profileRequests || [];
     applyAdminSiteImages();
     renderStats(stats || {});
@@ -1046,6 +1124,7 @@ const loadAll = async () => {
     renderChatUsers();
     renderProfileRequests();
     renderNotifications();
+    await startIncomingChatSubscription();
     applyPermissions();
     initIcons();
 };
@@ -3235,8 +3314,10 @@ const renderChatUsers = () => {
                 <strong>${escapeHtml(getDisplayName(user))}</strong>
                 <span>${escapeHtml(user.email || user.phone || "عضو فريق")}</span>
             </span>
+            ${getUnreadChatCountBySender(user.userId) ? `<span class="chat-user-unread">${getUnreadChatCountBySender(user.userId)}</span>` : ""}
         </button>
     `).join("") || `<div class="compact-item"><span>لا يوجد مستخدمون مفعلون للدردشة.</span></div>`;
+    renderChatBadges();
     initIcons();
 };
 
@@ -3296,6 +3377,50 @@ const closeChatSubscription = async () => {
     state.chatChannel = null;
 };
 
+const closeIncomingChatSubscription = async () => {
+    if (state.incomingChatChannel && window.MuheebData?.unsubscribeChatMessages) {
+        await window.MuheebData.unsubscribeChatMessages(state.incomingChatChannel).catch(() => null);
+    }
+    state.incomingChatChannel = null;
+};
+
+const markChatThreadRead = async (peerUserId) => {
+    if (!peerUserId) return;
+    markChatThreadReadLocally(peerUserId);
+    renderChatUsers();
+    renderNotifications();
+    if (!window.MuheebData?.markChatMessagesRead) return;
+    try {
+        await window.MuheebData.markChatMessagesRead(peerUserId);
+    } catch (error) {
+        console.error("Muheeb chat read failed:", error);
+    }
+};
+
+const handleIncomingChatMessage = async (message) => {
+    if (!message?.id || message.recipientUserId !== state.admin?.userId) return;
+    if (message.senderUserId === state.activeChatUserId) {
+        if (!state.chatMessages.some((item) => item.id === message.id)) {
+            state.chatMessages.push(message);
+        }
+        renderChatMessages();
+        await markChatThreadRead(message.senderUserId);
+        return;
+    }
+    addUnreadChatMessage(message);
+    renderChatUsers();
+    renderNotifications();
+};
+
+const startIncomingChatSubscription = async () => {
+    if (state.incomingChatChannel || !can("chat") || !window.MuheebData?.subscribeIncomingChatMessages) return;
+    try {
+        state.incomingChatChannel = await window.MuheebData.subscribeIncomingChatMessages(handleIncomingChatMessage);
+    } catch (error) {
+        console.error("Muheeb incoming chat subscription failed:", error);
+    }
+};
+
 const openChatWithUser = async (userId) => {
     if (!can("chat")) {
         showError("ليست لديك صلاحية استخدام الدردشة.", chatMessageStatus);
@@ -3312,6 +3437,7 @@ const openChatWithUser = async (userId) => {
             throw new Error("لتفعيل الدردشة شغّل ملف supabase/chat_permissions_upgrade.sql في Supabase.");
         }
         state.chatMessages = await window.MuheebData.listChatMessages(userId);
+        await markChatThreadRead(userId);
         renderChatMessages();
         await closeChatSubscription();
         if (window.MuheebData.subscribeChatMessages) {
@@ -3319,6 +3445,9 @@ const openChatWithUser = async (userId) => {
                 if (!message?.id || state.chatMessages.some((item) => item.id === message.id)) return;
                 state.chatMessages.push(message);
                 renderChatMessages();
+                if (message.recipientUserId === state.admin?.userId) {
+                    markChatThreadRead(userId);
+                }
             });
         }
     } catch (error) {
@@ -3566,17 +3695,44 @@ const renderProfileRequests = () => {
 const renderNotifications = () => {
     const isRead = (notification) => (notification.readBy || []).includes(state.admin?.userId);
     const unreadCount = state.notifications.filter((notification) => !isRead(notification)).length;
-    const count = unreadCount;
+    const chatGroups = getChatNotificationGroups();
+    const chatUnreadCount = getUnreadChatCount();
+    const count = unreadCount + chatUnreadCount;
     notificationBadge.textContent = String(count);
     notificationBadge.classList.toggle("is-hidden", !count);
     notificationCount.textContent = count ? `${count} غير مقروء` : "لا يوجد جديد";
-    notificationList.innerHTML = state.notifications.map((notification) => `
-        <button class="notification-item ${isRead(notification) ? "is-read" : ""}" type="button" data-open-lead="${escapeHtml(notification.leadId || "")}" data-notification-id="${escapeHtml(notification.id)}">
-            <strong>${escapeHtml(notification.title)}</strong>
-            <span>${escapeHtml(notification.message)}</span>
-            <small>${isRead(notification) ? "مقروء" : "جديد"} - ${formatDate(notification.createdAt)}</small>
-        </button>
-    `).join("") || `<div class="compact-item"><span>لا توجد إشعارات حتى الآن.</span></div>`;
+    renderChatBadges();
+    const notificationItems = state.notifications.map((notification) => ({
+        type: "notification",
+        createdAt: notification.createdAt,
+        html: `
+            <button class="notification-item ${isRead(notification) ? "is-read" : ""}" type="button" data-open-lead="${escapeHtml(notification.leadId || "")}" data-notification-id="${escapeHtml(notification.id)}">
+                <strong>${escapeHtml(notification.title)}</strong>
+                <span>${escapeHtml(notification.message)}</span>
+                <small>${isRead(notification) ? "مقروء" : "جديد"} - ${formatDate(notification.createdAt)}</small>
+            </button>
+        `,
+    }));
+    const chatItems = chatGroups.map((group) => {
+        const user = getUserById(group.userId) || {};
+        const name = getDisplayName(user);
+        const messagePreview = group.latest?.body || group.latest?.attachment?.name || "مرفق جديد";
+        return {
+            type: "chat",
+            createdAt: group.latest?.createdAt,
+            html: `
+                <button class="notification-item" type="button" data-open-chat="${escapeHtml(group.userId)}">
+                    <strong>${escapeHtml(group.count > 1 ? `${group.count} رسائل جديدة` : "رسالة جديدة")}</strong>
+                    <span>${escapeHtml(`من ${name}: ${messagePreview}`)}</span>
+                    <small>دردشة - ${formatDate(group.latest?.createdAt)}</small>
+                </button>
+            `,
+        };
+    });
+    const items = [...chatItems, ...notificationItems].sort((a, b) => (
+        new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    ));
+    notificationList.innerHTML = items.map((item) => item.html).join("") || `<div class="compact-item"><span>لا توجد إشعارات حتى الآن.</span></div>`;
 };
 
 const toggleDropdown = (menu) => {
@@ -3630,6 +3786,7 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 
 document.getElementById("logoutButton").addEventListener("click", async () => {
     await closeChatSubscription();
+    await closeIncomingChatSubscription();
     await window.MuheebData.logout().catch(() => null);
     state.admin = null;
     showLogin();
@@ -3777,6 +3934,13 @@ latestLeads?.addEventListener("click", (event) => {
 });
 
 notificationList?.addEventListener("click", async (event) => {
+    const chatButton = event.target.closest("[data-open-chat]");
+    if (chatButton) {
+        notificationsMenu.classList.add("is-hidden");
+        setView("chatView");
+        await openChatWithUser(chatButton.dataset.openChat);
+        return;
+    }
     const button = event.target.closest("[data-notification-id]");
     if (!button) return;
     const leadId = Number(button?.dataset.openLead || 0);

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=chat-permissions-20260623">
+    <link rel="stylesheet" href="admin.css?v=chat-unread-20260623">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -51,6 +51,7 @@
                 <button class="nav-item" type="button" data-view="chatView" data-permission="chat">
                     <i data-lucide="messages-square"></i>
                     <span>الدردشة</span>
+                    <span class="nav-badge is-hidden" id="chatNavBadge">0</span>
                 </button>
                 <button class="nav-item" type="button" data-view="contentView" data-permission="content">
                     <i data-lucide="file-pen-line"></i>
@@ -884,7 +885,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=chat-permissions-20260623"></script>
-    <script src="admin.js?v=chat-permissions-20260623"></script>
+    <script src="supabase-client.js?v=chat-unread-20260623"></script>
+    <script src="admin.js?v=chat-unread-20260623"></script>
 </body>
 </html>

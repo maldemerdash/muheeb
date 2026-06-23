@@ -258,6 +258,7 @@ textarea:focus {
 
 .nav-item {
     width: 100%;
+    position: relative;
     justify-content: flex-start;
     padding: 0 14px;
     color: var(--burgundy);
@@ -269,6 +270,30 @@ textarea:focus {
 .nav-item:hover {
     color: var(--white);
     background: var(--burgundy);
+}
+
+.nav-badge,
+.chat-user-unread {
+    min-width: 22px;
+    height: 22px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    color: var(--white);
+    background: var(--danger);
+    font-size: 0.74rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.nav-badge {
+    margin-inline-start: auto;
+}
+
+.nav-item.active .nav-badge,
+.nav-item:hover .nav-badge {
+    color: var(--burgundy);
+    background: var(--white);
 }
 
 .site-link {
@@ -982,9 +1007,19 @@ td {
     cursor: pointer;
 }
 
+.chat-user-button > span:not(.chat-user-unread) {
+    flex: 1;
+    min-width: 0;
+}
+
 .chat-user-button.is-active {
     border-color: rgba(48, 48, 48, 0.45);
     background: linear-gradient(135deg, rgba(69, 18, 22, 0.08), rgba(202, 152, 58, 0.16));
+}
+
+.chat-user-unread {
+    flex: 0 0 auto;
+    background: var(--gold);
 }
 
 .chat-user-button strong,
