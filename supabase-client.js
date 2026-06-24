@@ -1343,10 +1343,17 @@
             if (error) throw error;
         },
 
-        async restoreDefaultSiteImages() {
+        async restoreDefaultSiteImages(groupName = "") {
             const client = await requireSupabase();
             await requireAdmin();
-            const rows = defaultSiteImages.map((image) => ({
+            const selectedGroup = String(groupName || "").trim();
+            const defaults = selectedGroup
+                ? defaultSiteImages.filter((image) => image.group_name === selectedGroup)
+                : defaultSiteImages;
+            if (!defaults.length) {
+                throw new Error("لا توجد صور افتراضية لهذه المجموعة.");
+            }
+            const rows = defaults.map((image) => ({
                 ...image,
                 updated_at: new Date().toISOString(),
             }));

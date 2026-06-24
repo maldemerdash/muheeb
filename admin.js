@@ -33,6 +33,11 @@ const state = {
     activeEventSectionIndex: null,
 };
 
+const chatAllUsersId = "__muheeb_all_team__";
+const inactivityLimitMs = 10 * 60 * 1000;
+let inactivityTimerId = null;
+let pendingConfirmResolve = null;
+
 const hiddenGalleryCaptionPrefix = "__muheeb_hidden_gallery_caption__:";
 
 const parseGalleryCaption = (altText = "") => {
@@ -341,6 +346,7 @@ const notificationCount = document.getElementById("notificationCount");
 const leadsTable = document.getElementById("leadsTable");
 const latestLeads = document.getElementById("latestLeads");
 const activityChart = document.getElementById("activityChart");
+const overviewLeadProgress = document.getElementById("overviewLeadProgress");
 const eventsList = document.getElementById("eventsList");
 const eventForm = document.getElementById("eventForm");
 const eventFormTitle = document.getElementById("eventFormTitle");
@@ -374,6 +380,9 @@ const interestOptionForm = document.getElementById("interestOptionForm");
 const interestOptionFormTitle = document.getElementById("interestOptionFormTitle");
 const interestOptionMessage = document.getElementById("interestOptionMessage");
 const interestOptionList = document.getElementById("interestOptionList");
+const interestOptionModal = document.getElementById("interestOptionModal");
+const closeInterestOptionModalButton = document.getElementById("closeInterestOptionModal");
+const cancelInterestOptionModalButton = document.getElementById("cancelInterestOptionModal");
 const leadModal = document.getElementById("leadModal");
 const leadModalTitle = document.getElementById("leadModalTitle");
 const leadDetailGrid = document.getElementById("leadDetailGrid");
@@ -436,6 +445,12 @@ const chatAttachmentName = document.getElementById("chatAttachmentName");
 const chatMessageStatus = document.getElementById("chatMessageStatus");
 const chatHeader = document.getElementById("chatHeader");
 const chatNavBadge = document.getElementById("chatNavBadge");
+const confirmModal = document.getElementById("confirmModal");
+const confirmModalTitle = document.getElementById("confirmModalTitle");
+const confirmModalMessage = document.getElementById("confirmModalMessage");
+const confirmAcceptButton = document.getElementById("confirmAcceptButton");
+const confirmCancelButton = document.getElementById("confirmCancelButton");
+const confirmModalCloseButton = document.getElementById("confirmModalClose");
 
 const editedFiles = new WeakMap();
 
@@ -456,6 +471,57 @@ const formatDate = (value) => {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(date);
+};
+
+const inferFileNameFromUrl = (url) => {
+    try {
+        const parsedUrl = new URL(url, window.location.href);
+        const lastPart = parsedUrl.pathname.split("/").filter(Boolean).pop();
+        return lastPart ? decodeURIComponent(lastPart) : "muheeb-attachment";
+    } catch {
+        return "muheeb-attachment";
+    }
+};
+
+const sanitizeDownloadFileName = (name) => {
+    const cleaned = String(name || "")
+        .replace(/[\\/:*?"<>|]+/g, "-")
+        .replace(/\s+/g, " ")
+        .trim();
+    return cleaned || "muheeb-attachment";
+};
+
+const triggerDownloadFromBlob = (blob, fileName) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
+};
+
+const forceDownloadFile = async (url, suggestedName = "") => {
+    if (!url) {
+        showError("لا يوجد رابط للمرفق.", chatMessageStatus);
+        return;
+    }
+    const fileName = sanitizeDownloadFileName(suggestedName || inferFileNameFromUrl(url));
+    showMessage("جاري تجهيز تحميل المرفق...", chatMessageStatus);
+    try {
+        const response = await fetch(url, { mode: "cors", credentials: "omit" });
+        if (!response.ok) {
+            throw new Error("تعذر قراءة الملف.");
+        }
+        const blob = await response.blob();
+        triggerDownloadFromBlob(blob, fileName);
+        showMessage("بدأ تنزيل المرفق.", chatMessageStatus);
+    } catch (error) {
+        showError("تعذر تنزيل المرفق مباشرة من المتصفح. تأكد من صلاحيات Storage في Supabase.", chatMessageStatus);
+        console.error("Muheeb attachment download failed:", error);
+    }
 };
 
 const parseLeadNotes = (value) => {
@@ -879,6 +945,16 @@ const getInquiryNotificationTargets = (note) => {
     return Array.from(targetIds);
 };
 
+const getProfileRequestNotificationTargets = () => Array.from(new Set(
+    state.users
+        .filter((user) => user.active !== false && (
+            user.role === "owner" ||
+            userHasPermission(user, "profile_requests") ||
+            userHasPermission(user, "security")
+        ))
+        .map((user) => user.userId)
+));
+
 const canReplyToInquiry = () => (
     can("manage_note_inquiries") ||
     can("assign_notes") ||
@@ -972,6 +1048,44 @@ const showMessage = (message, target = globalMessage, type = "success") => {
 
 const showError = (message, target = globalMessage) => showMessage(message || "حدث خطأ غير متوقع.", target, "error");
 
+const hasVisibleModal = () => Array.from(document.querySelectorAll(".modal-backdrop"))
+    .some((modal) => !modal.classList.contains("is-hidden"));
+
+const setModalOpenState = () => {
+    document.body.classList.toggle("modal-open", hasVisibleModal());
+};
+
+const closeConfirmModal = (result = false) => {
+    confirmModal?.classList.add("is-hidden");
+    setModalOpenState();
+    if (pendingConfirmResolve) {
+        const resolve = pendingConfirmResolve;
+        pendingConfirmResolve = null;
+        resolve(result);
+    }
+};
+
+const confirmAction = ({
+    title = "تأكيد الإجراء",
+    message = "هل تريد تنفيذ هذا الإجراء؟",
+    confirmText = "تأكيد",
+    tone = "danger",
+} = {}) => new Promise((resolve) => {
+    if (!confirmModal || !confirmAcceptButton) {
+        resolve(false);
+        return;
+    }
+    if (pendingConfirmResolve) closeConfirmModal(false);
+    pendingConfirmResolve = resolve;
+    if (confirmModalTitle) confirmModalTitle.textContent = title;
+    if (confirmModalMessage) confirmModalMessage.textContent = message;
+    confirmAcceptButton.querySelector("span").textContent = confirmText;
+    confirmAcceptButton.className = tone === "danger" ? "danger-btn" : "primary-btn";
+    confirmModal.classList.remove("is-hidden");
+    setModalOpenState();
+    initIcons();
+});
+
 const showApp = () => {
     loginView.classList.add("is-hidden");
     adminShell.classList.remove("is-hidden");
@@ -987,6 +1101,33 @@ const showApp = () => {
 const showLogin = () => {
     adminShell.classList.add("is-hidden");
     loginView.classList.remove("is-hidden");
+};
+
+const clearInactivityTimer = () => {
+    if (inactivityTimerId) {
+        window.clearTimeout(inactivityTimerId);
+        inactivityTimerId = null;
+    }
+};
+
+const performLogout = async ({ automatic = false } = {}) => {
+    clearInactivityTimer();
+    await closeChatSubscription().catch(() => null);
+    await closeIncomingChatSubscription().catch(() => null);
+    await window.MuheebData.logout().catch(() => null);
+    state.admin = null;
+    showLogin();
+    if (automatic && loginMessage) {
+        loginMessage.textContent = "تم تسجيل خروجك تلقائيًا بعد 10 دقائق من عدم النشاط.";
+    }
+};
+
+const resetInactivityTimer = () => {
+    if (!state.admin) return;
+    clearInactivityTimer();
+    inactivityTimerId = window.setTimeout(() => {
+        performLogout({ automatic: true });
+    }, inactivityLimitMs);
 };
 
 const setView = (viewId) => {
@@ -1151,6 +1292,23 @@ const renderStats = (stats) => {
         { label: "منشورة", value: stats.eventPublished || 0, color: "var(--success)" },
     ];
     const maxValue = Math.max(...chartRows.map((row) => row.value), 1);
+    const visibleLeads = getVisibleLeads().slice(0, 6);
+    if (overviewLeadProgress) {
+        overviewLeadProgress.innerHTML = visibleLeads.length ? `
+            <div class="overview-progress-head">
+                <span>تقدم طلبات العملاء</span>
+                <strong>${visibleLeads.length}</strong>
+            </div>
+            ${visibleLeads.map((lead) => `
+                <button class="overview-progress-strip" type="button" data-open-lead="${lead.id}">
+                    <span>${escapeHtml(lead.name)}</span>
+                    <small>${escapeHtml(lead.service)}</small>
+                    ${renderProgressBar(lead, true)}
+                </button>
+            `).join("")}
+        ` : "";
+        overviewLeadProgress.classList.toggle("is-empty", !visibleLeads.length);
+    }
     activityChart.innerHTML = chartRows.map((row) => `
         <div class="chart-row">
             <span>${escapeHtml(row.label)}</span>
@@ -1160,6 +1318,18 @@ const renderStats = (stats) => {
             <b>${row.value}</b>
         </div>
     `).join("");
+};
+
+const handleOverviewTarget = (target) => {
+    if (target === "leads-all" || target === "leads-new") {
+        setView("leadsView");
+        if (leadStatusFilter) leadStatusFilter.value = target === "leads-new" ? "new" : "all";
+        renderLeads();
+        return;
+    }
+    if (target === "events-all" || target === "events-published") {
+        setView("eventsView");
+    }
 };
 
 const renderLeads = () => {
@@ -1362,7 +1532,7 @@ const openLeadModal = (leadId) => {
 const closeLeadModal = () => {
     state.activeLeadId = null;
     leadModal?.classList.add("is-hidden");
-    document.body.classList.remove("modal-open");
+    setModalOpenState();
     leadNoteForm?.reset();
 };
 
@@ -1371,9 +1541,7 @@ const closeNoteInquiryModal = () => {
     noteInquiryModal?.classList.add("is-hidden");
     noteInquiryForm?.reset();
     if (noteInquiryMessage) noteInquiryMessage.textContent = "";
-    if (noteInquiryModal && leadModal?.classList.contains("is-hidden")) {
-        document.body.classList.remove("modal-open");
-    }
+    setModalOpenState();
 };
 
 const openNoteInquiryModal = ({ mode = "create", noteId = "", inquiryId = "" } = {}) => {
@@ -1806,6 +1974,15 @@ const visualContentDefaults = [
 const contentDefaultMap = new Map([...defaultSiteContentRows, ...visualContentDefaults].map((row) => [row.contentKey, row]));
 const visualContentKeys = new Set(visualContentDefaults.map((row) => row.contentKey));
 
+const getDefaultContentRowsForGroups = (groupToken = "") => {
+    const groups = String(groupToken || "")
+        .split("|")
+        .map((group) => group.trim())
+        .filter(Boolean);
+    if (!groups.length) return [];
+    return Array.from(contentDefaultMap.values()).filter((row) => groups.includes(row.groupName));
+};
+
 const getContentRow = (key) => {
     const fallback = contentDefaultMap.get(key) || {};
     const source = state.siteContent.find((item) => item.contentKey === key) || {};
@@ -1846,13 +2023,19 @@ const renderVisualField = (key, options = {}) => {
     `;
 };
 
-const renderContentSectionHeader = (number, eyebrow, title, icon) => `
+const renderContentSectionHeader = (number, eyebrow, title, icon, groupToken = "") => `
     <div class="visual-section-heading">
         <span class="visual-section-number">${escapeHtml(number)}</span>
         <div>
             <p class="eyebrow"><i data-lucide="${escapeHtml(icon)}"></i>${escapeHtml(eyebrow)}</p>
             <h3>${escapeHtml(title)}</h3>
         </div>
+        ${groupToken ? `
+            <button class="ghost-btn small-inline-btn section-restore-btn" type="button" data-restore-content-group="${escapeHtml(groupToken)}">
+                <i data-lucide="rotate-ccw"></i>
+                <span>استعادة النصوص الافتراضية</span>
+            </button>
+        ` : ""}
     </div>
 `;
 
@@ -1926,7 +2109,7 @@ const renderContentEditor = () => {
             </nav>
 
             <section class="visual-preview-section visual-header-editor" id="visualHeader" data-permission="content_header">
-                ${renderContentSectionHeader("00", "الهيدر والتنقل", "أسماء الروابط وترتيبها كما تظهر في أعلى الموقع", "menu")}
+                ${renderContentSectionHeader("00", "الهيدر والتنقل", "أسماء الروابط وترتيبها كما تظهر في أعلى الموقع", "menu", "الهيدر")}
                 <div class="visual-nav-labels">
                     ${renderVisualField("nav_home_label", { label: "الرابط الأول" })}
                     ${renderVisualField("nav_about_label", { label: "الرابط الثاني" })}
@@ -1939,7 +2122,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section visual-hero-editor" id="visualHero" data-permission="content_hero">
-                ${renderContentSectionHeader("01", "الصفحة الرئيسية", "الواجهة الأولى للموقع", "layout-template")}
+                ${renderContentSectionHeader("01", "الصفحة الرئيسية", "الواجهة الأولى للموقع", "layout-template", "الصفحة الرئيسية")}
                 <div class="visual-hero-surface">
                     <div class="visual-hero-media">
                         <div class="visual-logo-word">مُهيب</div>
@@ -1961,7 +2144,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section" id="visualAbout" data-permission="content_about">
-                ${renderContentSectionHeader("02", "عن مهيب", "التعريف والإحصائيات", "badge-info")}
+                ${renderContentSectionHeader("02", "عن مهيب", "التعريف والإحصائيات", "badge-info", "عن مهيب")}
                 <div class="visual-about-grid">
                     <div class="visual-copy-block">
                         ${renderVisualField("about_eyebrow", { label: "العنوان الصغير" })}
@@ -1980,7 +2163,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section" id="visualServices" data-permission="content_services">
-                ${renderContentSectionHeader("03", "الخدمات", "بطاقات الخدمات كما يراها الزائر", "sparkles")}
+                ${renderContentSectionHeader("03", "الخدمات", "بطاقات الخدمات كما يراها الزائر", "sparkles", "الخدمات")}
                 <div class="visual-copy-block visual-copy-wide">
                     ${renderVisualField("services_eyebrow", { label: "العنوان الصغير" })}
                     ${renderVisualField("services_title", { label: "عنوان الخدمات", multiline: true, rows: 2, className: "is-section-title" })}
@@ -1994,7 +2177,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section" id="visualWorks" data-permission="content_works">
-                ${renderContentSectionHeader("04", "الأعمال والمميزات", "العناوين ومربعات نقاط القوة", "layers-3")}
+                ${renderContentSectionHeader("04", "الأعمال والمميزات", "العناوين ومربعات نقاط القوة", "layers-3", "الأعمال والفعاليات|معرض الهوية|المميزات")}
                 <div class="visual-two-column">
                     <div class="visual-copy-block">
                         ${renderVisualField("identity_eyebrow", { label: "عنوان صغير لمعرض الهوية" })}
@@ -2016,7 +2199,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section visual-journey-editor" id="visualJourney" data-permission="content_journey">
-                ${renderContentSectionHeader("05", "رحلة التنفيذ", "من الفكرة إلى التوثيق", "route")}
+                ${renderContentSectionHeader("05", "رحلة التنفيذ", "من الفكرة إلى التوثيق", "route", "رحلة التنفيذ")}
                 <div class="visual-two-column">
                     <div class="visual-stamp-preview">
                         <span>تخطيط</span>
@@ -2037,7 +2220,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section" id="visualForm" data-permission="content_form">
-                ${renderContentSectionHeader("06", "نموذج الطلب", "النصوص التي يراها العميل قبل الإرسال", "send")}
+                ${renderContentSectionHeader("06", "نموذج الطلب", "النصوص التي يراها العميل قبل الإرسال", "send", "نموذج الطلب")}
                 <div class="visual-form-editor">
                     <div class="visual-copy-block">
                         ${renderVisualField("interest_eyebrow", { label: "العنوان الصغير" })}
@@ -2061,7 +2244,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section visual-contact-editor" id="visualContact" data-permission="content_contact">
-                ${renderContentSectionHeader("07", "صفحة تواصل معنا", "محتوى الصفحة المستقلة", "messages-square")}
+                ${renderContentSectionHeader("07", "صفحة تواصل معنا", "محتوى الصفحة المستقلة", "messages-square", "صفحة التواصل")}
                 <div class="visual-contact-hero">
                     <div>
                         ${renderVisualField("contact_page_eyebrow", { label: "العنوان الصغير" })}
@@ -2089,7 +2272,7 @@ const renderContentEditor = () => {
             </section>
 
             <section class="visual-preview-section visual-footer-editor" id="visualFooter" data-permission="content_footer">
-                ${renderContentSectionHeader("08", "التذييل والبيانات الرسمية", "النصوص الصغيرة أسفل الموقع", "panel-bottom")}
+                ${renderContentSectionHeader("08", "التذييل والبيانات الرسمية", "النصوص الصغيرة أسفل الموقع", "panel-bottom", "التواصل والفوتر")}
                 <div class="visual-footer-surface">
                     <div class="visual-footer-brand">
                         <div class="visual-logo-word is-light">مُهيب</div>
@@ -2231,6 +2414,10 @@ const renderSiteImages = () => {
                         <p class="eyebrow"><i data-lucide="${escapeHtml(meta.icon)}"></i>${escapeHtml(meta.title)}</p>
                         <h3>${escapeHtml(meta.description)}</h3>
                     </div>
+                    <button class="ghost-btn small-inline-btn section-restore-btn" type="button" data-restore-site-image-group="${escapeHtml(groupName)}">
+                        <i data-lucide="rotate-ccw"></i>
+                        <span>استعادة صور القسم</span>
+                    </button>
                 </div>
                 <div class="site-image-group-grid">
                     ${sortedImages.map(renderImageCard).join("")}
@@ -2261,8 +2448,21 @@ const syncSiteImageGroupPermissionOptions = () => {
     }
 };
 
+const openInterestOptionModal = () => {
+    interestOptionModal?.classList.remove("is-hidden");
+    setModalOpenState();
+    initIcons();
+};
+
+const closeInterestOptionModal = () => {
+    interestOptionModal?.classList.add("is-hidden");
+    setModalOpenState();
+    if (interestOptionMessage) interestOptionMessage.textContent = "";
+};
+
 const resetInterestOptionForm = () => {
     state.editingInterestOption = null;
+    if (!interestOptionForm) return;
     interestOptionForm.reset();
     interestOptionForm.elements.optionId.value = "";
     const firstAllowedType = Object.keys(dropdownTypeLabels).find((type) => can(getDropdownPermission(type))) || "interest";
@@ -2285,7 +2485,7 @@ const startNewInterestOption = (type = "interest") => {
     resetInterestOptionForm();
     if (interestOptionForm.elements.optionType) interestOptionForm.elements.optionType.value = type;
     interestOptionFormTitle.textContent = `إضافة عنصر إلى ${dropdownTypeLabels[type] || "القوائم"}`;
-    interestOptionForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    openInterestOptionModal();
     window.setTimeout(() => interestOptionForm.elements.label?.focus(), 180);
 };
 
@@ -2601,7 +2801,7 @@ const openSupportLogoModal = () => {
 
 const closeSupportLogoModal = () => {
     supportLogoModal?.classList.add("is-hidden");
-    document.body.classList.remove("modal-open");
+    setModalOpenState();
     supportLogoForm?.reset();
     if (eventSupportLogosInput) {
         eventSupportLogosInput.value = "";
@@ -2640,7 +2840,7 @@ const openEventSectionModal = (index = null) => {
 
 const closeEventSectionModal = () => {
     eventSectionModal?.classList.add("is-hidden");
-    document.body.classList.remove("modal-open");
+    setModalOpenState();
     eventSectionForm?.reset();
     if (eventSectionImageInput) {
         eventSectionImageInput.value = "";
@@ -2956,7 +3156,7 @@ const openSiteImageModal = () => {
 
 const closeSiteImageModal = () => {
     siteImageModal?.classList.add("is-hidden");
-    document.body.classList.remove("modal-open");
+    setModalOpenState();
     if (newSiteImageFile) {
         newSiteImageFile.value = "";
         editedFiles.delete(newSiteImageFile);
@@ -2986,6 +3186,28 @@ const saveSiteContent = async () => {
         state.siteContent = await window.MuheebData.saveSiteContent(rows);
         await loadAll();
         showMessage("تم حفظ نصوص الموقع بنجاح.", contentMessage);
+    } catch (error) {
+        showError(error.message, contentMessage);
+    }
+};
+
+const restoreContentGroupDefaults = async (groupToken) => {
+    const rows = getDefaultContentRowsForGroups(groupToken).filter((row) => can(getContentPermission(row)));
+    if (!rows.length) {
+        showError("ليست لديك صلاحية استعادة نصوص هذا القسم.", contentMessage);
+        return;
+    }
+    const confirmed = await confirmAction({
+        title: "استعادة النصوص الافتراضية",
+        message: "سيتم استبدال نصوص هذا القسم بالنصوص الافتراضية. هل تريد المتابعة؟",
+        confirmText: "استعادة",
+    });
+    if (!confirmed) return;
+    showMessage("جاري استعادة النصوص...", contentMessage);
+    try {
+        state.siteContent = await window.MuheebData.saveSiteContent(rows);
+        await loadAll();
+        showMessage("تمت استعادة نصوص القسم بنجاح.", contentMessage);
     } catch (error) {
         showError(error.message, contentMessage);
     }
@@ -3076,15 +3298,24 @@ const toggleSiteImage = async (imageId) => {
     }
 };
 
-const restoreDefaultSiteImages = async () => {
+const restoreDefaultSiteImages = async (groupName = "") => {
+    const groupMeta = groupName ? getSiteImageGroupMeta(groupName) : null;
+    const confirmed = await confirmAction({
+        title: groupName ? "استعادة صور القسم" : "استعادة كل الصور الافتراضية",
+        message: groupName
+            ? `سيتم استعادة الصور الافتراضية لقسم "${groupMeta?.title || groupName}". هل تريد المتابعة؟`
+            : "سيتم استعادة الصور الافتراضية لكل مكتبة الصور. هل تريد المتابعة؟",
+        confirmText: "استعادة",
+    });
+    if (!confirmed) return;
     showMessage("جاري استعادة الصور الافتراضية...");
     try {
-        if (!can("site_images")) {
+        if (!can(groupName ? getSiteImagePermission(groupName) : "site_images")) {
             throw new Error("استعادة الصور الافتراضية تحتاج صلاحية كاملة على صور الموقع.");
         }
-        await window.MuheebData.restoreDefaultSiteImages();
+        await window.MuheebData.restoreDefaultSiteImages(groupName);
         await loadAll();
-        showMessage("تمت استعادة الصور الافتراضية للمكتبة.");
+        showMessage(groupName ? "تمت استعادة صور القسم الافتراضية." : "تمت استعادة الصور الافتراضية للمكتبة.");
     } catch (error) {
         showError(error.message);
     }
@@ -3106,6 +3337,8 @@ const editInterestOption = (optionId) => {
     interestOptionForm.elements.published.checked = Boolean(option.published);
     interestOptionFormTitle.textContent = "تعديل عنصر من القوائم";
     setView("interestOptionsView");
+    openInterestOptionModal();
+    window.setTimeout(() => interestOptionForm.elements.label?.focus(), 180);
 };
 
 const saveInterestOption = async (event) => {
@@ -3128,6 +3361,7 @@ const saveInterestOption = async (event) => {
         resetInterestOptionForm();
         await loadAll();
         showMessage("تم حفظ الاختيار بنجاح.", interestOptionMessage);
+        closeInterestOptionModal();
     } catch (error) {
         showError(error.message, interestOptionMessage);
     }
@@ -3159,7 +3393,12 @@ const deleteInterestOption = async (optionId) => {
         showError("ليست لديك صلاحية حذف هذا النوع من القوائم.");
         return;
     }
-    if (!confirm(`هل تريد حذف "${option.label}" من القوائم المنسدلة؟`)) return;
+    const confirmed = await confirmAction({
+        title: "حذف عنصر من القوائم",
+        message: `هل تريد حذف "${option.label}" من القوائم المنسدلة؟`,
+        confirmText: "حذف",
+    });
+    if (!confirmed) return;
     try {
         await window.MuheebData.deleteInterestOption(optionId);
         await loadAll();
@@ -3177,6 +3416,9 @@ const resetUserForm = () => {
     userForm.elements.avatarUrl.value = "";
     userForm.elements.email.disabled = false;
     userForm.elements.password.required = true;
+    userForm.elements.passwordConfirm.required = true;
+    userForm.elements.passwordConfirm.value = "";
+    userForm.elements.role.value = "user";
     userForm.elements.active.checked = true;
     if (userAvatarInput) {
         userAvatarInput.value = "";
@@ -3197,7 +3439,7 @@ const openUserModal = (mode = "new") => {
 
 const closeUserModal = () => {
     userModal?.classList.add("is-hidden");
-    document.body.classList.remove("modal-open");
+    setModalOpenState();
 };
 
 const renderPermissionsGrid = (permissions = {}) => {
@@ -3294,7 +3536,24 @@ const renderUsers = () => {
     initIcons();
 };
 
-const getChatPeer = () => state.users.find((user) => user.userId === state.activeChatUserId);
+const isTeamChatSelected = () => state.activeChatUserId === chatAllUsersId;
+
+const getChatRecipients = () => state.users.filter((user) => (
+    user.active !== false &&
+    user.userId &&
+    user.userId !== state.admin?.userId
+));
+
+const getChatPeer = () => {
+    if (isTeamChatSelected()) {
+        return {
+            userId: chatAllUsersId,
+            fullName: "كل الفريق",
+            role: "team",
+        };
+    }
+    return state.users.find((user) => user.userId === state.activeChatUserId);
+};
 
 const renderChatUsers = () => {
     if (!chatUsersList) return;
@@ -3302,17 +3561,22 @@ const renderChatUsers = () => {
         chatUsersList.innerHTML = `<div class="compact-item"><span>لا توجد صلاحية لاستخدام الدردشة.</span></div>`;
         return;
     }
-    const users = state.users.filter((user) => (
-        user.active !== false &&
-        user.userId &&
-        user.userId !== state.admin?.userId
-    ));
-    chatUsersList.innerHTML = users.map((user) => `
+    const users = getChatRecipients();
+    const allTeamButton = users.length ? `
+        <button class="chat-user-button chat-all-button ${isTeamChatSelected() ? "is-active" : ""}" type="button" data-chat-user="${chatAllUsersId}">
+            <span class="table-avatar">
+                <i data-lucide="users-round"></i>
+            </span>
+            <span class="chat-user-copy">
+                <strong>كل الفريق</strong>
+            </span>
+        </button>
+    ` : "";
+    chatUsersList.innerHTML = allTeamButton + users.map((user) => `
         <button class="chat-user-button ${user.userId === state.activeChatUserId ? "is-active" : ""}" type="button" data-chat-user="${escapeHtml(user.userId)}">
             ${renderUserAvatar(user, "table-avatar")}
             <span class="chat-user-copy">
                 <strong>${escapeHtml(getDisplayName(user))}</strong>
-                <span>${escapeHtml(user.email || user.phone || "عضو فريق")}</span>
             </span>
             ${getUnreadChatCountBySender(user.userId) ? `<span class="chat-user-unread">${getUnreadChatCountBySender(user.userId)}</span>` : ""}
         </button>
@@ -3327,15 +3591,17 @@ const renderChatMessages = () => {
     if (chatHeader) {
         chatHeader.innerHTML = peer ? `
             <div class="chat-peer-title">
-                ${renderUserAvatar(peer, "table-avatar")}
+                ${isTeamChatSelected() ? `<span class="table-avatar"><i data-lucide="users-round"></i></span>` : renderUserAvatar(peer, "table-avatar")}
                 <div>
-                    <p class="eyebrow">محادثة مباشرة</p>
+                    <p class="eyebrow">${isTeamChatSelected() ? "رسالة جماعية" : "محادثة مباشرة"}</p>
                     <h2>${escapeHtml(getDisplayName(peer))}</h2>
                 </div>
             </div>
+            ${isTeamChatSelected() ? "" : `
             <button class="ghost-btn icon-only chat-clear-button" type="button" data-clear-chat title="حذف محتوى المحادثة" aria-label="حذف محتوى المحادثة">
                 <i data-lucide="trash-2"></i>
             </button>
+            `}
         ` : `
             <div>
                 <p class="eyebrow">المحادثة</p>
@@ -3348,11 +3614,17 @@ const renderChatMessages = () => {
         initIcons();
         return;
     }
+    if (isTeamChatSelected() && !state.chatMessages.length) {
+        chatMessages.innerHTML = `<div class="chat-empty">اكتب رسالة واحدة وسيتم إرسالها إلى كل أعضاء الفريق.</div>`;
+        initIcons();
+        return;
+    }
     chatMessages.innerHTML = state.chatMessages.map((message) => {
         const isMine = message.senderUserId === state.admin?.userId;
         const sender = getUserById(message.senderUserId) || (isMine ? state.admin : peer);
         const attachment = message.attachment || {};
         const attachmentUrl = attachment.url || attachment.path || "";
+        const attachmentName = attachment.name || inferFileNameFromUrl(attachmentUrl);
         return `
             <article class="chat-message ${isMine ? "is-mine" : "is-theirs"}">
                 <div class="chat-message-meta">
@@ -3361,10 +3633,15 @@ const renderChatMessages = () => {
                 </div>
                 ${message.body ? `<p>${escapeHtml(message.body)}</p>` : ""}
                 ${attachmentUrl ? `
-                    <a class="chat-attachment" href="${escapeHtml(attachmentUrl)}" target="_blank" rel="noopener">
-                        <i data-lucide="paperclip"></i>
-                        <span>${escapeHtml(attachment.name || "مرفق")}</span>
-                    </a>
+                    <div class="chat-attachment-row">
+                        <a class="chat-attachment" href="${escapeHtml(attachmentUrl)}" target="_blank" rel="noopener">
+                            <i data-lucide="paperclip"></i>
+                            <span>${escapeHtml(attachmentName || "مرفق")}</span>
+                        </a>
+                        <button class="chat-download-btn" type="button" data-chat-download-url="${escapeHtml(attachmentUrl)}" data-chat-download-name="${escapeHtml(attachmentName)}" title="تحميل المرفق" aria-label="تحميل المرفق">
+                            <i data-lucide="download"></i>
+                        </button>
+                    </div>
                 ` : ""}
             </article>
         `;
@@ -3406,7 +3683,15 @@ const clearActiveChat = async () => {
         showError("اختر محادثة أولاً.", chatMessageStatus);
         return;
     }
-    const confirmed = window.confirm(`هل تريد حذف كل رسائل المحادثة مع ${getDisplayName(peer)}؟ لا يمكن التراجع عن هذا الإجراء.`);
+    if (isTeamChatSelected()) {
+        showError("اختر محادثة عضو محدد لحذف محتواها.", chatMessageStatus);
+        return;
+    }
+    const confirmed = await confirmAction({
+        title: "حذف محتوى المحادثة",
+        message: `هل تريد حذف كل رسائل المحادثة مع ${getDisplayName(peer)}؟ لا يمكن التراجع عن هذا الإجراء.`,
+        confirmText: "حذف",
+    });
     if (!confirmed) return;
     showMessage("جاري حذف محتوى المحادثة...", chatMessageStatus);
     try {
@@ -3452,6 +3737,14 @@ const startIncomingChatSubscription = async () => {
 const openChatWithUser = async (userId) => {
     if (!can("chat")) {
         showError("ليست لديك صلاحية استخدام الدردشة.", chatMessageStatus);
+        return;
+    }
+    if (userId === chatAllUsersId) {
+        await closeChatSubscription();
+        state.activeChatUserId = chatAllUsersId;
+        state.chatMessages = [];
+        renderChatUsers();
+        renderChatMessages();
         return;
     }
     const peer = state.users.find((user) => user.userId === userId);
@@ -3500,6 +3793,13 @@ const sendChatMessage = async (event) => {
         showError("اكتب رسالة أو أرفق ملفًا قبل الإرسال.", chatMessageStatus);
         return;
     }
+    const recipients = isTeamChatSelected()
+        ? getChatRecipients().map((user) => user.userId)
+        : [state.activeChatUserId];
+    if (!recipients.length) {
+        showError("لا يوجد أعضاء فريق لإرسال الرسالة لهم.", chatMessageStatus);
+        return;
+    }
     showMessage("جاري إرسال الرسالة...", chatMessageStatus);
     try {
         let attachment = {};
@@ -3514,13 +3814,18 @@ const sendChatMessage = async (event) => {
                 size: file?.size || 0,
             };
         }
-        const savedMessage = await window.MuheebData.sendChatMessage({
-            recipientUserId: state.activeChatUserId,
+        const savedMessages = await Promise.all(recipients.map((recipientUserId) => window.MuheebData.sendChatMessage({
+            recipientUserId,
             body,
             attachment,
+        })));
+        savedMessages.forEach((savedMessage) => {
+            if (savedMessage?.id && !state.chatMessages.some((message) => message.id === savedMessage.id)) {
+                state.chatMessages.push(savedMessage);
+            }
         });
-        if (savedMessage?.id && !state.chatMessages.some((message) => message.id === savedMessage.id)) {
-            state.chatMessages.push(savedMessage);
+        if (isTeamChatSelected()) {
+            state.chatMessages = savedMessages.filter(Boolean);
         }
         if (chatForm?.elements.message) chatForm.elements.message.value = "";
         if (chatAttachmentInput) {
@@ -3529,7 +3834,7 @@ const sendChatMessage = async (event) => {
         }
         if (chatAttachmentName) chatAttachmentName.textContent = "لا يوجد مرفق";
         renderChatMessages();
-        showMessage("تم إرسال الرسالة.", chatMessageStatus);
+        showMessage(isTeamChatSelected() ? `تم إرسال الرسالة إلى ${recipients.length} عضو.` : "تم إرسال الرسالة.", chatMessageStatus);
     } catch (error) {
         showError(error.message, chatMessageStatus);
     }
@@ -3548,8 +3853,11 @@ const editUser = (userId) => {
     userForm.elements.phone.value = user.phone || "";
     userForm.elements.email.value = user.email || (user.userId === state.admin?.userId ? state.admin?.authEmail || "" : "");
     userForm.elements.email.disabled = true;
+    userForm.elements.role.value = user.role || "user";
     userForm.elements.password.value = "";
     userForm.elements.password.required = false;
+    userForm.elements.passwordConfirm.value = "";
+    userForm.elements.passwordConfirm.required = false;
     userForm.elements.active.checked = user.active !== false;
     userForm.elements.avatarUrl.value = getUserAvatar(user);
     if (userAvatarInput) {
@@ -3579,6 +3887,19 @@ const saveUser = async (event) => {
         const editingEmail = state.editingUser?.email || (
             state.editingUser?.userId === state.admin?.userId ? state.admin?.authEmail || "" : ""
         );
+        const password = String(formData.get("password") || "");
+        const passwordConfirm = String(formData.get("passwordConfirm") || "");
+        if (!userId && !password) {
+            throw new Error("كلمة السر مطلوبة عند إضافة مستخدم جديد.");
+        }
+        if (password || passwordConfirm) {
+            if (password.length < 8) {
+                throw new Error("كلمة السر يجب أن تكون 8 أحرف على الأقل.");
+            }
+            if (password !== passwordConfirm) {
+                throw new Error("كلمة السر وتأكيد كلمة السر غير متطابقين.");
+            }
+        }
         let avatarUrl = formData.get("avatarUrl") || state.editingUser?.avatarUrl || state.editingUser?.permissions?.avatarUrl || "";
         const avatarFiles = getInputFiles(userAvatarInput);
         if (avatarFiles && avatarFiles.length) {
@@ -3593,7 +3914,8 @@ const saveUser = async (event) => {
             fullName: formData.get("fullName"),
             phone: formData.get("phone"),
             email: formData.get("email") || editingEmail,
-            password: formData.get("password"),
+            password,
+            role: formData.get("role") || "user",
             active: userForm.elements.active.checked,
             permissions,
         }, userId || null);
@@ -3611,7 +3933,12 @@ const deleteUser = async (userId) => {
         showError("ليست لديك صلاحية حذف المستخدمين.");
         return;
     }
-    if (!window.confirm("هل تريد إزالة صلاحيات هذا المستخدم من لوحة التحكم؟")) return;
+    const confirmed = await confirmAction({
+        title: "حذف مستخدم",
+        message: "هل تريد إزالة صلاحيات هذا المستخدم من لوحة التحكم؟",
+        confirmText: "حذف",
+    });
+    if (!confirmed) return;
     try {
         await window.MuheebData.deleteAdminUser(userId);
         await loadAll();
@@ -3623,27 +3950,38 @@ const deleteUser = async (userId) => {
 
 const openProfileModal = () => {
     if (!profileModal || !state.admin) return;
+    const canUpdateAvatar = can("users_edit") || isOwner();
     profileDetailGrid.innerHTML = `
-        <article class="profile-avatar-card">
+        <article class="profile-avatar-card profile-avatar-hero">
             ${renderUserAvatar(state.admin, "profile-avatar-large")}
-            <strong>${escapeHtml(getDisplayName())}</strong>
+            ${canUpdateAvatar ? `
+                <label class="profile-avatar-upload">
+                    <input type="file" data-profile-avatar-file accept="image/png,image/jpeg,image/webp,image/gif">
+                    <i data-lucide="camera"></i>
+                    <span>تغيير</span>
+                </label>
+            ` : ""}
         </article>
-        <article>
-            <span>الاسم</span>
-            <strong>${escapeHtml(getDisplayName())}</strong>
-        </article>
-        <article>
-            <span>رقم الجوال</span>
-            <strong class="phone-ltr">${escapeHtml(state.admin.phone || "غير مضاف")}</strong>
-        </article>
-        <article>
-            <span>الإيميل</span>
-            <strong>${escapeHtml(state.admin.email || state.admin.authEmail || "-")}</strong>
-        </article>
-        <article>
-            <span>نوع الحساب</span>
-            <strong>${state.admin.role === "owner" ? "مالك" : "مستخدم"}</strong>
-        </article>
+        <div class="profile-info-row profile-info-main">
+            <article>
+                <span>الاسم</span>
+                <strong>${escapeHtml(getDisplayName())}</strong>
+            </article>
+            <article>
+                <span>رقم الجوال</span>
+                <strong class="phone-ltr">${escapeHtml(state.admin.phone || "غير مضاف")}</strong>
+            </article>
+            <article>
+                <span>نوع الحساب</span>
+                <strong>${state.admin.role === "owner" ? "مالك" : "مستخدم"}</strong>
+            </article>
+        </div>
+        <div class="profile-info-row profile-info-secondary">
+            <article>
+                <span>الإيميل</span>
+                <strong>${escapeHtml(state.admin.email || state.admin.authEmail || "-")}</strong>
+            </article>
+        </div>
     `;
     if (profileRequestForm) {
         profileRequestForm.elements.fullName.value = state.admin.fullName || "";
@@ -3657,7 +3995,39 @@ const openProfileModal = () => {
 
 const closeProfileModal = () => {
     profileModal?.classList.add("is-hidden");
-    document.body.classList.remove("modal-open");
+    setModalOpenState();
+};
+
+const saveProfileAvatar = async (fileInput) => {
+    const file = fileInput?.files?.[0];
+    if (!file || !state.admin?.userId) return;
+    if (!can("users_edit") && !isOwner()) {
+        showError("ليست لديك صلاحية تغيير صورة الملف الشخصي.");
+        return;
+    }
+    showMessage("جاري تحديث صورة الملف الشخصي...");
+    try {
+        const uploaded = await uploadFiles([file], "users");
+        const avatarUrl = uploaded[0]?.path || "";
+        if (!avatarUrl) throw new Error("تعذر رفع الصورة.");
+        const permissions = {
+            ...(state.admin.permissions || {}),
+            avatarUrl,
+        };
+        await window.MuheebData.saveAdminUser({
+            fullName: state.admin.fullName || getDisplayName(),
+            phone: state.admin.phone || "",
+            email: state.admin.email || state.admin.authEmail || "",
+            active: state.admin.active !== false,
+            role: state.admin.role || "user",
+            permissions,
+        }, state.admin.userId);
+        await loadAll();
+        openProfileModal();
+        showMessage("تم تحديث صورة الملف الشخصي.");
+    } catch (error) {
+        showError(error.message);
+    }
 };
 
 const renderProfileRequests = () => {
@@ -3734,7 +4104,7 @@ const renderNotifications = () => {
         type: "notification",
         createdAt: notification.createdAt,
         html: `
-            <button class="notification-item ${isRead(notification) ? "is-read" : ""}" type="button" data-open-lead="${escapeHtml(notification.leadId || "")}" data-notification-id="${escapeHtml(notification.id)}">
+            <button class="notification-item ${isRead(notification) ? "is-read" : ""}" type="button" data-open-lead="${escapeHtml(notification.leadId || "")}" ${notification.kind === "profile_change_request" ? 'data-open-profile-requests="true"' : ""} data-notification-id="${escapeHtml(notification.id)}">
                 <strong>${escapeHtml(notification.title)}</strong>
                 <span>${escapeHtml(notification.message)}</span>
                 <small>${isRead(notification) ? "مقروء" : "جديد"} - ${formatDate(notification.createdAt)}</small>
@@ -3803,6 +4173,7 @@ loginForm.addEventListener("submit", async (event) => {
         );
         showApp();
         await loadAll();
+        resetInactivityTimer();
     } catch (error) {
         loginMessage.textContent = error.message;
     }
@@ -3812,17 +4183,33 @@ document.querySelectorAll(".nav-item").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.view));
 });
 
-document.getElementById("logoutButton").addEventListener("click", async () => {
-    await closeChatSubscription();
-    await closeIncomingChatSubscription();
-    await window.MuheebData.logout().catch(() => null);
-    state.admin = null;
-    showLogin();
-});
+document.getElementById("logoutButton").addEventListener("click", () => performLogout());
 
 document.getElementById("refreshButton").addEventListener("click", async () => {
     await loadAll();
     showMessage("تم تحديث البيانات.");
+});
+
+confirmAcceptButton?.addEventListener("click", () => closeConfirmModal(true));
+confirmCancelButton?.addEventListener("click", () => closeConfirmModal(false));
+confirmModalCloseButton?.addEventListener("click", () => closeConfirmModal(false));
+confirmModal?.addEventListener("click", (event) => {
+    if (event.target === confirmModal) closeConfirmModal(false);
+});
+
+document.querySelectorAll("[data-overview-target]").forEach((card) => {
+    card.addEventListener("click", () => handleOverviewTarget(card.dataset.overviewTarget));
+    card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            handleOverviewTarget(card.dataset.overviewTarget);
+        }
+    });
+});
+
+overviewLeadProgress?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-open-lead]");
+    if (button) openLeadModal(Number(button.dataset.openLead));
 });
 
 profileButton?.addEventListener("click", () => toggleDropdown(profileMenu));
@@ -3837,8 +4224,14 @@ document.addEventListener("click", (event) => {
 leadStatusFilter.addEventListener("change", renderLeads);
 leadSearch?.addEventListener("input", renderLeads);
 saveContentButton?.addEventListener("click", saveSiteContent);
+contentEditor?.addEventListener("click", async (event) => {
+    const restoreButton = event.target.closest("[data-restore-content-group]");
+    if (restoreButton) {
+        await restoreContentGroupDefaults(restoreButton.dataset.restoreContentGroup);
+    }
+});
 siteImageForm?.addEventListener("submit", saveNewSiteImage);
-restoreSiteImagesButton?.addEventListener("click", restoreDefaultSiteImages);
+restoreSiteImagesButton?.addEventListener("click", () => restoreDefaultSiteImages());
 openSiteImageModalButton?.addEventListener("click", openSiteImageModal);
 closeSiteImageModalButton?.addEventListener("click", closeSiteImageModal);
 cancelSiteImageModalButton?.addEventListener("click", closeSiteImageModal);
@@ -3847,6 +4240,11 @@ siteImageModal?.addEventListener("click", (event) => {
 });
 interestOptionForm?.addEventListener("submit", saveInterestOption);
 document.getElementById("resetInterestOptionForm")?.addEventListener("click", resetInterestOptionForm);
+closeInterestOptionModalButton?.addEventListener("click", closeInterestOptionModal);
+cancelInterestOptionModalButton?.addEventListener("click", closeInterestOptionModal);
+interestOptionModal?.addEventListener("click", (event) => {
+    if (event.target === interestOptionModal) closeInterestOptionModal();
+});
 userForm?.addEventListener("submit", saveUser);
 document.getElementById("resetUserForm")?.addEventListener("click", resetUserForm);
 openUserModalButton?.addEventListener("click", () => {
@@ -3865,6 +4263,10 @@ closeProfileModalButton?.addEventListener("click", closeProfileModal);
 profileModal?.addEventListener("click", (event) => {
     if (event.target === profileModal) closeProfileModal();
 });
+profileDetailGrid?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-profile-avatar-file]");
+    if (input) await saveProfileAvatar(input);
+});
 
 profileRequestForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -3874,6 +4276,14 @@ profileRequestForm?.addEventListener("submit", async (event) => {
             fullName: profileRequestForm.elements.fullName.value,
             phone: profileRequestForm.elements.phone.value,
             email: profileRequestForm.elements.email.value,
+        });
+        await createTargetedNotifications(getProfileRequestNotificationTargets(), {
+            kind: "profile_change_request",
+            title: "طلب تعديل بيانات جديد",
+            message: `${getDisplayName()} أرسل طلب تعديل بياناته.`,
+        }).catch((error) => {
+            console.error("Muheeb profile request notification failed:", error);
+            showError(notificationFailureMessage);
         });
         await loadAll();
         closeProfileModal();
@@ -3931,6 +4341,13 @@ chatHeader?.addEventListener("click", (event) => {
     }
 });
 
+chatMessages?.addEventListener("click", async (event) => {
+    const downloadButton = event.target.closest("[data-chat-download-url]");
+    if (!downloadButton) return;
+    event.preventDefault();
+    await forceDownloadFile(downloadButton.dataset.chatDownloadUrl, downloadButton.dataset.chatDownloadName);
+});
+
 chatAttachmentInput?.addEventListener("change", () => {
     const file = getInputFiles(chatAttachmentInput)?.[0];
     if (chatAttachmentName) {
@@ -3943,7 +4360,7 @@ leadsTable.addEventListener("change", (event) => {
     if (leadId) updateLead(leadId, event.target.value);
 });
 
-leadsTable.addEventListener("click", (event) => {
+leadsTable.addEventListener("click", async (event) => {
     const whatsappButton = event.target.closest("[data-whatsapp-lead]");
     if (whatsappButton) {
         handleLeadWhatsappAction(whatsappButton.dataset.whatsappLead);
@@ -3952,11 +4369,19 @@ leadsTable.addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-delete-lead]");
     if (deleteButton) {
         const leadId = Number(deleteButton.dataset.deleteLead || 0);
-        if (!leadId || !window.confirm("هل تريد حذف هذا الطلب نهائيًا؟")) return;
-        window.MuheebData.deleteLead(leadId)
-            .then(loadAll)
-            .then(() => showMessage("تم حذف الطلب."))
-            .catch((error) => showError(error.message));
+        const confirmed = leadId && await confirmAction({
+            title: "حذف طلب العميل",
+            message: "هل تريد حذف هذا الطلب نهائيًا؟",
+            confirmText: "حذف",
+        });
+        if (!confirmed) return;
+        try {
+            await window.MuheebData.deleteLead(leadId);
+            await loadAll();
+            showMessage("تم حذف الطلب.");
+        } catch (error) {
+            showError(error.message);
+        }
         return;
     }
     const button = event.target.closest("[data-open-lead]");
@@ -3979,6 +4404,7 @@ notificationList?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-notification-id]");
     if (!button) return;
     const leadId = Number(button?.dataset.openLead || 0);
+    const openProfileRequests = button.hasAttribute("data-open-profile-requests");
     const notificationId = Number(button?.dataset.notificationId || 0);
     if (notificationId) {
         markNotificationReadLocally(notificationId);
@@ -3989,6 +4415,11 @@ notificationList?.addEventListener("click", async (event) => {
         } catch (error) {
             console.error("Muheeb notification read failed:", error);
             showError("تعذر تحديث الإشعار كمقروء. تأكد من تشغيل ملف تحديث Supabase.");
+        }
+        if (openProfileRequests) {
+            setView("securityView");
+            profileRequestsList?.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
         }
         if (leadId) openLeadModal(leadId);
     }
@@ -4074,8 +4505,13 @@ noteInquiryForm?.addEventListener("submit", async (event) => {
 });
 
 siteImageList?.addEventListener("click", async (event) => {
+    const restoreGroupButton = event.target.closest("[data-restore-site-image-group]");
     const saveButton = event.target.closest("[data-save-site-image]");
     const toggleButton = event.target.closest("[data-toggle-site-image]");
+    if (restoreGroupButton) {
+        await restoreDefaultSiteImages(restoreGroupButton.dataset.restoreSiteImageGroup);
+        return;
+    }
     if (saveButton) {
         await saveExistingSiteImage(Number(saveButton.dataset.saveSiteImage));
     }
@@ -4118,7 +4554,12 @@ eventsList.addEventListener("click", async (event) => {
     }
     if (deleteButton) {
         const eventId = Number(deleteButton.dataset.deleteEvent);
-        if (!window.confirm("هل تريد حذف هذه الفعالية؟")) return;
+        const confirmed = await confirmAction({
+            title: "حذف فعالية",
+            message: "هل تريد حذف هذه الفعالية؟",
+            confirmText: "حذف",
+        });
+        if (!confirmed) return;
         try {
             await window.MuheebData.deleteEvent(eventId);
             await loadAll();
@@ -4271,12 +4712,18 @@ passwordForm.addEventListener("submit", async (event) => {
     }
 });
 
+["click", "mousemove", "scroll", "touchstart"].forEach((eventName) => {
+    document.addEventListener(eventName, resetInactivityTimer, { passive: true });
+});
+document.addEventListener("keydown", resetInactivityTimer);
+
 (async () => {
     initIcons();
     try {
         state.admin = await window.MuheebData.getCurrentAdmin();
         showApp();
         await loadAll();
+        resetInactivityTimer();
     } catch (error) {
         showLogin();
     }

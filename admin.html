@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="assets/logo-meheib.png">
-    <link rel="stylesheet" href="admin.css?v=chat-cleanup-20260623">
+    <link rel="stylesheet" href="admin.css?v=chat-download-force-20260624">
 </head>
 <body>
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
@@ -17,7 +17,7 @@
         <form class="auth-card" id="loginForm">
             <img src="assets/logo-meheib.png" alt="شعار مهيب">
             <p class="eyebrow">لوحة التحكم</p>
-            <h1>تسجيل دخول المشرف</h1>
+            <h1>تسجيل الدخول</h1>
             <label>
                 <span>البريد الإلكتروني / اسم المستخدم المحلي</span>
                 <input type="text" name="username" autocomplete="username" required>
@@ -133,23 +133,24 @@
 
             <section class="admin-view active" id="overviewView">
                 <div class="stats-grid">
-                    <article class="stat-card stat-burgundy">
+                    <article class="stat-card stat-burgundy is-clickable" role="button" tabindex="0" data-overview-target="leads-all" aria-label="عرض كل الطلبات">
                         <span>كل الطلبات</span>
                         <strong id="leadTotal">0</strong>
                     </article>
-                    <article class="stat-card stat-gold">
+                    <article class="stat-card stat-gold is-clickable" role="button" tabindex="0" data-overview-target="leads-new" aria-label="عرض الطلبات الجديدة">
                         <span>طلبات جديدة</span>
                         <strong id="leadNew">0</strong>
                     </article>
-                    <article class="stat-card stat-stone">
+                    <article class="stat-card stat-stone is-clickable" role="button" tabindex="0" data-overview-target="events-all" aria-label="عرض كل الفعاليات">
                         <span>كل الفعاليات</span>
                         <strong id="eventTotal">0</strong>
                     </article>
-                    <article class="stat-card stat-green">
+                    <article class="stat-card stat-green is-clickable" role="button" tabindex="0" data-overview-target="events-published" aria-label="عرض الفعاليات المنشورة">
                         <span>فعاليات منشورة</span>
                         <strong id="eventPublished">0</strong>
                     </article>
                 </div>
+                <div class="overview-progress-board" id="overviewLeadProgress"></div>
                 <div class="quick-grid">
                     <article class="panel-card">
                         <h2>آخر طلبات العملاء</h2>
@@ -275,49 +276,6 @@
 
             <section class="admin-view" id="interestOptionsView">
                 <div class="options-layout">
-                    <form class="panel-card option-form" id="interestOptionForm">
-                        <div class="panel-header">
-                            <div>
-                                <p class="eyebrow">القوائم المنسدلة</p>
-                                <h2 id="interestOptionFormTitle">إضافة عنصر للقوائم</h2>
-                            </div>
-                            <button class="ghost-btn" type="button" id="resetInterestOptionForm">
-                                <i data-lucide="plus"></i>
-                                <span>جديد</span>
-                            </button>
-                        </div>
-                        <input type="hidden" name="optionId">
-                        <label>
-                            <span>نوع القائمة</span>
-                            <select name="optionType" required>
-                                <option value="interest">مجال الاهتمام في نموذج الطلب</option>
-                                <option value="event_category">تصنيف الفعاليات</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>الاسم الظاهر</span>
-                            <input type="text" name="label" required>
-                        </label>
-                        <label>
-                            <span>القيمة الداخلية</span>
-                            <input type="text" name="value" placeholder="اتركها فارغة لاستخدام نفس الاسم">
-                        </label>
-                        <div class="form-grid">
-                            <label>
-                                <span>ترتيب الظهور</span>
-                                <input type="number" name="sortOrder" value="0">
-                            </label>
-                            <label class="toggle-field">
-                                <input type="checkbox" name="published" checked>
-                                <span>إظهار العنصر في قائمته</span>
-                            </label>
-                        </div>
-                        <button class="primary-btn" type="submit">
-                            <i data-lucide="save"></i>
-                            <span>حفظ الاختيار</span>
-                        </button>
-                        <p class="form-message" id="interestOptionMessage" role="status"></p>
-                    </form>
                     <div class="panel-card">
                         <div class="panel-header">
                             <div>
@@ -646,6 +604,61 @@
         </form>
     </div>
 
+    <div class="modal-backdrop is-hidden" id="interestOptionModal" role="dialog" aria-modal="true" aria-labelledby="interestOptionFormTitle">
+        <form class="lead-modal option-modal option-form" id="interestOptionForm">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">القوائم المنسدلة</p>
+                    <h2 id="interestOptionFormTitle">إضافة عنصر للقوائم</h2>
+                </div>
+                <button class="ghost-btn icon-only" type="button" id="closeInterestOptionModal" aria-label="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <input type="hidden" name="optionId">
+            <div class="form-grid">
+                <label>
+                    <span>نوع القائمة</span>
+                    <select name="optionType" required>
+                        <option value="interest">مجال الاهتمام في نموذج الطلب</option>
+                        <option value="event_category">تصنيف الفعاليات</option>
+                    </select>
+                </label>
+                <label>
+                    <span>الاسم الظاهر</span>
+                    <input type="text" name="label" required>
+                </label>
+                <label>
+                    <span>القيمة الداخلية</span>
+                    <input type="text" name="value" placeholder="اتركها فارغة لاستخدام نفس الاسم">
+                </label>
+                <label>
+                    <span>ترتيب الظهور</span>
+                    <input type="number" name="sortOrder" value="0">
+                </label>
+            </div>
+            <label class="toggle-field compact-toggle">
+                <input type="checkbox" name="published" checked>
+                <span>إظهار العنصر في قائمته</span>
+            </label>
+            <div class="event-actions modal-actions">
+                <button class="ghost-btn" type="button" id="resetInterestOptionForm">
+                    <i data-lucide="rotate-ccw"></i>
+                    <span>تفريغ</span>
+                </button>
+                <button class="ghost-btn" type="button" id="cancelInterestOptionModal">
+                    <i data-lucide="x"></i>
+                    <span>إلغاء</span>
+                </button>
+                <button class="primary-btn" type="submit">
+                    <i data-lucide="save"></i>
+                    <span>حفظ الاختيار</span>
+                </button>
+            </div>
+            <p class="form-message" id="interestOptionMessage" role="status"></p>
+        </form>
+    </div>
+
     <div class="modal-backdrop is-hidden" id="supportLogoModal" role="dialog" aria-modal="true" aria-labelledby="supportLogoModalTitle">
         <form class="lead-modal support-logo-modal image-form" id="supportLogoForm">
             <header class="modal-header">
@@ -799,7 +812,18 @@
             </header>
             <input type="hidden" name="userId">
             <input type="hidden" name="avatarUrl">
-            <div class="form-grid">
+            <div class="user-avatar-editor">
+                <div class="user-avatar-preview" id="userAvatarPreview" aria-label="معاينة صورة الموظف">
+                    <i data-lucide="user-round"></i>
+                </div>
+                <label class="avatar-upload-chip">
+                    <i data-lucide="camera"></i>
+                    <span>إرفاق صورة</span>
+                    <input type="file" id="userAvatarInput" accept="image/png,image/jpeg,image/webp,image/gif">
+                    <small id="userAvatarName">اختياري - المقاس المقترح: 600 × 600 بكسل</small>
+                </label>
+            </div>
+            <div class="user-fields-row user-core-row">
                 <label>
                     <span>اسم المستخدم</span>
                     <input type="text" name="fullName" required>
@@ -809,6 +833,15 @@
                     <input type="tel" name="phone" placeholder="05xxxxxxxx">
                 </label>
                 <label>
+                    <span>نوع الحساب</span>
+                    <select name="role">
+                        <option value="user">مستخدم</option>
+                        <option value="owner">مالك</option>
+                    </select>
+                </label>
+            </div>
+            <div class="user-fields-row user-credentials-row">
+                <label>
                     <span>الإيميل</span>
                     <input type="email" name="email" autocomplete="off" required>
                 </label>
@@ -816,15 +849,9 @@
                     <span>كلمة السر</span>
                     <input type="password" name="password" autocomplete="new-password" minlength="8">
                 </label>
-            </div>
-            <div class="user-avatar-editor">
-                <div class="user-avatar-preview" id="userAvatarPreview" aria-label="معاينة صورة الموظف">
-                    <i data-lucide="user-round"></i>
-                </div>
-                <label class="upload-box">
-                    <span>صورة الموظف</span>
-                    <input type="file" id="userAvatarInput" accept="image/png,image/jpeg,image/webp,image/gif">
-                    <small id="userAvatarName">اختياري - المقاس المقترح: 600 × 600 بكسل</small>
+                <label>
+                    <span>تأكيد كلمة السر</span>
+                    <input type="password" name="passwordConfirm" autocomplete="new-password" minlength="8">
                 </label>
             </div>
             <div class="permission-grid" id="permissionsGrid"></div>
@@ -883,9 +910,34 @@
         </section>
     </div>
 
+    <div class="modal-backdrop is-hidden" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+        <section class="lead-modal confirm-modal">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow" id="confirmModalEyebrow">تأكيد الإجراء</p>
+                    <h2 id="confirmModalTitle">هل أنت متأكد؟</h2>
+                </div>
+                <button class="ghost-btn icon-only" type="button" id="confirmModalClose" aria-label="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <p id="confirmModalMessage" class="confirm-message">سيتم تنفيذ هذا الإجراء بعد التأكيد.</p>
+            <div class="event-actions modal-actions">
+                <button class="ghost-btn" type="button" id="confirmCancelButton">
+                    <i data-lucide="x"></i>
+                    <span>إلغاء</span>
+                </button>
+                <button class="danger-btn" type="button" id="confirmAcceptButton">
+                    <i data-lucide="check"></i>
+                    <span>تأكيد</span>
+                </button>
+            </div>
+        </section>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="supabase-config.js"></script>
-    <script src="supabase-client.js?v=chat-cleanup-20260623"></script>
-    <script src="admin.js?v=chat-cleanup-20260623"></script>
+    <script src="supabase-client.js?v=chat-download-force-20260624"></script>
+    <script src="admin.js?v=chat-download-force-20260624"></script>
 </body>
 </html>
